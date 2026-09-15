@@ -16,6 +16,7 @@ Register your team by adding one row to the table below and submitting the chang
 | No. | Name | Members | Requirements |
 | ---: | --- | --- | --- |
 | 0 | [Instructors](teams/Instructors.md) | [Scott Uk-Jin Lee](https://github.com/scottukjinlee/scottukjinlee), [Seungho Kim](https://github.com/oh-gnues/oh-gnues), [Elkarmy Salma](https://github.com/salma5-cpu), [Eric Zhang](https://github.com/Eric-Zhang37) | [Course guidance](teams/Instructors.md#responsibilities) |
+| 1 | [Hello World](https://github.com/eoieiie/Invaders-SDP-23621) | [Byeongjoo Hwang](https://github.com/eoieiie), [Junwoo Kang](https://github.com/oofrog), [Yongtae Kim](https://github.com/kyle891204), [Jaeone Park](https://github.com/kyobak), [Taehyun Bak](https://github.com/nuyh-99), [Myeongho Song](https://github.com/SongMyeongHo), [Changyong Woo](https://github.com/samryong), [Hyeokjun Lee](https://github.com/Aninnom), [Junhyeok Han](https://github.com/junh000) | [Main Menu](teams/HelloWorld.md) |
 
 ## Screenshots
 
