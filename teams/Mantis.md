@@ -2,21 +2,21 @@
 
 ## Team Introduction
 
-The instructor team coordinates course activities, supports the project teams, and manages cross-team integration for the IC-PBL project.
+Our team focuses on developing the Records & Achievements System for Space Invaders. We aim to make the game more engaging by tracking player performance and rewarding players when they reach different milestones and goals. Our system will include persistent records and achievements based on high scores, lives, coins, gameplay goals, and accuracy.
 
 ## Members
 
 | Name | Role | GitHub |
 | --- | --- | --- |
-| Parth | Team Leader | https://github.com/himmm69 |
-| Marko | Game logic | https://github.com/markovorkapic |
-| Adib | Collaborator | https://github.com/Adiboba| 
-| Aizat | Logic Programmer & Back-end | https://github.com/AizatIqbal |
-| Farhana | System Architect & Database |https://github.com/hana-hanif  |
-|Hessa | UI/UX | https://github.com/srhessaroslan-ux | 
-| Aiman | Cross-System Integration Engineer | https://github.com/Irfnaimann02 |
-| Dina | QA & Balance Tester | https://github.com/dinaadaniii 
-| Syafiq | Front-end | https://github.com/syafiqnorfandhi |
+| Parth | Team Leader | [himmm69](https://github.com/himmm69) |
+| Marko | Game logic | [markovorkapic](https://github.com/markovorkapic) |
+| Adib | Collaborator | [Adiboba](https://github.com/Adiboba)| 
+| Aizat | Logic Programmer & Back-end | [AizatIqbal](https://github.com/AizatIqbal) |
+| Farhana | System Architect & Database | [hana-hanif](https://github.com/hana-hanif)  |
+|Hessa | UI/UX | [srhessaroslan-ux](https://github.com/srhessaroslan-ux) | 
+| Aiman | Cross-System Integration Engineer | [Irfnaimann02](https://github.com/Irfnaimann02) |
+| Dina | QA & Balance Tester | [dinaadaniii](https://github.com/dinaadaniii) | 
+| Syafiq | Front-end | [Fiq](https://github.com/syafiqnorfandhi) |
 
 ## Responsibilities
 
