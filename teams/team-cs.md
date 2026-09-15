@@ -8,15 +8,15 @@ Team CS is responsible for designing and implementing the **Item System** for th
 
 | Member | GitHub | Role |
 | --- | --- | --- |
-| KimHyunChan | [whitson1117](https://github.com/whitson1117) | Team Leader |
-| HanJaeHyuk | [doha1208](https://github.com/doha1208) | Github Manager, QA Manager |
-| SonDongYeol | [playlistSDY](https://github.com/playlistSDY) | Item data model & architecture |
-| Choseonggil | [ancho040220](https://github.com/ancho040220) | Director, Developer  |
+| Kim HyunChan | [whitson1117](https://github.com/whitson1117) | Team Leader |
+| Han JaeHyuk | [doha1208](https://github.com/doha1208) | Github Manager, QA Manager |
+| Son DongYeol | [playlistSDY](https://github.com/playlistSDY) | Item data model & architecture |
+| Cho SeongGil | [ancho040220](https://github.com/ancho040220) | Director, Developer  |
 | Choi Jian | [choichoi10](https://github.com/choichoi10) | Director, Developer |
-| Choigeonhee | [choigeonhee2025](https://github.com/choigeonhee2025) | Developer |
+| Choi GeonHee | [choigeonhee2025](https://github.com/choigeonhee2025) | Developer |
 | Kim JiHo | [GTMBB](https://github.com/GTMBB) | Director, Developer |
-| ChoiGiMin | [zPHf25N](https://github.com/zPHf25N) | Developer + (visual) |
-| KimHanGyeol | [han31415920512](https://github.com/han31415920512) | Developer |
+| Choi JiMin | [zPHf25N](https://github.com/zPHf25N) | Developer + (visual) |
+| Kim HanGyeol | [han31415920512](https://github.com/han31415920512) | Developer |
 
 > Roles above are a proposed draft — update to match the team's actual agreement before submitting.
 
