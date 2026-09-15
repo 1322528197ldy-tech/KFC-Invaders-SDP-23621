@@ -1,4 +1,4 @@
-# Instructors
+#Mantis
 
 ## Team Introduction
 
@@ -17,13 +17,6 @@ Our team focuses on developing the Records & Achievements System for Space Invad
 | Aiman | Cross-System Integration Engineer | [Irfnaimann02](https://github.com/Irfnaimann02) |
 | Dina | QA & Balance Tester | [dinaadaniii](https://github.com/dinaadaniii) | 
 | Syafiq | Front-end | [Fiq](https://github.com/syafiqnorfandhi) |
-
-## Responsibilities
-
-- Clarify the project scope and course requirements.
-- Coordinate team registration and requirement assignments.
-- Establish repository contribution and pull request guidelines.
-- Support cross-team reviews, dependency coordination, and integration.
 
 ## Requirements
 - Records: Persistent tracking of player performance data
