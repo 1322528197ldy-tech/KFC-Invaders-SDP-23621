@@ -8,15 +8,15 @@ Team CS is responsible for designing and implementing the **Item System** for th
 
 | Member | GitHub | Role |
 | --- | --- | --- |
-| KimHyunChan | [whitson1117](https://github.com/whitson1117) | Team lead / Cross-team integration (Currency, HUD hooks) |
-| HanJaeHyuk | [doha1208](https://github.com/doha1208) | Git management (branching strategy, PR review & merge coordination) |
+| KimHyunChan | [whitson1117](https://github.com/whitson1117) | Team Leader |
+| HanJaeHyuk | [doha1208](https://github.com/doha1208) | Github Manager, QA Manager |
 | SonDongYeol | [playlistSDY](https://github.com/playlistSDY) | Item data model & architecture |
-| Choseonggil | [ancho040220](https://github.com/ancho040220) | Item spawn & drop logic |
-| Choi Jian | [choichoi10](https://github.com/choichoi10) | Item effect / power-up application logic |
-| Choigeonhee | [choigeonhee2025](https://github.com/choigeonhee2025) | Inventory management |
-| Kim JiHo | [GTMBB](https://github.com/GTMBB) | Item rarity / tier system |
-| ChoiGiMin | [zPHf25N](https://github.com/zPHf25N) | Save/load & persistence integration |
-| KimHanGyeol | [han31415920512](https://github.com/han31415920512) | Testing & QA |
+| Choseonggil | [ancho040220](https://github.com/ancho040220) | Director, Developer  |
+| Choi Jian | [choichoi10](https://github.com/choichoi10) | Director, Developer |
+| Choigeonhee | [choigeonhee2025](https://github.com/choigeonhee2025) | Developer |
+| Kim JiHo | [GTMBB](https://github.com/GTMBB) | Director, Developer |
+| ChoiGiMin | [zPHf25N](https://github.com/zPHf25N) | Developer + (visual) |
+| KimHanGyeol | [han31415920512](https://github.com/han31415920512) | Developer |
 
 > Roles above are a proposed draft — update to match the team's actual agreement before submitting.
 
@@ -34,10 +34,9 @@ Team CS owns the **Item System** requirement: items that spawn during gameplay, 
 6. **Rapid Fire Item** — Increases the player's firing rate by 50% for the duration of the current level.
 7. **Bullet Speed Item** — Increases projectile speed by 5–10% for the duration of the current level.
 8. **Freeze Item** — On use, disables all enemy movement for 5 seconds.
-9. **Two-player Value Adjustment** — Provide a mechanism to apply separate (adjustable) numeric values for item effects specifically in two-player mode, based on requirements proposed by the Two-player Mode team.
 
 ## Dependencies on Other Teams
 
 1. **Visual Effect System** — Item drop appearance and pickup/activation visuals need to be agreed upon with the Visual Effect (graphics) team.
-2. **Level Design System** — Item drop probabilities, and the exact rules for the Life and Shield items, need to be finalized jointly with the Level Design team.
-3. **Two-player Mode** — Separate numeric tuning of item effects for two-player mode depends on requirements proposed by the Two-player Mode team.
+2. **Level Design System** — Item drop probabilities, and the exact rules for the Life and Shield items, need to be finalized jointly with the Level Design team.\
+3. **Gameplay HUD** — Displaying which Active item the player is currently holding (before it is used) requires a shared interface with the HUD team.
