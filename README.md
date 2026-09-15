@@ -13,9 +13,10 @@ Register your team by adding one row to the table below and submitting the chang
 - In the **Requirements** column, link to your team's document in the `teams/` directory, such as `teams/Instructors.md`.
 - Name the team document `teams/<team_name>.md`. Include the team introduction and member roles, the overall requirements assigned to the team, at least five detailed requirements, and up to three dependencies on other teams.
 
-| No. | Name | Members | Requirements |
-| ---: | --- | --- | --- |
-| 0 | [Instructors](teams/Instructors.md) | [Scott Uk-Jin Lee](https://github.com/scottukjinlee/scottukjinlee), [Seungho Kim](https://github.com/oh-gnues/oh-gnues), [Elkarmy Salma](https://github.com/salma5-cpu), [Eric Zhang](https://github.com/Eric-Zhang37) | [Course guidance](teams/Instructors.md#responsibilities) |
+| No. | Name                                   | Members                                                                                                                                                                                                                               | Requirements                                              |
+|----:|----------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------|
+|   0 | [Instructors](teams/Instructors.md)    | [Scott Uk-Jin Lee](https://github.com/scottukjinlee/scottukjinlee), [Seungho Kim](https://github.com/oh-gnues/oh-gnues), [Elkarmy Salma](https://github.com/salma5-cpu), [Eric Zhang](https://github.com/Eric-Zhang37)                | [Course guidance](teams/Instructors.md#responsibilities)  |
+|   1 | [Hanyang Space](teams/HanyangSpace.md) | [Muhammed Ali Garanli](https://github.com/AyeJay21), [Axel Jeremy Raphael Agat Tutkovics](https://github.com/Axel-ece), [Elio Ellini](https://github.com/elioeln), [Massyl Ait Ali Belkacem](https://github.com/Ma55yl), [Valentin HEBRAS LECLERC](https://github.com/Valzzzzzzzzzz), [Jung Seungwoo](https://github.com/swjung2313), [Erwan GUILLEM](https://github.com/R2D2-4997), [Solal Coupin Dagnet](https://github.com/solal67) | [Course guidance](teams/HanyangSpace.md#responsibilities) |
 
 ## Screenshots
 
