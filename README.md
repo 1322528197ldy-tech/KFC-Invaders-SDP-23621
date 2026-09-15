@@ -16,7 +16,7 @@ Register your team by adding one row to the table below and submitting the chang
 | No. | Name | Members | Requirements |
 | ---: | --- | --- | --- |
 | 0 | [Instructors](teams/Instructors.md) | [Scott Uk-Jin Lee](https://github.com/scottukjinlee/scottukjinlee), [Seungho Kim](https://github.com/oh-gnues/oh-gnues), [Elkarmy Salma](https://github.com/salma5-cpu), [Eric Zhang](https://github.com/Eric-Zhang37) | [Course guidance](teams/Instructors.md#responsibilities) |
-| 1 | [A1](https://github.com/calzsvg/A1) | [이신희](https://github.com/illtr), [윤호영](https://github.com/calzsvg), [강민주](https://github.com/kitxk1102), [Naman](https://github.com/ExotizZn), [박시영](https://github.com/athic06), [문승현](https://github.com/hysh144), [최연우](https://github.com/Happy623623), [Christian Villarreal](https://github.com/chrisune07), [Nacim](https://github.com/Nacim20) | [Player & Enemy Ship Variety](teams/A1.md#team-requirements) |
+| 1 | [A1](https://github.com/calzsvg/A1) | [Shin Hui Lee](https://github.com/illtr), [Hoyoung Yoon](https://github.com/calzsvg), [Minju Kang](https://github.com/kitxk1102), [Naman](https://github.com/ExotizZn), [Siyoung Park](https://github.com/athic06), [Seunghyun Moon](https://github.com/hysh144), [Yeonwoo Choi](https://github.com/Happy623623), [Christian Villarreal](https://github.com/chrisune07), [Nacim](https://github.com/Nacim20) | [Player & Enemy Ship Variety](teams/A1.md#team-requirements) |
 
 ## Screenshots
 
