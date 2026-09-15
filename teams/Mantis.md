@@ -29,11 +29,11 @@ Our team focuses on developing the Records & Achievements System for Space Invad
 
 
 ## Dependencies on Other Teams
-###1. Level Design System
+### 1. Level Design System
 -Designing various achievements for multiple gamemode. Depending on Level Design System Team to inform the details of their level design so we can implement some achievement to award the players something. It will create a challenge for player to grind for.
 
-###2. Sound Effects
+### 2. Sound Effects
 -We are going to depends on Sound Effects Team to make some sound effects whenever the player got the achievement. It might depends slightly by achievement's type to make it more diverse.
 
-###3. Coin System
+### 3. Coin System
 -The coin system will make it possible for players to farm more of the currencies. We will going to use that to make some achievements based on that. For example, We wil give achievement whenever player reach a certain amount of the said currencies
