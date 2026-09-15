@@ -16,7 +16,7 @@ Register your team by adding one row to the table below and submitting the chang
 | No. | Name | Members | Requirements |
 | ---: | --- | --- | --- |
 | 0 | [Instructors](teams/Instructors.md) | [Scott Uk-Jin Lee](https://github.com/scottukjinlee/scottukjinlee), [Seungho Kim](https://github.com/oh-gnues/oh-gnues), [Elkarmy Salma](https://github.com/salma5-cpu), [Eric Zhang](https://github.com/Eric-Zhang37) | [Course guidance](teams/Instructors.md#responsibilities) |
-
+| 1 | [KFC](https://github.com/1322528197ldy-tech/KFC-Invaders-SDP-23621) | [이동원](https://github.com/1322528197ldy-tech), [류동희](https://github.com/d0nghee09), [Jeremie GABOVICH](https://github.com/jereme26), [박성현](https://github.com/psh0709), [장윤수](https://github.com/yoonsoo1007), [진자영](https://github.com/Cedric0716), [사호철](https://github.com/hxie2137), [김동정](https://github.com/Jdz1128) | [Level Design System](teams/KFC.md) |
 ## Screenshots
 
 | Title Screen | Game Screen | Score Screen |
