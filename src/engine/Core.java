@@ -1,4 +1,3 @@
-
 package engine;
 
 import java.util.ArrayList;
@@ -14,6 +13,7 @@ import screen.HighScoreScreen;
 import screen.ScoreScreen;
 import screen.Screen;
 import screen.SettingsScreen;
+import screen.ShopScreen;
 import screen.ShipSelectScreen;
 import screen.TitleScreen;
 
@@ -182,6 +182,14 @@ public final class Core {
 						+ " settings screen at " + FPS + " fps.");
 				returnCode = frame.setScreen(currentScreen);
 				LOGGER.info("Closing settings screen.");
+				break;
+			case 5:
+				// Shop.
+				currentScreen = new ShopScreen(width, height, FPS);
+				LOGGER.info("Starting " + WIDTH + "x" + HEIGHT
+						+ " shop screen at " + FPS + " fps.");
+				returnCode = frame.setScreen(currentScreen);
+				LOGGER.info("Closing shop screen.");
 				break;
 			case 7:
 				// Ship select.
