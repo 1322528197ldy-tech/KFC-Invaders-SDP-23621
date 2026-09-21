@@ -1,15 +1,25 @@
 package screen;
 
+import engine.Cooldown;
+import engine.Core;
 import java.awt.event.KeyEvent;
 
 /**
  * Implements the settings screen.
  */
 public class SettingsScreen extends Screen {
-	//temporary variables.(I'll replace these variables to other functions(e.g. SettingManager.getInstance().getBgmVolume))
+	/** Milliseconds between selection steps. */
+	private static final int SELECTION_TIME = 200;
+	/** Spacing between menu items. */
+	private static final int SPACING = 30;
+	/** Cooldown for menu selection and volume changes. */
+	private final Cooldown selectionCooldown;
+	/** Current background music volume. */
 	private int bgmVolume = 50;
+	/** Current sound effects volume. */
 	private int sfxVolume = 50;
-	private int currentMenuItem = 0; //0:bgm, 1:sfx, 2:key bindings, 3:back
+	/** Current selected menu item. */
+	private int currentMenuItem = 0;
 
 	/**
 	 * Constructor, establishes the properties of the screen.
@@ -24,6 +34,8 @@ public class SettingsScreen extends Screen {
 	public SettingsScreen(final int width, final int height, final int fps) {
 		super(width, height, fps);
 		this.returnCode = 1;
+		this.selectionCooldown = Core.getCooldown(SELECTION_TIME);
+		this.selectionCooldown.reset();
 	}
 
 	/**
@@ -43,35 +55,34 @@ public class SettingsScreen extends Screen {
 		super.update();
 		draw();
 
-		if (this.inputDelay.checkFinished()) {
-			if (this.inputManager.isKeyDown(KeyEvent.VK_ESCAPE)) {
-				this.isRunning = false;
-			}
-			//select menu using spacebar logic
-			if (this.inputManager.isKeyDown(KeyEvent.VK_SPACE)) {
-				if (currentMenuItem == 3) {
-					this.isRunning = false; //quit loop and go to main menu screen
-				}
-				this.inputDelay.reset();
-			}
+		if (this.inputManager.isKeyDown(KeyEvent.VK_ESCAPE) && this.inputDelay.checkFinished()) {
+			this.isRunning = false;
+		}
 
-			//existing menu movement logic
+		if (this.selectionCooldown.checkFinished()) {
 			if (this.inputManager.isKeyDown(KeyEvent.VK_UP)) {
 				currentMenuItem = Math.max(0, currentMenuItem - 1);
+				this.selectionCooldown.reset();
 			} else if (this.inputManager.isKeyDown(KeyEvent.VK_DOWN)) {
 				currentMenuItem = Math.min(3, currentMenuItem + 1);
-				this.inputDelay.reset();
+				this.selectionCooldown.reset();
 			}
 
-			//volume(bgm, sfx) adjust logic
 			if (this.inputManager.isKeyDown(KeyEvent.VK_LEFT)) {
 				if (currentMenuItem == 0) bgmVolume = Math.max(0, bgmVolume - 10);
 				else if (currentMenuItem == 1) sfxVolume = Math.max(0, sfxVolume - 10);
-				this.inputDelay.reset();
+				this.selectionCooldown.reset();
 			} else if (this.inputManager.isKeyDown(KeyEvent.VK_RIGHT)) {
 				if (currentMenuItem == 0) bgmVolume = Math.min(100, bgmVolume + 10);
 				else if (currentMenuItem == 1) sfxVolume = Math.min(100, sfxVolume + 10);
-				this.inputDelay.reset();
+				this.selectionCooldown.reset();
+			}
+
+			if (this.inputManager.isKeyDown(KeyEvent.VK_SPACE) || this.inputManager.isKeyDown(KeyEvent.VK_ENTER)) {
+				if (currentMenuItem == 3) {
+					this.isRunning = false;
+				}
+				this.selectionCooldown.reset();
 			}
 		}
 	}
@@ -81,20 +92,27 @@ public class SettingsScreen extends Screen {
 	 */
 	private void draw() {
 		this.drawManager.initDrawing(this);
-		this.drawManager.drawHorizontalLine(this, this.getHeight() / 3 - 20);
-		this.drawManager.drawCenteredRegularString(this, "SETTINGS", this.getHeight() / 3);
+		this.drawManager.drawScreenTitle(this, MenuItem.SETTINGS.getTitle());
+		int baseY = this.getHeight() / 2;
+		String bgmStr = "BGM Volume: < " + bgmVolume + "% >";
+		String sfxStr = "SFX Volume: < " + sfxVolume + "% >";
 
-		String bgmString = "BGM Volume: < " + bgmVolume + "% >";
-		String sfxString = "SFX Volume: < " + sfxVolume + "% >";
+		String m0 = (currentMenuItem == 0 ? "-> " : "") + bgmStr;
+		String m1 = (currentMenuItem == 1 ? "-> " : "") + sfxStr;
+		String m2 = (currentMenuItem == 2 ? "-> " : "") + "Key Bindings";
+		String m3 = (currentMenuItem == 3 ? "-> " : "") + "Back";
 
-		this.drawManager.drawCenteredRegularString(this, (currentMenuItem == 0 ? "-> " : "") + bgmString, this.getHeight() / 2);
-		this.drawManager.drawCenteredRegularString(this, (currentMenuItem == 1 ? "-> " : "") + sfxString, this.getHeight() / 2 + 30);
-		this.drawManager.drawCenteredRegularString(this, (currentMenuItem == 2 ? "-> " : "") + "Key Bindings", this.getHeight() / 2 + 70);
+		this.drawManager.drawCenteredRegularString(this, m0, baseY);
+		this.drawManager.drawCenteredRegularString(this, m1, baseY + SPACING);
 
-		this.drawManager.drawCenteredRegularString(this, "- Move Left: A / Left Arrow -", this.getHeight() / 2 + 95);
-		this.drawManager.drawCenteredRegularString(this, "- Move Right: D / Right Arrow -", this.getHeight() / 2 + 115);
-		this.drawManager.drawCenteredRegularString(this, "- Shoot: Space -", this.getHeight() / 2 + 135);
-		this.drawManager.drawCenteredRegularString(this, "- Back: ESC -", this.getHeight() / 2 + 200);
+		this.drawManager.drawCenteredRegularString(this, m2, baseY + SPACING * 3);
+
+		this.drawManager.drawCenteredRegularString(this, "- Move Left: A / Left Arrow -", baseY + SPACING * 4);
+		this.drawManager.drawCenteredRegularString(this, "- Move Right: D / Right Arrow -", baseY + SPACING * 5);
+		this.drawManager.drawCenteredRegularString(this, "- Shoot: Space -", baseY + SPACING * 6);
+		this.drawManager.drawCenteredRegularString(this, "- Back: ESC -", baseY + SPACING * 7);
+
+		this.drawManager.drawCenteredRegularString(this, m3, baseY + SPACING * 9);
 
 		this.drawManager.completeDrawing(this);
 	}
