@@ -89,8 +89,12 @@ public class SettingsScreen extends Screen {
 
 		this.drawManager.drawCenteredRegularString(this, (currentMenuItem == 0 ? "-> " : "") + bgmString, this.getHeight() / 2);
 		this.drawManager.drawCenteredRegularString(this, (currentMenuItem == 1 ? "-> " : "") + sfxString, this.getHeight() / 2 + 30);
-		this.drawManager.drawCenteredRegularString(this, (currentMenuItem == 2 ? "-> " : "") + "Key Bindings", this.getHeight() / 2 + 60);
-		this.drawManager.drawCenteredRegularString(this, (currentMenuItem == 3 ? "-> " : "") + "Back", this.getHeight() / 2 + 90);
+		this.drawManager.drawCenteredRegularString(this, (currentMenuItem == 2 ? "-> " : "") + "Key Bindings", this.getHeight() / 2 + 70);
+
+		this.drawManager.drawCenteredRegularString(this, "- Move Left: A / Left Arrow -", this.getHeight() / 2 + 95);
+		this.drawManager.drawCenteredRegularString(this, "- Move Right: D / Right Arrow -", this.getHeight() / 2 + 115);
+		this.drawManager.drawCenteredRegularString(this, "- Shoot: Space -", this.getHeight() / 2 + 135);
+		this.drawManager.drawCenteredRegularString(this, "- Back: ESC -", this.getHeight() / 2 + 200);
 
 		this.drawManager.completeDrawing(this);
 	}
