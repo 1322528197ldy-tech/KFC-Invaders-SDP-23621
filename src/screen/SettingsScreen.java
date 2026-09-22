@@ -93,7 +93,7 @@ public class SettingsScreen extends Screen {
 	private void draw() {
 		this.drawManager.initDrawing(this);
 		this.drawManager.drawScreenTitle(this, MenuItem.SETTINGS.getTitle());
-		int baseY = this.getHeight() / 2;
+		int baseY = this.getHeight() / 3;
 		String bgmStr = "BGM Volume: < " + bgmVolume + "% >";
 		String sfxStr = "SFX Volume: < " + sfxVolume + "% >";
 
