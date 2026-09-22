@@ -76,7 +76,14 @@ public final class DrawManager {
 		/** Bonus ship. */
 		EnemyShipSpecial,
 		/** Destroyed enemy ship. */
-		Explosion
+		Explosion,
+		
+		/* add enum MidBoss, FinalBoss  */
+		MidBoss_1,
+		MidBoss_2,
+		
+		FinalBoss_1,
+		FinalBoss_2
 	};
 
 	/**
