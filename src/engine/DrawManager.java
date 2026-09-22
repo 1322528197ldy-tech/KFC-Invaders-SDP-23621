@@ -110,6 +110,13 @@ public final class DrawManager {
 			spriteMap.put(SpriteType.EnemyShipSpecial, new boolean[16][7]);
 			spriteMap.put(SpriteType.Explosion, new boolean[13][7]);
 
+			/* MidBoss, FinalBoss size */
+			spriteMap.put(SpriteType.MidBoss_1, new boolean[16][10]);
+			spriteMap.put(SpriteType.MidBoss_2, new boolean[16][10]);
+			
+			spriteMap.put(SpriteType.FinalBoss_1, new boolean[24][16]);
+			spriteMap.put(SpriteType.FinalBoss_2, new boolean[24][16]);
+
 			fileManager.loadSprite(spriteMap);
 			logger.info("Finished loading the sprites.");
 
