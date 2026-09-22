@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import screen.MenuItem;
 import screen.Screen;
 import entity.Entity;
 import entity.Ship;
@@ -283,12 +284,6 @@ public final class DrawManager {
 	 */
 	public void drawTitle(final Screen screen) {
 		String titleString = "Invaders";
-		String instructionsString =
-				"select with w+s / arrows, confirm with space";
-
-		backBufferGraphics.setColor(Color.GRAY);
-		drawCenteredRegularString(screen, instructionsString,
-				screen.getHeight() / 2);
 
 		backBufferGraphics.setColor(Color.GREEN);
 		drawCenteredBigString(screen, titleString, screen.getHeight() / 3);
@@ -299,32 +294,143 @@ public final class DrawManager {
 	 * 
 	 * @param screen
 	 *            Screen to draw on.
-	 * @param option
-	 *            Option selected.
+	 * @param selected
+	 *            Item the cursor is on.
 	 */
-	public void drawMenu(final Screen screen, final int option) {
-		String playString = "Play";
-		String highScoresString = "High scores";
-		String exitString = "exit";
+	public void drawMenu(final Screen screen, final MenuItem selected) {
+		for (MenuItem item : MenuItem.values()) {
+			if (item == selected)
+				backBufferGraphics.setColor(Color.GREEN);
+			else if (!item.isEnabled())
+				backBufferGraphics.setColor(Color.DARK_GRAY);
+			else
+				backBufferGraphics.setColor(Color.WHITE);
+			drawCenteredRegularString(screen, item.getTitle(),
+					menuItemBaseline(screen, item.ordinal()));
+		}
+	}
 
-		if (option == 2)
-			backBufferGraphics.setColor(Color.GREEN);
-		else
-			backBufferGraphics.setColor(Color.WHITE);
-		drawCenteredRegularString(screen, playString,
-				screen.getHeight() / 3 * 2);
-		if (option == 3)
-			backBufferGraphics.setColor(Color.GREEN);
-		else
-			backBufferGraphics.setColor(Color.WHITE);
-		drawCenteredRegularString(screen, highScoresString, screen.getHeight()
-				/ 3 * 2 + fontRegularMetrics.getHeight() * 2);
-		if (option == 0)
-			backBufferGraphics.setColor(Color.GREEN);
-		else
-			backBufferGraphics.setColor(Color.WHITE);
-		drawCenteredRegularString(screen, exitString, screen.getHeight() / 3
-				* 2 + fontRegularMetrics.getHeight() * 4);
+	/**
+	 * Finds the menu item drawn at a given height. Each item owns a full-width
+	 * row as tall as the spacing between items, so the whole row is clickable,
+	 * not just the text.
+	 * 
+	 * @param screen
+	 *            Screen the menu is drawn on.
+	 * @param positionY
+	 *            Height to check, in screen coordinates.
+	 * @return Item on that row, or null if there is none or nothing has been
+	 *         drawn yet.
+	 */
+	public MenuItem menuItemAt(final Screen screen, final int positionY) {
+		if (fontRegularMetrics == null)
+			return null;
+		int spacing = menuItemSpacing();
+		for (MenuItem item : MenuItem.values()) {
+			int top = menuItemBaseline(screen, item.ordinal())
+					- fontRegularMetrics.getAscent()
+					- (spacing - fontRegularMetrics.getHeight()) / 2;
+			if (positionY >= top && positionY < top + spacing)
+				return item;
+		}
+		return null;
+	}
+
+	/**
+	 * Height of the baseline of a menu item. Drawing and hit-testing both use
+	 * this, so they cannot drift apart.
+	 * 
+	 * @param screen
+	 *            Screen the menu is drawn on.
+	 * @param index
+	 *            Position of the item in the menu, from the top.
+	 * @return Baseline of the item's text.
+	 */
+	private int menuItemBaseline(final Screen screen, final int index) {
+		return screen.getHeight() / 2 + menuItemSpacing() * (index + 2);
+	}
+
+	/**
+	 * Distance between two menu items.
+	 * 
+	 * @return Spacing, in pixels.
+	 */
+	private int menuItemSpacing() {
+		return fontRegularMetrics.getHeight() * 5 / 4;
+	}
+
+	/**
+	 * Draws the keys available on the current screen, one line along the
+	 * bottom.
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param hints
+	 *            Keys to show, already worded for the current state.
+	 */
+	public void drawKeyHints(final Screen screen, final String hints) {
+		backBufferGraphics.setColor(Color.GRAY);
+		drawCenteredRegularString(screen, hints,
+				screen.getHeight() - fontRegularMetrics.getHeight());
+	}
+
+	/**
+	 * Draws the exit confirmation over the menu. Filled first so the menu
+	 * behind it does not show through.
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param yesSelected
+	 *            Whether the cursor is on Yes.
+	 */
+	public void drawExitConfirm(final Screen screen,
+			final boolean yesSelected) {
+		String question = "Really quit?";
+		String yesString = "Yes";
+		String noString = "No";
+
+		int spacing = menuItemSpacing();
+		int boxWidth = screen.getWidth() / 2;
+		int boxHeight = spacing * 4;
+		int boxX = (screen.getWidth() - boxWidth) / 2;
+		int boxY = (screen.getHeight() - boxHeight) / 2;
+
+		backBufferGraphics.setColor(Color.BLACK);
+		backBufferGraphics.fillRect(boxX, boxY, boxWidth, boxHeight);
+		backBufferGraphics.setColor(Color.GRAY);
+		backBufferGraphics.drawRect(boxX, boxY, boxWidth, boxHeight);
+
+		backBufferGraphics.setColor(Color.WHITE);
+		drawCenteredRegularString(screen, question, boxY + spacing * 3 / 2);
+
+		// Yes and No sit either side of the centre, so they need their own
+		// x positions rather than the centred helper.
+		int answerY = boxY + spacing * 3;
+		int yesX = screen.getWidth() / 2 - boxWidth / 4
+				- fontRegularMetrics.stringWidth(yesString) / 2;
+		int noX = screen.getWidth() / 2 + boxWidth / 4
+				- fontRegularMetrics.stringWidth(noString) / 2;
+
+		backBufferGraphics.setFont(fontRegular);
+		backBufferGraphics.setColor(yesSelected ? Color.GREEN : Color.WHITE);
+		backBufferGraphics.drawString(yesString, yesX, answerY);
+		backBufferGraphics.setColor(yesSelected ? Color.WHITE : Color.GREEN);
+		backBufferGraphics.drawString(noString, noX, answerY);
+	}
+
+	/**
+	 * Draws the title of a screen reached from the main menu, in the same
+	 * colour and place as the high score screen's title. Sets its own colour,
+	 * so it does not depend on what was drawn before it.
+	 * 
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param title
+	 *            Title to draw.
+	 */
+	public void drawScreenTitle(final Screen screen, final String title) {
+		backBufferGraphics.setColor(Color.GREEN);
+		drawCenteredBigString(screen, title, screen.getHeight() / 8);
 	}
 
 	/**
