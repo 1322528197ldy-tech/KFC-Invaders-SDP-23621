@@ -121,14 +121,19 @@ public final class DrawManager {
 			logger.info("Finished loading the sprites.");
 
 			// Font loading.
-			fontRegular = fileManager.loadFont(14f);
-			fontBig = fileManager.loadFont(24f);
-			logger.info("Finished loading the fonts.");
+			// Font loading.
+			try {
+				fontRegular = fileManager.loadFont(14f);
+				fontBig = fileManager.loadFont(24f);
+				logger.info("Finished loading the fonts.");
+			} catch (Exception e) {
+				logger.warning("Font loading failed, using default font.");
+				fontRegular = new Font("SansSerif", Font.PLAIN, 14);
+				fontBig = new Font("SansSerif", Font.BOLD, 24);
+			}
 
 		} catch (IOException e) {
 			logger.warning("Loading failed.");
-		} catch (FontFormatException e) {
-			logger.warning("Font formating failed.");
 		}
 	}
 
@@ -171,9 +176,16 @@ public final class DrawManager {
 		backBufferGraphics
 				.fillRect(0, 0, screen.getWidth(), screen.getHeight());
 
+		// font가 null일 경우 대비한 Fallback 처리
+		if (fontRegular == null) {
+			fontRegular = new Font("SansSerif", Font.PLAIN, 14);
+		}
+		if (fontBig == null) {
+			fontBig = new Font("SansSerif", Font.BOLD, 24);
+		}
+
 		fontRegularMetrics = backBufferGraphics.getFontMetrics(fontRegular);
 		fontBigMetrics = backBufferGraphics.getFontMetrics(fontBig);
-
 		// drawBorders(screen);
 		// drawGrid(screen);
 	}
