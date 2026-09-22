@@ -27,8 +27,6 @@ Register your team by adding one row to the table below and submitting the chang
 |   8 | [Team CS](https://github.com/doha1208/Invaders-SDP-23621) | [SonDongYeol](https://github.com/playlistSDY), [HanJaeHyuk](https://github.com/doha1208), [Choseonggil](https://github.com/ancho040220), [Choi Jian](https://github.com/choichoi10), [Kim JiHo](https://github.com/GTMBB), [KimHyunChan](https://github.com/whitson1117), [ChoiJiMin](https://github.com/zPHf25N), [KimHanGyeol](https://github.com/han31415920512) | [Item System](teams/team-cs.md) |
 |   9 | [Hello World](https://github.com/eoieiie/Invaders-SDP-23621)                              | [Byeongjoo Hwang](https://github.com/eoieiie), [Junwoo Kang](https://github.com/oofrog), [Yongtae Kim](https://github.com/kyle891204), [Jaeone Park](https://github.com/kyobak), [Taehyun Bak](https://github.com/nuyh-99), [Myeongho Song](https://github.com/SongMyeongHo), [Changyong Woo](https://github.com/samryong), [Hyeokjun Lee](https://github.com/Aninnom), [Junhyeok Han](https://github.com/junh000)                                     | [Main Menu](teams/HelloWorld.md)                                                                                                   |
 
->>>>>>> 8405c75ac01a432ebb2b8c7f720fa8e3d22ddaf7
-
 ## Screenshots
 
 | Title Screen | Game Screen | Score Screen |
