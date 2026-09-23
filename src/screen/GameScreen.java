@@ -6,11 +6,13 @@ import java.util.Set;
 
 import engine.Cooldown;
 import engine.Core;
+import engine.DrawManager;
 import engine.GameSettings;
 import engine.GameState;
 import entity.Bullet;
 import entity.BulletPool;
 import entity.EnemyShip;
+import entity.EnemyShipBoss;
 import entity.EnemyShipFormation;
 import entity.Entity;
 import entity.Ship;
@@ -71,6 +73,9 @@ public class GameScreen extends Screen {
 	/** Checks if a bonus life is received. */
 	private boolean bonusLife;
 
+	/** Mid Bodd enemy ship */
+	private EnemyShipBoss midBoss;
+
 	/**
 	 * Constructor, establishes the properties of the screen.
 	 * 
@@ -108,10 +113,19 @@ public class GameScreen extends Screen {
 	 */
 	public final void initialize() {
 		super.initialize();
-
-		enemyShipFormation = new EnemyShipFormation(this.gameSettings);
-		enemyShipFormation.attach(this);
+		
+		// initialize the player's ship regardless of the level.
 		this.ship = new Ship(this.width / 2, this.height - 30);
+
+		// Spawn the boss Level 5, or standard enemy formation for other levels.
+		if (this.level == 5) {
+			this.midBoss = new EnemyShipBoss(this.width 
+				/ 2 - 16, 60, DrawManager.SpriteType.MidBoss_1);
+		}
+		else {
+			enemyShipFormation = new EnemyShipFormation(this.gameSettings);
+			enemyShipFormation.attach(this);
+		}
 		// Appears each 10-30 seconds.
 		this.enemyShipSpecialCooldown = Core.getVariableCooldown(
 				BONUS_SHIP_INTERVAL, BONUS_SHIP_VARIANCE);
@@ -222,9 +236,17 @@ public class GameScreen extends Screen {
 			drawManager.drawEntity(this.enemyShipSpecial,
 					this.enemyShipSpecial.getPositionX(),
 					this.enemyShipSpecial.getPositionY());
-
-		enemyShipFormation.draw();
-
+		
+		// Render the boss entity on Level 5, or standard enemy formation on other levels.
+		if (this.level == 5) {
+			if (this.midBoss != null) {
+				drawManager.drawEntity(this.midBoss, this.midBoss.getPositionX(), 
+					this.midBoss.getPositionY());
+			}
+		}
+		else {
+			enemyShipFormation.draw();
+		}
 		for (Bullet bullet : this.bullets)
 			drawManager.drawEntity(bullet, bullet.getPositionX(),
 					bullet.getPositionY());
