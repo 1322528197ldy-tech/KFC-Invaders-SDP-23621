@@ -205,8 +205,12 @@ public class GameScreen extends Screen {
 			}
 
 			this.ship.update();
-			this.enemyShipFormation.update();
-			this.enemyShipFormation.shoot(this.bullets);
+			if (this.level == 5) {
+				this.midBoss.update();
+			} else {
+				this.enemyShipFormation.update();
+				this.enemyShipFormation.shoot(this.bullets);
+			}
 		}
 
 		manageCollisions();
