@@ -217,7 +217,16 @@ public class GameScreen extends Screen {
 		cleanBullets();
 		draw();
 
-		if ((this.enemyShipFormation.isEmpty() || this.lives == 0)
+		boolean isCleared = false;
+
+		if (this.midBoss == null || this.midBoss.isDestroyed()) {
+			isCleared = true;
+		} else {
+			if (this.enemyShipFormation != null && this.enemyShipFormation.isEmpty()) {
+				isCleared = true;
+			}
+		}
+		if ((isCleared || this.lives == 0)
 				&& !this.levelFinished) {
 			this.levelFinished = true;
 			this.screenFinishedCooldown.reset();
