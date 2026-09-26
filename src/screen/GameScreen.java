@@ -219,7 +219,7 @@ public class GameScreen extends Screen {
 
 		boolean isCleared = false;
 
-		if (this.midBoss == null || this.midBoss.isDestroyed()) {
+		if (this.level == 5 && this.midBoss == null && this.midBoss.isDestroyed()) {
 			isCleared = true;
 		} else {
 			if (this.enemyShipFormation != null && this.enemyShipFormation.isEmpty()) {
@@ -305,7 +305,7 @@ public class GameScreen extends Screen {
 	 */
 	private void manageCollisions() {
 		Set<Bullet> recyclable = new HashSet<Bullet>();
-		for (Bullet bullet : this.bullets)
+		for (Bullet bullet : this.bullets) {
 			if (bullet.getSpeed() > 0) {
 				if (checkCollision(bullet, this.ship) && !this.levelFinished) {
 					recyclable.add(bullet);
@@ -316,8 +316,14 @@ public class GameScreen extends Screen {
 								+ " lives remaining.");
 					}
 				}
-			} else {
-				if (this.enemyShipFormation != null) {
+			} else 
+				if (this.level == 5) {
+					if (this.midBoss != null
+							&& !this.midBoss.isDestroyed()
+							&& checkCollision(bullet, this.midBoss)) {
+						recyclable.add(bullet);
+					}
+				} else {
 					for (EnemyShip enemyShip : this.enemyShipFormation)
 						if (!enemyShip.isDestroyed()
 								&& checkCollision(bullet, enemyShip)) {
@@ -336,7 +342,7 @@ public class GameScreen extends Screen {
 					this.enemyShipSpecialExplosionCooldown.reset();
 					recyclable.add(bullet);
 				}
-			}
+		}
 		this.bullets.removeAll(recyclable);
 		BulletPool.recycle(recyclable);
 	}
