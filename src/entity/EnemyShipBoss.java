@@ -55,4 +55,35 @@ public class EnemyShipBoss extends Entity {
 	public final int getPointValue() {
 		return this.pointValue;
 	}
+
+	/**
+	 * Updates attributes, mainly used for animation purposes.
+	 */
+	public final void update() {
+		// Toggle boss sprite when animation cooldown expires to create an animation effect.
+		if (this.animationCooldown.checkFinished()) {
+			this.animationCooldown.reset();
+
+            /* Boss image update */
+			switch (this.spriteType) {
+			case MidBoss_1:
+				this.spriteType = SpriteType.MidBoss_2;
+				break;
+			case MidBoss_2:
+				this.spriteType = SpriteType.MidBoss_1;
+				break;
+			default:
+				break;
+            }
+        }
+    }
+
+	/**
+	 * Checks if the ship has been destroyed.
+	 * 
+	 * @return True if the ship has been destroyed.
+	 */
+	public final boolean isDestroyed() {
+		return this.isDestroyed;
+	}
 }
