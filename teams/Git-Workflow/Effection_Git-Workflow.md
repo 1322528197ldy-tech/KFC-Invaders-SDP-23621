@@ -126,19 +126,23 @@ A PR should be opened when the task is implemented and ready for review.
 
 Before opening a PR, the developer must:
 
-1. Pull/rebase the latest `main`.
+1. Pull/rebase the latest `main` resolve the conflicts locally.
 2. Compile the project.
-3. Run the game and test the changes.
-4. Check that existing functionality is not broken.
+3. Run the game and test all the new changes.
+4. Verify that existing functionality is not broken.
 5. Clearly describe the changes and how they were tested.
 
 ### Code Review
 
-* Every functional PR must receive **at least one approval** from another team member.
-* The author cannot approve their own PR.
-* Changes to important shared files should receive a second review when necessary.
-* Reviewers should check correctness, readability, possible conflicts, and whether the task requirements are satisfied.
-* Requested changes must be completed before merging.
+* Approval Requirement: Every functional PR must receive **at least one approval** from another team member.
+* Self-approval: The author cannot approve their own PR.
+* Shared files: Changes to important shared files should receive a second review when necessary.
+* Review Criteria: Reviewers should check
+  * Correctness
+  * Readability
+  * Potential merge conflicts
+  * Fulfillment task requirements are satisfied.
+* Resolving Feedback: Requested changes must be completed before merging.
 
 ### Direct Push to `main`
 
