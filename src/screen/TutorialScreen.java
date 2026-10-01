@@ -62,7 +62,7 @@ public final class TutorialScreen extends Screen {
                     returnCode = 2;
                     isRunning = false;
                 }
-            } else {z
+            } else {
                 updatePractice();
             }
         }
