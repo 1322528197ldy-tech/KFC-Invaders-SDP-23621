@@ -219,12 +219,12 @@ public class GameScreen extends Screen {
 
 		boolean isCleared = false;
 
-		if (this.level == 5 && this.midBoss == null && this.midBoss.isDestroyed()) {
-			isCleared = true;
-		} else {
-			if (this.enemyShipFormation != null && this.enemyShipFormation.isEmpty()) {
+		if (this.level == 5) {
+			if (this.midBoss == null || this.midBoss.isDestroyed()) {
 				isCleared = true;
 			}
+		} else {
+			isCleared = this.enemyShipFormation.isEmpty();
 		}
 		if ((isCleared || this.lives == 0)
 				&& !this.levelFinished) {
@@ -253,7 +253,8 @@ public class GameScreen extends Screen {
 		// Render the boss entity on Level 5, or standard enemy formation on other levels.
 		if (this.level == 5) {
 			if (this.midBoss != null) {
-				drawManager.drawEntity(this.midBoss, this.midBoss.getPositionX(), 
+				drawManager.drawEntity(this.midBoss, 
+					this.midBoss.getPositionX(), 
 					this.midBoss.getPositionY());
 			}
 		}
@@ -321,6 +322,9 @@ public class GameScreen extends Screen {
 					if (this.midBoss != null
 							&& !this.midBoss.isDestroyed()
 							&& checkCollision(bullet, this.midBoss)) {
+						
+						// Add score for hitting the Mid boss and check if it is destroyed
+						this.score += this.midBoss.manageCollisionsBoss(bullet);
 						recyclable.add(bullet);
 					}
 				} else {
