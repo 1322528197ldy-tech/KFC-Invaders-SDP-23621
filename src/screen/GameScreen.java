@@ -213,11 +213,14 @@ public class GameScreen extends Screen {
 			this.ship.update();
 			if (this.level == 5) {
 				this.midBoss.update();
+				this.midBoss.moveBoss(this.width, this.height, this.gameSettings);
+
 			} 
 
 			//Temporarily spawning a mid-boss before implementing the final boss for Stage 10.
 			else if (this.level == 10) {
 				this.midBoss.update();
+				this.midBoss.moveBoss(this.width, this.height, this.gameSettings);
 			} else {
 				this.enemyShipFormation.update();
 				this.enemyShipFormation.shoot(this.bullets);
