@@ -17,6 +17,7 @@ import screen.SettingsScreen;
 import screen.ShopScreen;
 import screen.ShipSelectScreen;
 import screen.TitleScreen;
+import screen.TutorialScreen;
 
 /**
  * Implements core game logic.
@@ -145,6 +146,12 @@ public final class Core {
 				LOGGER.info("Closing title screen.");
 				break;
 			case 2:
+				// Practice first; ESC returns to the menu without starting a run.
+				currentScreen = new TutorialScreen(width, height, FPS);
+				returnCode = frame.setScreen(currentScreen);
+				if (returnCode != 2) {
+					break;
+				}
 				// Game & score.
 				do {
 					// One extra live every few levels.
