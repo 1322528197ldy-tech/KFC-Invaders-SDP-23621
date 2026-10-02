@@ -5,6 +5,7 @@ import java.awt.Color;
 import engine.Cooldown;
 import engine.Core;
 import engine.DrawManager.SpriteType;
+import engine.GameSettings;
 
 public class EnemyShipBoss extends Entity {
 
@@ -32,6 +33,10 @@ public class EnemyShipBoss extends Entity {
 	private static final int MID_BOSS_POINTS_HIT = 100;
 	/** Point value awarded for hitting the Final Boss. */
 	private static final int FINAL_BOSS_POINTS_HIT = 250;
+
+
+	private int speedX = 0;
+	private int speedY = 0;
 
     /**
 	 * Constructor for MidBoss Ship.
@@ -148,4 +153,58 @@ public class EnemyShipBoss extends Entity {
 
         return scoreEarned;
     }
+
+	/**
+	 * Moves the ship the specified distance.
+	 * 
+	 * @param distanceX
+	 *            Distance to move in the X axis.
+	 * @param distanceY
+	 *            Distance to move in the Y axis.
+	 */
+	public final void move(final int distanceX, final int distanceY) {
+		this.positionX += distanceX;
+		this.positionY += distanceY;
+	}
+
+	/**
+ 	* Moves the boss back and forth within the screen boundaries (top, bottom, left, right)
+ 	* by applying the baseSpeed from Core, making it smoothly bounce off the edges.
+ 	* 
+ 	* @param screenWidth  The width of the screen (this.width in GameScreen)
+ 	* @param screenHeight The height of the screen (this.height in GameScreen)
+ 	* @param gameSettings The core settings for difficulty and speed
+ 	*/
+    public final void moveBoss(final int screenWidth, final int screenHeight, 
+            final GameSettings gameSettings) {
+        if (this.isDestroyed()) {
+            return;
+        }
+
+		if (this.speedX == 0 && this.speedY == 0) {
+			this.speedX = gameSettings.getBaseSpeed();
+			this.speedY = gameSettings.getBaseSpeed();
+		}
+       
+        this.move(this.speedX, this.speedY);
+
+        if (this.positionX <= 0) {
+            this.positionX = 0;
+            this.speedX = -this.speedX;
+        } else if (this.positionX >= screenWidth - this.width) {
+            this.positionX = screenWidth - this.width;
+            this.speedX = -this.speedX;
+        }
+
+        int topBoundary = 40;
+        int bottomBoundary = screenHeight - 200 - this.height;
+
+        if (this.positionY <= topBoundary) {
+            this.positionY = topBoundary;
+            this.speedY = -this.speedY;
+        } else if (this.positionY >= bottomBoundary) {
+            this.positionY = bottomBoundary;
+            this.speedY = -this.speedY;
+        }
+	}
 }
