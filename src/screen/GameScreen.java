@@ -10,6 +10,7 @@ import engine.GameSettings;
 import engine.GameState;
 import engine.Achievement;
 import engine.DamageDimEffect;
+import engine.GlitchEffect;
 import entity.Bullet;
 import entity.BulletPool;
 import entity.EnemyShip;
@@ -41,7 +42,8 @@ public class GameScreen extends Screen {
 	private static final int ACHIEVEMENT_POPUP_INTERVAL = 3000;
 	/** Height of the interface separation line. */
 	private static final int SEPARATION_LINE_HEIGHT = 40;
-
+	/** Lives at or below this value start the glitch. */
+	private static final int LOW_HEALTH_LIVES = 1;
 	/** Current game difficulty settings. */
 	private GameSettings gameSettings;
 	/** Current difficulty level number. */
@@ -80,6 +82,8 @@ public class GameScreen extends Screen {
 	private boolean bonusLife;
 	/** Dims the screen when the player is hit. */
 	private DamageDimEffect damageDim; 
+	/** Glitch effect for low health. */
+	private GlitchEffect glitch;
 
 	/**
 	 * Constructor, establishes the properties of the screen.
@@ -134,6 +138,7 @@ public class GameScreen extends Screen {
 		this.bullets = new HashSet<Bullet>();
 		this.damageDim = new DamageDimEffect(800, 0.5f,
         new java.awt.Color(150, 0, 0));  //new update dim effect
+		this.glitch = new GlitchEffect();
 
 		// Special input delay / countdown.
 		this.gameStartTime = System.currentTimeMillis();
@@ -254,6 +259,11 @@ public class GameScreen extends Screen {
 			if (this.achievementPopupCooldown.checkFinished())
 				this.unlockedAchievement = null;
 		}
+
+		// Low-health glitch (covers game + HUD).
+		this.glitch.setEnabled(this.lives > 0
+				&& this.lives <= LOW_HEALTH_LIVES && !this.levelFinished);
+		drawManager.drawGlitch(this, this.glitch);
 
 		// Countdown to game start.
 		if (!this.inputDelay.checkFinished()) {
