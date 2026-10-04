@@ -122,6 +122,12 @@ public class GameScreen extends Screen {
 			this.midBoss = new EnemyShipBoss(this.width 
 				/ 2 - 16, 60, DrawManager.SpriteType.MidBoss_1);
 		}
+
+		//Temporarily spawning a mid-boss before implementing the final boss for Stage 10.
+		else if (this.level == 10) {
+			this.midBoss = new EnemyShipBoss(this.width 
+				/ 2 - 16, 60, DrawManager.SpriteType.MidBoss_1);
+		}
 		else {
 			enemyShipFormation = new EnemyShipFormation(this.gameSettings);
 			enemyShipFormation.attach(this);
@@ -207,6 +213,11 @@ public class GameScreen extends Screen {
 			this.ship.update();
 			if (this.level == 5) {
 				this.midBoss.update();
+			} 
+
+			//Temporarily spawning a mid-boss before implementing the final boss for Stage 10.
+			else if (this.level == 10) {
+				this.midBoss.update();
 			} else {
 				this.enemyShipFormation.update();
 				this.enemyShipFormation.shoot(this.bullets);
@@ -219,12 +230,20 @@ public class GameScreen extends Screen {
 
 		boolean isCleared = false;
 
-		if (this.level == 5 && this.midBoss == null && this.midBoss.isDestroyed()) {
-			isCleared = true;
-		} else {
-			if (this.enemyShipFormation != null && this.enemyShipFormation.isEmpty()) {
+		if (this.level == 5) {
+			if (this.midBoss == null || this.midBoss.isDestroyed()) {
 				isCleared = true;
 			}
+		}
+
+		//Temporarily spawning a mid-boss before implementing the final boss for Stage 10. 
+		else if (this.level == 10) {
+			if (this.midBoss == null || this.midBoss.isDestroyed()) {
+				isCleared = true;
+			}
+		}
+		else {
+			isCleared = this.enemyShipFormation.isEmpty();
 		}
 		if ((isCleared || this.lives == 0)
 				&& !this.levelFinished) {
@@ -253,7 +272,17 @@ public class GameScreen extends Screen {
 		// Render the boss entity on Level 5, or standard enemy formation on other levels.
 		if (this.level == 5) {
 			if (this.midBoss != null) {
-				drawManager.drawEntity(this.midBoss, this.midBoss.getPositionX(), 
+				drawManager.drawEntity(this.midBoss, 
+					this.midBoss.getPositionX(), 
+					this.midBoss.getPositionY());
+			}
+		} 
+
+		//Temporarily spawning a mid-boss before implementing the final boss for Stage 10.
+		else if (this.level == 10) {
+			if (this.midBoss != null) {
+				drawManager.drawEntity(this.midBoss, 
+					this.midBoss.getPositionX(), 
 					this.midBoss.getPositionY());
 			}
 		}
@@ -321,9 +350,25 @@ public class GameScreen extends Screen {
 					if (this.midBoss != null
 							&& !this.midBoss.isDestroyed()
 							&& checkCollision(bullet, this.midBoss)) {
+						
+						// Add score for hitting the Mid boss and check if it is destroyed
+						this.score += this.midBoss.manageCollisionsBoss(bullet);
 						recyclable.add(bullet);
 					}
-				} else {
+				} 
+				
+				//Temporarily spawning a mid-boss before implementing the final boss for Stage 10.
+				else if (this.level == 10) {
+					if (this.midBoss != null
+							&& !this.midBoss.isDestroyed()
+							&& checkCollision(bullet, this.midBoss)) {
+						
+						// Add score for hitting the Mid boss and check if it is destroyed
+						this.score += this.midBoss.manageCollisionsBoss(bullet);
+						recyclable.add(bullet);
+					}
+				}
+				else {
 					for (EnemyShip enemyShip : this.enemyShipFormation)
 						if (!enemyShip.isDestroyed()
 								&& checkCollision(bullet, enemyShip)) {
