@@ -138,14 +138,14 @@ public class EnemyShipBoss extends Entity {
             return 0;
         }
 
-        this.takeDamage();
-
         int scoreEarned;
         if (this.spriteType == SpriteType.MidBoss_1 || this.spriteType == SpriteType.MidBoss_2) {
             scoreEarned = MID_BOSS_POINTS_HIT;
         } else {
 			scoreEarned = FINAL_BOSS_POINTS_HIT;
 		}
+
+        this.takeDamage();
 
         if (this.isDestroyed()) {
             scoreEarned += this.getPointValue();
