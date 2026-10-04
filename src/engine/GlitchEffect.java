@@ -10,7 +10,8 @@ import java.util.Random;
  * While enabled: shows light scanlines all the time, and short random
  * "bursts" that shift horizontal slices of the screen, add red/cyan
  * lines and noise blocks.
- *
+ * AUTHORED BY: VFX TEAM (Effection)
+ * Any further inquiries please contact us.
  * Team Effection - Visual Effects.
  */
 public class GlitchEffect {
