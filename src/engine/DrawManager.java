@@ -2,7 +2,6 @@ package engine;
 
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.FontFormatException;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
@@ -76,7 +75,14 @@ public final class DrawManager {
 		/** Bonus ship. */
 		EnemyShipSpecial,
 		/** Destroyed enemy ship. */
-		Explosion
+		Explosion,
+
+		/* add enum MidBoss, FinalBoss  */
+		MidBoss_1,
+		MidBoss_2,
+
+		FinalBoss_1,
+		FinalBoss_2
 	};
 
 	/**
@@ -103,20 +109,29 @@ public final class DrawManager {
 			spriteMap.put(SpriteType.EnemyShipSpecial, new boolean[16][7]);
 			spriteMap.put(SpriteType.Explosion, new boolean[13][7]);
 
+			/* MidBoss, FinalBoss size */
+			spriteMap.put(SpriteType.MidBoss_1, new boolean[16][10]);
+			spriteMap.put(SpriteType.MidBoss_2, new boolean[16][10]);
+
+			spriteMap.put(SpriteType.FinalBoss_1, new boolean[24][16]);
+			spriteMap.put(SpriteType.FinalBoss_2, new boolean[24][16]);
+
 			fileManager.loadSprite(spriteMap);
 			logger.info("Finished loading the sprites.");
 
 			// Font loading.
-			fontRegular = fileManager.loadFont(14f);
-			fontBig = fileManager.loadFont(24f);
-			logger.info("Finished loading the fonts.");
+			try {
+				fontRegular = fileManager.loadFont(14f);
+				fontBig = fileManager.loadFont(24f);
+				logger.info("Finished loading the fonts.");
+			} catch (Exception e) {
+				logger.warning("Font loading failed, using default font.");
+				fontRegular = new Font("SansSerif", Font.PLAIN, 14);
+				fontBig = new Font("SansSerif", Font.BOLD, 24);
+			}
 
 		} catch (IOException e) {
 			logger.warning("Loading failed.");
-			fontRegular = new Font(Font.MONOSPACED, Font.PLAIN, 14);
-			fontBig = new Font(Font.MONOSPACED, Font.PLAIN, 24);
-		} catch (FontFormatException e) {
-			logger.warning("Font formating failed.");
 			fontRegular = new Font(Font.MONOSPACED, Font.PLAIN, 14);
 			fontBig = new Font(Font.MONOSPACED, Font.PLAIN, 24);
 		}
@@ -161,9 +176,16 @@ public final class DrawManager {
 		backBufferGraphics
 				.fillRect(0, 0, screen.getWidth(), screen.getHeight());
 
+		// font가 null일 경우 대비한 Fallback 처리
+		if (fontRegular == null) {
+			fontRegular = new Font("SansSerif", Font.PLAIN, 14);
+		}
+		if (fontBig == null) {
+			fontBig = new Font("SansSerif", Font.BOLD, 24);
+		}
+
 		fontRegularMetrics = backBufferGraphics.getFontMetrics(fontRegular);
 		fontBigMetrics = backBufferGraphics.getFontMetrics(fontBig);
-
 		// drawBorders(screen);
 		// drawGrid(screen);
 	}
