@@ -7,6 +7,8 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 
 /**
+ *  AUTHORED BY: VFX TEAM (Effection)
+ * 	Any further inquiries please contact us.
  * Dims the screen for a short time when the player ship is hit.
  * The overlay starts at maxAlpha and fades to 0 over the duration.
  *

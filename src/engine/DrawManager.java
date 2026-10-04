@@ -741,7 +741,8 @@ public final class DrawManager {
 	}
 	/**
 	 * Draws the damage dim overlay when the player is hit.
-	 *
+	 *AUTHORED BY: VFX TEAM (Effection)
+	 *Any further inquiries please contact us.
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param effect
@@ -756,7 +757,9 @@ public final class DrawManager {
 
 	/**                                        // <- ADD
 	 * Draws the low-health glitch effect.
-	 *
+	 * AUTHORED BY: VFX TEAM (Effection)
+	 *Any further inquiries please contact us.
+	 * 
 	 * @param screen Screen to draw on.
 	 * @param effect Glitch effect to draw.
 	 */

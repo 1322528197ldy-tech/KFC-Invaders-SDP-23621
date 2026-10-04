@@ -247,7 +247,7 @@ public class GameScreen extends Screen {
 		for (Bullet bullet : this.bullets)
 			drawManager.drawEntity(bullet, bullet.getPositionX(),
 					bullet.getPositionY());
-		// Damage dim (under HUD, so score/lives stay bright).
+		// Damage dim (under HUD, so score/lives stay bright). AUTHORED BY: VFX TEAM (Effection)
 		drawManager.drawDamageDim(this, this.damageDim);   // ADD
 
 		// Interface.
@@ -260,7 +260,7 @@ public class GameScreen extends Screen {
 				this.unlockedAchievement = null;
 		}
 
-		// Low-health glitch (covers game + HUD).
+		// Low-health glitch (covers game + HUD). AUTHORED BY: VFX TEAM (Effection)
 		this.glitch.setEnabled(this.lives > 0
 				&& this.lives <= LOW_HEALTH_LIVES && !this.levelFinished);
 		drawManager.drawGlitch(this, this.glitch);
@@ -308,7 +308,7 @@ public class GameScreen extends Screen {
 					if (!this.ship.isDestroyed()) {
 						this.ship.destroy();
 						this.lives--;
-						this.damageDim.trigger();        // <- NEW LINE HERE
+						this.damageDim.trigger(); // <-*AUTHORED BY: VFX TEAM (Effection)
 						this.logger.info("Hit on player ship, " + this.lives
 								+ " lives remaining.");
 					}
