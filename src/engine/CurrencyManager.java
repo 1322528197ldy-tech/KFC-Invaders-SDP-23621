@@ -1,12 +1,19 @@
 package engine;
 
 /**
- * Holds the player's coin balance for the current session (GoG - Currency
- * System). Collected coins from enemy drops are added here, and any screen
- * reads the balance from this single shared instance.
+ * Tracks the player's coin balance and keeps it persisted to disk, so it
+ * survives between game launches (unlike score, which resets every run)
+ * and is shared by every screen that reads or spends it - the in-game HUD
+ * and the shop both go through this single instance.
  *
- * This first version keeps the balance in memory only; saving it to disk
- * is added in the next step.
+ * Coins are the main currency: earned from enemy drops and meant for
+ * gameplay purchases.
+ *
+ * Every change to the balance is written straight to disk (via
+ * {@link FileManager}) rather than only on exit, so a crash or force-quit
+ * can't lose earned coins. The balance is stored in its own file, separate
+ * from the player profile, so saving coins can never overwrite achievement
+ * progress (and vice versa).
  *
  * @author GoG - Currency System
  */
@@ -15,14 +22,14 @@ public final class CurrencyManager {
 	/** Singleton instance. */
 	private static CurrencyManager instance;
 
-	/** Current coin balance. Never negative. */
+	/** Current coin balance, persisted to disk. Never negative. */
 	private int coins;
 
 	/**
-	 * Private constructor, starts from zero.
+	 * Private constructor, loads whatever balance was last saved.
 	 */
 	private CurrencyManager() {
-		this.coins = 0;
+		this.coins = Math.max(0, FileManager.getInstance().loadCoins());
 	}
 
 	/**
@@ -38,14 +45,19 @@ public final class CurrencyManager {
 
 	/**
 	 * Adds coins to the current balance, e.g. when the player collects a
-	 * dropped coin.
+	 * dropped coin or another system (achievements, challenges) rewards
+	 * them, and immediately persists the new balance. The balance is
+	 * capped at Integer.MAX_VALUE instead of overflowing into negatives.
 	 *
 	 * @param amount
 	 *            Amount of coins to add. Ignored if not positive.
 	 */
 	public void addCoins(final int amount) {
-		if (amount > 0)
-			this.coins += amount;
+		if (amount <= 0)
+			return;
+		this.coins = (int) Math.min(Integer.MAX_VALUE,
+				(long) this.coins + amount);
+		save();
 	}
 
 	/**
@@ -56,8 +68,23 @@ public final class CurrencyManager {
 	}
 
 	/**
-	 * Attempts to spend coins, e.g. for a shop purchase. Checks-then-spends
-	 * in one call so a caller never needs to call getCoins() first.
+	 * Checks whether the balance covers a price, without changing it. Handy
+	 * for greying out shop entries; to actually buy, call
+	 * {@link #trySpend(int)}, which checks again.
+	 *
+	 * @param amount
+	 *            Price to check.
+	 * @return true if the player currently has at least that many coins.
+	 */
+	public boolean canAfford(final int amount) {
+		return amount >= 0 && this.coins >= amount;
+	}
+
+	/**
+	 * Attempts to spend coins, e.g. for a shop purchase or ship unlock.
+	 * Deliberately checks-then-spends in one call so a caller never needs to
+	 * call getCoins() first and race against another deduction. Persists
+	 * the new balance immediately on success.
 	 *
 	 * @param amount
 	 *            Amount of coins to spend. Must be positive.
@@ -71,13 +98,23 @@ public final class CurrencyManager {
 		if (this.coins < amount)
 			return false;
 		this.coins -= amount;
+		save();
 		return true;
 	}
 
 	/**
-	 * Resets the balance to zero. Useful for tests.
+	 * Resets the balance to zero and persists it. Useful for tests; not
+	 * meant to be called during normal play.
 	 */
 	public void reset() {
 		this.coins = 0;
+		save();
+	}
+
+	/**
+	 * Writes the current balance to disk.
+	 */
+	private void save() {
+		FileManager.getInstance().saveCoins(this.coins);
 	}
 }

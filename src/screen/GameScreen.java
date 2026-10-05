@@ -46,6 +46,8 @@ public class GameScreen extends Screen {
 	private static final int SEPARATION_LINE_HEIGHT = 40;
 	/** Coins awarded when a regular enemy's drop chance succeeds. */
 	private static final int COIN_VALUE = 1;
+	/** Coins guaranteed when the special bonus ship is destroyed. */
+	private static final int BONUS_COIN_VALUE = 5;
 
 	/** Current game difficulty settings. */
 	private GameSettings gameSettings;
@@ -227,6 +229,10 @@ public class GameScreen extends Screen {
 			this.levelFinished = true;
 			this.screenFinishedCooldown.reset();
 
+			// Level cleared alive: coins still falling are collected so the
+			// last kills' drops aren't lost.
+			if (this.enemyShipFormation.isEmpty() && this.lives > 0)
+				collectRemainingCoins();
 		}
 
 		if (this.levelFinished && this.screenFinishedCooldown.checkFinished())
@@ -260,6 +266,8 @@ public class GameScreen extends Screen {
 		// Interface.
 		drawManager.drawScore(this, this.score);
 		drawManager.drawLives(this, this.lives);
+		drawManager.drawCoinBalance(this, CurrencyManager.getInstance()
+				.getCoins());
 		drawManager.drawHorizontalLine(this, SEPARATION_LINE_HEIGHT - 1);
 		if (this.unlockedAchievement != null) {
 			drawManager.drawAchievementUnlocked(this, this.unlockedAchievement);
@@ -332,7 +340,7 @@ public class GameScreen extends Screen {
 					this.score += this.enemyShipSpecial.getPointValue();
 					this.shipsDestroyed++;
 					this.enemyShipSpecial.destroy();
-					maybeDropCoin(this.enemyShipSpecial);
+					dropCoin(this.enemyShipSpecial, BONUS_COIN_VALUE);
 					showUnlockedAchievement(Core.getAchievementManager()
 							.recordEnemyDefeated());
 					this.enemyShipSpecialExplosionCooldown.reset();
@@ -358,7 +366,7 @@ public class GameScreen extends Screen {
 
 	/**
 	 * Drops a coin worth the given value from the center of a destroyed
-	 * enemy.
+	 * enemy. Used directly for the special ship, which always pays out.
 	 *
 	 * @param destroyedEnemy
 	 *            Enemy ship that was just destroyed.
@@ -392,6 +400,24 @@ public class GameScreen extends Screen {
 		}
 		this.coins.removeAll(recyclable);
 		CoinPool.recycle(recyclable);
+	}
+
+	/**
+	 * Collects every coin still on screen at once, used when the level is
+	 * cleared so drops from the last enemies aren't lost.
+	 */
+	private void collectRemainingCoins() {
+		if (this.coins.isEmpty())
+			return;
+		int total = 0;
+		for (Coin coin : this.coins)
+			total += coin.getValue();
+		CurrencyManager.getInstance().addCoins(total);
+		this.logger.info("Level cleared, collected " + total
+				+ " remaining coins, balance: "
+				+ CurrencyManager.getInstance().getCoins());
+		CoinPool.recycle(this.coins);
+		this.coins.clear();
 	}
 
 	/**
