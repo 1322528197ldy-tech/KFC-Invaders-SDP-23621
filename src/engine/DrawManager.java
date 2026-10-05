@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 
 import screen.MenuItem;
 import screen.Screen;
+import entity.Coin;
 import entity.Entity;
 import entity.Ship;
 
@@ -199,6 +200,25 @@ public final class DrawManager {
 				if (image[i][j])
 					backBufferGraphics.drawRect(positionX + i * 2, positionY
 							+ j * 2, 1, 1);
+	}
+
+	/**
+	 * Draws a dropped coin as a filled circle (GoG - Currency System).
+	 * Coins have no entry in the shared sprite file, so they are drawn
+	 * here instead of through drawEntity().
+	 *
+	 * @param coin
+	 *            Coin to be drawn.
+	 * @param positionX
+	 *            Coordinates for the left side of the coin.
+	 * @param positionY
+	 *            Coordinates for the upper side of the coin.
+	 */
+	public void drawCoin(final Coin coin, final int positionX,
+			final int positionY) {
+		backBufferGraphics.setColor(coin.getColor());
+		backBufferGraphics.fillOval(positionX, positionY, coin.getWidth(),
+				coin.getHeight());
 	}
 
 	/**
