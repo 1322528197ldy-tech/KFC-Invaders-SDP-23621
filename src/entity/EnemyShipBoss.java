@@ -1,6 +1,7 @@
 package entity;
 
 import java.awt.Color;
+import java.util.Set;
 
 import engine.Cooldown;
 import engine.Core;
@@ -34,9 +35,19 @@ public class EnemyShipBoss extends Entity {
 	/** Point value awarded for hitting the Final Boss. */
 	private static final int FINAL_BOSS_POINTS_HIT = 250;
 
-
+	/* Ship movement speeds */
 	private int speedX = 0;
 	private int speedY = 0;
+
+	/* Boss shooting cooldown */
+    private Cooldown shootCooldown;
+	private int currentShootingFrequency;
+	/* Minimum shooting rate */
+	private static final int MIN_SHOOTING_RATE = 500;
+	/* Shooting rate decline per shot */
+	private static final int DECLINE_RATE = 30;
+	/* Bullet speed */
+	private static int BULLET_SPEED = 5;
 
     /**
 	 * Constructor for MidBoss Ship.
@@ -207,4 +218,38 @@ public class EnemyShipBoss extends Entity {
             this.speedY = -this.speedY;
         }
 	}
+
+
+    /**
+     * Manages the shooting of bullets by the boss ship, ensuring 
+	 * that it adheres to a cooldown period between shots.
+     * 
+     * @param bullets general bullet set to add the new bullet to
+     * @param gameSettings Core settings for difficulty and shooting frequency
+     * @return bullet firing success status (true: fired, false: on cooldown or destroyed)
+     */
+    public final boolean shoot(final Set<Bullet> bullets, final GameSettings gameSettings) {
+        if (this.shootCooldown == null) {
+			this.currentShootingFrequency = gameSettings.getShootingFrecuency();
+            this.shootCooldown = Core.getCooldown(gameSettings.getShootingFrecuency());
+            this.shootCooldown.reset();
+        }
+        if (!this.isDestroyed() && this.shootCooldown.checkFinished()) {
+
+			if (this.currentShootingFrequency > MIN_SHOOTING_RATE) {
+				this.currentShootingFrequency -= DECLINE_RATE;
+				if (this.currentShootingFrequency < MIN_SHOOTING_RATE) {
+                	this.currentShootingFrequency = MIN_SHOOTING_RATE;
+            	}
+			}
+
+			this.shootCooldown = Core.getCooldown(this.currentShootingFrequency);
+			this.shootCooldown.reset();
+
+			bullets.add(BulletPool.getBullet(this.positionX + this.width / 2, 
+                    this.positionY + this.height, BULLET_SPEED));
+            return true;
+        }
+        return false;
+    }
 }
