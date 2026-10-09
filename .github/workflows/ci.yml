@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, kfc/endless-mode]
 
 jobs:
   build:
@@ -20,7 +20,10 @@ jobs:
       - name: Compile
         run: |
           mkdir -p bin
-          javac -Xlint:all -d bin $(find src -name '*.java')
+          javac -encoding UTF-8 -Xlint:all -d bin $(find src tests -name '*.java')
+
+      - name: Endless regression tests
+        run: java -ea -Djava.awt.headless=true -cp bin:res engine.EndlessRunTest
 
       - name: Check resources referenced by code exist
         run: test -f res/graphics && test -f res/scores

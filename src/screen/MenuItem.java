@@ -16,6 +16,8 @@ public enum MenuItem {
 
 	/** Starts the game. */
 	PLAY("Play", 2, true),
+	/** Standalone survival mode; campaign unlock awaits Stage 10 integration. */
+	ENDLESS("Endless", 8, true),
 	/** Ship selection screen. */
 	SHIP_SELECT("Customize", 7, true),
 	/** Shop screen. */

@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 import screen.AchievementsScreen;
 import screen.CashOutScreen;
 import screen.GameScreen;
+import screen.EndlessScreen;
 import screen.HighScoreScreen;
 import screen.ScoreScreen;
 import screen.Screen;
@@ -215,6 +216,10 @@ public final class Core {
 						+ " ship select screen at " + FPS + " fps.");
 				returnCode = frame.setScreen(currentScreen);
 				LOGGER.info("Closing ship select screen.");
+				break;
+			case 8:
+				currentScreen = new EndlessScreen(width, height, FPS);
+				returnCode = frame.setScreen(currentScreen);
 				break;
 			default:
 				// No screen for this code yet - back to the menu instead of

@@ -130,6 +130,7 @@ public final class DrawManager {
 			fontRegular = new Font(Font.MONOSPACED, Font.PLAIN, 14);
 			fontBig = new Font(Font.MONOSPACED, Font.PLAIN, 24);
 		}
+		fontSelected = fontRegular.deriveFont(17f);
 	}
 
 	/**
@@ -188,6 +189,8 @@ public final class DrawManager {
 	public void completeDrawing(final Screen screen) {
 		graphics.drawImage(backBuffer, frame.getInsets().left,
 				frame.getInsets().top, frame);
+		backBufferGraphics.dispose();
+		graphics.dispose();
 	}
 
 	/**
@@ -512,7 +515,8 @@ public final class DrawManager {
 	 * @return Baseline of the item's text.
 	 */
 	private int menuItemBaseline(final Screen screen, final int index) {
-		return screen.getHeight() / 2 + menuItemSpacing() * (index + 2);
+		int bottom = screen.getHeight() - fontRegularMetrics.getHeight() * 3;
+		return bottom - menuItemSpacing() * (MenuItem.values().length - 1 - index);
 	}
 
 	/**

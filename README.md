@@ -35,6 +35,14 @@ Register your team by adding one row to the table below and submitting the chang
 
 ## Development
 
+### Endless mode feature branch
+
+Select **Endless** from the main menu. On Windows, run `./run.ps1` to compile and
+play, or `./run.ps1 -Test` for regression tests (JDK 17).
+See [Endless mode controls, rules and integration notes](docs/endless-mode.md).
+This branch exposes the mode directly while the teacher's seven-stage campaign
+awaits the planned Stage 10 unlock integration.
+
 - Recommended IDE: IntelliJ IDEA
 - Runtime requirement inherited from the upstream project: Java 7 or later
 - Before implementing a feature, build and run the baseline game and analyze the relevant source code.

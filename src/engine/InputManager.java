@@ -19,6 +19,8 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	private static final int NUM_KEYS = 256;
 	/** Array with the keys marked as pressed or not. */
 	private static boolean[] keys;
+	/** Latched press edges, so short taps between game frames are not lost. */
+	private final boolean[] pressed = new boolean[NUM_KEYS];
 	/** Singleton instance of the class. */
 	private static InputManager instance;
 	/** Current mouse Y position. */
@@ -53,8 +55,15 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	 *            Key number to check.
 	 * @return Key state.
 	 */
-	public boolean isKeyDown(final int keyCode) {
+	public synchronized boolean isKeyDown(final int keyCode) {
 		return keys[keyCode];
+	}
+
+	/** Consumes one press; holding a key does not repeatedly toggle overlays. */
+	public synchronized boolean consumeKeyPress(final int keyCode) {
+		boolean value = pressed[keyCode];
+		pressed[keyCode] = false;
+		return value;
 	}
 
 	/**
@@ -64,9 +73,11 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	 *            Key pressed.
 	 */
 	@Override
-	public void keyPressed(final KeyEvent key) {
-		if (key.getKeyCode() >= 0 && key.getKeyCode() < NUM_KEYS)
+	public synchronized void keyPressed(final KeyEvent key) {
+		if (key.getKeyCode() >= 0 && key.getKeyCode() < NUM_KEYS) {
+			if (!keys[key.getKeyCode()]) pressed[key.getKeyCode()] = true;
 			keys[key.getKeyCode()] = true;
+		}
 	}
 
 	/**
@@ -76,7 +87,7 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	 *            Key released.
 	 */
 	@Override
-	public void keyReleased(final KeyEvent key) {
+	public synchronized void keyReleased(final KeyEvent key) {
 		if (key.getKeyCode() >= 0 && key.getKeyCode() < NUM_KEYS)
 			keys[key.getKeyCode()] = false;
 	}
