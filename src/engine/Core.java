@@ -55,7 +55,7 @@ public final class Core {
 			new GameSettings(6, 4, 30, 1500);
 	/** Difficulty settings for level 5. */
 	private static final GameSettings SETTINGS_LEVEL_5 =
-			new GameSettings(5, 4, 20, 1000);
+			new GameSettings(5, 4, 5, 1000);
 	/** Difficulty settings for level 6. */
 	private static final GameSettings SETTINGS_LEVEL_6 =
 			new GameSettings(5, 4, 10, 1000);
@@ -70,7 +70,7 @@ public final class Core {
 			new GameSettings(6, 6, 1, 300);
 	/** Difficulty settings for level 10. */
 	private static final GameSettings SETTINGS_LEVEL_10 =
-			new GameSettings(5, 4, 2, 500);
+			new GameSettings(5, 4, 8, 500);
 
 	
 	/** Frame to draw the screen on. */
@@ -134,7 +134,7 @@ public final class Core {
 
 		int returnCode = 1;
 		do {
-			gameState = new GameState(1, 0, MAX_LIVES, 0, 0);
+			gameState = new GameState(10, 0, MAX_LIVES, 0, 0);
 
 			switch (returnCode) {
 			case 1:
