@@ -21,6 +21,7 @@ public final class TutorialScreen extends Screen {
     private EnemyShip enemy;
     private final Set<Bullet> bullets = new HashSet<Bullet>();
     private boolean enterWasDown;
+    private boolean skipWasDown;
 
     public TutorialScreen(final int width, final int height, final int fps) {
         super(width, height, fps);
@@ -33,6 +34,7 @@ public final class TutorialScreen extends Screen {
         enemy = null;
         returnCode = 1;
         enterWasDown = inputManager.isKeyDown(KeyEvent.VK_ENTER);
+        skipWasDown = inputManager.isKeyDown(KeyEvent.VK_S);
         inputDelay.reset();
     }
 
@@ -50,11 +52,20 @@ public final class TutorialScreen extends Screen {
     @Override
     protected void update() {
         boolean enterDown = inputManager.isKeyDown(KeyEvent.VK_ENTER);
+        boolean skipDown = inputManager.isKeyDown(KeyEvent.VK_S);
         if (inputManager.isKeyDown(KeyEvent.VK_ESCAPE)) {
             returnCode = 1;
             isRunning = false;
             return;
         }
+        // A fresh press can skip any step, including the initial input delay.
+        // Ignore S held over from menu navigation until released and pressed again.
+        if (skipDown && !skipWasDown) {
+            returnCode = 2;
+            isRunning = false;
+            return;
+        }
+        skipWasDown = skipDown;
         if (inputDelay.checkFinished()) {
             if (step == Step.COMPLETE) {
                 // Require a fresh press so a held key cannot skip the message.
@@ -164,7 +175,7 @@ public final class TutorialScreen extends Screen {
         for (Bullet bullet : bullets) {
             drawManager.drawEntity(bullet, bullet.getPositionX(), bullet.getPositionY());
         }
-        drawManager.drawKeyHints(this, "ESC: menu");
+        drawManager.drawKeyHints(this, "S: skip to Stage 1 | ESC: menu");
         drawManager.completeDrawing(this);
     }
 }
