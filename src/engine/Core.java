@@ -64,10 +64,10 @@ public final class Core {
 			new GameSettings(6, 4, 5, 500);
 	/** Difficulty settings for level 8. */
 	private static final GameSettings SETTINGS_LEVEL_8 =
-			new GameSettings(6, 5, 3, 500);
+			new GameSettings(7, 4, 3, 500);
 	/** Difficulty settings for level 9. */
 	private static final GameSettings SETTINGS_LEVEL_9 =
-			new GameSettings(6, 6, 1, 300);
+			new GameSettings(7, 5, 1, 300);
 	/** Difficulty settings for level 10. */
 	private static final GameSettings SETTINGS_LEVEL_10 =
 			new GameSettings(5, 4, 8, 500);
@@ -134,7 +134,7 @@ public final class Core {
 
 		int returnCode = 1;
 		do {
-			gameState = new GameState(6, 0, MAX_LIVES, 0, 0);
+			gameState = new GameState(8, 0, MAX_LIVES, 0, 0);
 
 			switch (returnCode) {
 			case 1:
