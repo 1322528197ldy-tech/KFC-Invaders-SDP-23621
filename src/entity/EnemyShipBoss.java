@@ -6,6 +6,9 @@ import engine.Cooldown;
 import engine.Core;
 import engine.DrawManager.SpriteType;
 import engine.GameSettings;
+import java.util.Set;
+import entity.Bullet;
+import entity.BulletPool;
 
 public class EnemyShipBoss extends Entity {
 
@@ -15,6 +18,13 @@ public class EnemyShipBoss extends Entity {
 
     /** Cooldown between sprite changes. */
     private Cooldown animationCooldown;
+    /** Boss shooting cooldown. */
+    private Cooldown shootCooldown;
+    private int currentShootingFrequency;
+
+    private static final int MIN_SHOOTING_RATE = 500;
+    private static final int DECLINE_RATE = 30;
+    private static final int BULLET_SPEED = 5;
 	/** Checks if the ship has been hit by a bullet. */
     private boolean isDestroyed;
     /** Values of the ship, in points, when destroyed. */
@@ -207,4 +217,34 @@ public class EnemyShipBoss extends Entity {
             this.speedY = -this.speedY;
         }
 	}
+    public final boolean shoot(final Set<Bullet> bullets,
+                               final GameSettings gameSettings) {
+        if (this.shootCooldown == null) {
+            this.currentShootingFrequency =
+                    gameSettings.getShootingFrecuency();
+            this.shootCooldown =
+                    Core.getCooldown(gameSettings.getShootingFrecuency());
+            this.shootCooldown.reset();
+        }
+
+        if (!this.isDestroyed() && this.shootCooldown.checkFinished()) {
+            if (this.currentShootingFrequency > MIN_SHOOTING_RATE) {
+                this.currentShootingFrequency -= DECLINE_RATE;
+                if (this.currentShootingFrequency < MIN_SHOOTING_RATE) {
+                    this.currentShootingFrequency = MIN_SHOOTING_RATE;
+                }
+            }
+
+            this.shootCooldown =
+                    Core.getCooldown(this.currentShootingFrequency);
+            this.shootCooldown.reset();
+
+            bullets.add(BulletPool.getBullet(
+                    this.positionX + this.width / 2,
+                    this.positionY + this.height,
+                    BULLET_SPEED));
+            return true;
+        }
+        return false;
+    }
 }
