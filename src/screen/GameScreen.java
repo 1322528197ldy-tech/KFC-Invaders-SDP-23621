@@ -253,6 +253,7 @@ public class GameScreen extends Screen {
 			if (this.level == 5) {
 				this.midBoss.update();
 				this.midBoss.moveBoss(this.width, this.height, this.gameSettings);
+                this.midBoss.shoot(this.bullets, this.gameSettings);
 
 			}
 
@@ -260,6 +261,7 @@ public class GameScreen extends Screen {
 			else if (this.level == 10) {
 				this.midBoss.update();
 				this.midBoss.moveBoss(this.width, this.height, this.gameSettings);
+                this.midBoss.shoot(this.bullets, this.gameSettings);
 			} else {
 				this.enemyShipFormation.update();
 				this.enemyShipFormation.shoot(this.bullets);
