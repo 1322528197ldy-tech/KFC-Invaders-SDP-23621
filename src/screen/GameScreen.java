@@ -172,7 +172,7 @@ public class GameScreen extends Screen {
 	 *            Current game state.
 	 * @param gameSettings
 	 *            Current game settings.
-	 * @param bonnusLife
+	 * @param bonusLife
 	 *            Checks if a bonus life is awarded this level.
 	 * @param width
 	 *            Screen width.
@@ -355,12 +355,20 @@ public class GameScreen extends Screen {
 			if (this.enemyShipFormation.isEmpty() && this.lives > 0) {
 				this.pendingDiamonds += this.level;
 				collectRemainingCoins();
+				showUnlockedAchievement(Core.getAchievementManager()
+						.recordLevelCompleted(this.level));
+
+				// Last level cleared alive: the game is beaten.
+				if (this.level == Core.getNumLevels())
+					showUnlockedAchievement(Core.getAchievementManager()
+							.recordGameWon(Core.getSelectedShipId()));
 			}
 		}
 
-		if (this.levelFinished && this.screenFinishedCooldown.checkFinished())
+		if (this.levelFinished && this.screenFinishedCooldown.checkFinished()
+				&& this.unlockedAchievement == null
+				&& this.achievementPopupQueue.isEmpty())
 			this.isRunning = false;
-
 	}
 
 	/**
