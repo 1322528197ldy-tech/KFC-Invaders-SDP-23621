@@ -280,6 +280,8 @@ public class GameScreen extends Screen {
 		// own row below clears both.
 		drawManager.drawCoinBalance(this, CurrencyManager.getInstance()
 				.getCoins(), 36);
+		drawManager.drawDiamonds(this, engine.DiamondManager.getInstance()
+				.getDiamonds());
 		drawManager.drawHorizontalLine(this, SEPARATION_LINE_HEIGHT - 1);
 		if (this.unlockedAchievement != null) {
 			drawManager.drawAchievementUnlocked(this, this.unlockedAchievement);
