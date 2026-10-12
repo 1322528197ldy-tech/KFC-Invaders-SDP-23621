@@ -119,7 +119,10 @@ public final class DrawManager {
 		/** Infinity Void achievement icon. */
 		InfinityVoid,
         /** First Boss Kill achievement icon. */
-        BossKill
+        BossKill,
+		/** Bouncing boss animation frames. */
+		MidBoss1,
+		MidBoss2
 	};
 
 	/**
@@ -154,6 +157,8 @@ public final class DrawManager {
 			spriteMap.put(SpriteType.Weakestship, new boolean[11][11]);
 			spriteMap.put(SpriteType.InfinityVoid, new boolean[11][11]);
             spriteMap.put(SpriteType.BossKill, new boolean[11][11]);
+			spriteMap.put(SpriteType.MidBoss1, new boolean[16][10]);
+			spriteMap.put(SpriteType.MidBoss2, new boolean[16][10]);
 
 			fileManager.loadSprite(spriteMap);
 			logger.info("Finished loading the sprites.");

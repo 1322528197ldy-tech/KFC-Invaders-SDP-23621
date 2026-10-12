@@ -16,6 +16,7 @@ import java.util.Set;
 import engine.CoinDropManager;
 import engine.Cooldown;
 import engine.Core;
+import engine.DrawManager;
 import engine.CurrencyManager;
 import engine.GameSettings;
 import engine.GameState;
@@ -29,6 +30,7 @@ import entity.BulletPool;
 import entity.Coin;
 import entity.CoinPool;
 import entity.EnemyShip;
+import entity.EnemyShipBoss;
 import entity.EnemyShipFormation;
 import entity.Entity;
 import entity.Particle;
@@ -184,6 +186,9 @@ public class GameScreen extends Screen {
 	/** Item slot keys (1-9) held last frame, so holding a key uses it once. */
 	private boolean[] itemSlotKeysHeld = new boolean[9];
 
+	/** Boss encounter; normal stages use enemyShipFormation instead. */
+	private EnemyShipBoss midBoss;
+
 	/**
 	 * Constructor, establishes the properties of the screen.
 	 *
@@ -223,9 +228,17 @@ public class GameScreen extends Screen {
 	public final void initialize() {
 		super.initialize();
 
-		enemyShipFormation = new EnemyShipFormation(this.gameSettings);
-		enemyShipFormation.attach(this);
+		// Initialize the player in both boss and normal stages.
 		this.ship = new Ship(this.width / 2, this.height - 30);
+
+		// Stage 10 temporarily reuses the Stage 5 boss; a final boss is separate work.
+		if (this.level == 5 || this.level == 10) {
+			this.midBoss = new EnemyShipBoss(this.width / 2 - 16, 60,
+					DrawManager.SpriteType.MidBoss1);
+		} else {
+			this.enemyShipFormation = new EnemyShipFormation(this.gameSettings);
+			this.enemyShipFormation.attach(this);
+		}
 		// Appears each 10-30 seconds.
 		this.enemyShipSpecialCooldown = Core.getVariableCooldown(
 				BONUS_SHIP_INTERVAL, BONUS_SHIP_VARIANCE);
@@ -349,14 +362,17 @@ public class GameScreen extends Screen {
 			}
 
 			this.ship.update();
-			if (!this.items.enemiesFrozen()) // Freeze item (Team CS)
-				this.enemyShipFormation.update();
-			this.enemyShipFormation.shoot(this.bullets);
-			/**
-			 * AUTHORED BY: VFX TEAM (effection)
-			 *
-			 * Ship blinks when lives remain 1.
-			 */
+			if (this.midBoss != null) {
+				if (!this.items.enemiesFrozen()) {
+					this.midBoss.update();
+					this.midBoss.moveBoss(this.width, this.height, this.gameSettings);
+				}
+				this.midBoss.shoot(this.bullets, this.gameSettings);
+			} else {
+				if (!this.items.enemiesFrozen())
+					this.enemyShipFormation.update();
+				this.enemyShipFormation.shoot(this.bullets);
+			}
 			updateLowHealthEffect();
 			this.ship.setBlinking(this.lowHealthActive);
 		}
@@ -381,7 +397,9 @@ public class GameScreen extends Screen {
 			return;
 		}
 
-		if ((this.enemyShipFormation.isEmpty() || this.lives == 0)
+		boolean isCleared = this.midBoss != null
+				? this.midBoss.isDestroyed() : this.enemyShipFormation.isEmpty();
+		if ((isCleared || this.lives == 0)
 				&& !this.levelFinished) {
 			this.levelFinished = true;
 			this.screenFinishedCooldown.reset();
@@ -389,7 +407,7 @@ public class GameScreen extends Screen {
 			// Level cleared alive: level N is worth N diamonds, kept pending
 			// until cashed out (see engine.DiamondManager), and coins still
 			// falling are collected so the last kills' drops aren't lost.
-			if (this.enemyShipFormation.isEmpty() && this.lives > 0) {
+			if (isCleared && this.lives > 0) {
 				this.pendingDiamonds += this.level;
 				collectRemainingCoins();
 				showUnlockedAchievement(Core.getAchievementManager()
@@ -426,8 +444,11 @@ public class GameScreen extends Screen {
 		this.bullets.clear();
 
 		// Clears explosions left from enemies shot just before.
-		this.enemyShipFormation.removeDestroyed();
+		if (this.enemyShipFormation != null)
+			this.enemyShipFormation.removeDestroyed();
 		this.shrinkingEnemies = new LinkedHashMap<EnemyShip, Long>();
+		if (this.midBoss != null)
+			this.midBoss.destroy();
 
 		this.gameOverRowInterval = GAME_OVER_ROW_INTERVAL_START;
 		this.gameOverRowCooldown = Core.getCooldown(GAME_OVER_PAUSE);
@@ -467,7 +488,9 @@ public class GameScreen extends Screen {
 		if (!this.gameOverRowCooldown.checkFinished())
 			return;
 
-		List<EnemyShip> row = this.enemyShipFormation.removeBottomRow();
+		List<EnemyShip> row = this.enemyShipFormation == null
+				? java.util.Collections.<EnemyShip>emptyList()
+				: this.enemyShipFormation.removeBottomRow();
 		if (!row.isEmpty()) {
 			for (EnemyShip enemyShip : row)
 				this.shrinkingEnemies.put(enemyShip, now);
@@ -569,8 +592,12 @@ public class GameScreen extends Screen {
 					this.enemyShipSpecial.getPositionX(),
 					this.enemyShipSpecial.getPositionY());
 
-		enemyShipFormation.draw();
-
+		if (this.midBoss != null) {
+			drawManager.drawEntity(this.midBoss, this.midBoss.getPositionX(),
+					this.midBoss.getPositionY());
+		} else {
+			this.enemyShipFormation.draw();
+		}
 		// Hit sparkles. AUTHORED BY: VFX TEAM (Effection)
 		for (Particle particle : this.particles)
 			drawManager.drawParticle(particle);
@@ -681,7 +708,7 @@ public class GameScreen extends Screen {
 	 */
 	private void manageCollisions() {
 		Set<Bullet> recyclable = new HashSet<Bullet>();
-		for (Bullet bullet : this.bullets)
+		for (Bullet bullet : this.bullets) {
 			if (bullet.getSpeed() > 0) {
 				if (checkCollision(bullet, this.ship) && !this.levelFinished) {
 					recyclable.add(bullet);
@@ -695,20 +722,37 @@ public class GameScreen extends Screen {
 					}
 				}
 			} else {
-				for (EnemyShip enemyShip : this.enemyShipFormation)
-					if (!enemyShip.isDestroyed()
-							&& checkCollision(bullet, enemyShip)) {
-						this.score += enemyShip.getPointValue();
-						this.shipsDestroyed++;
-						spawnSparkles(enemyShip); // AUTHORED BY: VFX TEAM (Effection)
-						this.enemyShipFormation.destroy(enemyShip);
-						this.screenShake.trigger();
-						maybeDropCoin(enemyShip);
-						this.items.onEnemyDefeated(enemyShip, false);
-						showUnlockedAchievement(Core.getAchievementManager()
-								.recordEnemyDefeated());
+				if (this.level == 5 || this.level == 10) {
+					if (this.midBoss != null
+							&& !this.midBoss.isDestroyed()
+							&& checkCollision(bullet, this.midBoss)) {
+						this.score += this.midBoss.manageCollisionsBoss(bullet);
+						if (this.midBoss.isDestroyed()) {
+							this.shipsDestroyed++;
+							this.screenShake.trigger();
+							showUnlockedAchievement(Core.getAchievementManager()
+									.recordBossDefeated());
+							showUnlockedAchievement(Core.getAchievementManager()
+									.recordEnemyDefeated());
+						}
 						recyclable.add(bullet);
 					}
+				} else {
+					for (EnemyShip enemyShip : this.enemyShipFormation)
+						if (!enemyShip.isDestroyed()
+								&& checkCollision(bullet, enemyShip)) {
+							this.score += enemyShip.getPointValue();
+							this.shipsDestroyed++;
+							spawnSparkles(enemyShip);
+							this.enemyShipFormation.destroy(enemyShip);
+							this.screenShake.trigger();
+							this.items.onEnemyDefeated(enemyShip, false);
+							maybeDropCoin(enemyShip);
+							showUnlockedAchievement(Core.getAchievementManager()
+									.recordEnemyDefeated());
+							recyclable.add(bullet);
+						}
+				}
 				if (this.enemyShipSpecial != null
 						&& !this.enemyShipSpecial.isDestroyed()
 						&& checkCollision(bullet, this.enemyShipSpecial)) {
@@ -725,6 +769,7 @@ public class GameScreen extends Screen {
 					recyclable.add(bullet);
 				}
 			}
+		}
 		this.bullets.removeAll(recyclable);
 		BulletPool.recycle(recyclable);
 	}
