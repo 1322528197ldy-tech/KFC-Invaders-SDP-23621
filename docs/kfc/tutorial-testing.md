@@ -58,3 +58,7 @@ It returns the existing start-game code (2), so Core's normal Stage 1 setup
 is reused. The existing `run()` finally block recycles practice bullets on
 both skip and menu exits. This addresses the tutorial replay feedback on
 upstream PR #90; other integration feedback is outside this change.
+
+## Automated offscreen checks (Java 17)
+
+Run in a fresh temporary classes directory so generated player profiles are isolated from real saves. The harness uses an offscreen frame adapter; it is not a human playthrough. Compile production sources first, then `tests/kfc/KfcTutorialChecks.java` against them, and run `KfcTutorialChecks <temporary-screenshot-directory>` with `res` on the classpath. Test-only Unsafe warnings are expected on Java 17.

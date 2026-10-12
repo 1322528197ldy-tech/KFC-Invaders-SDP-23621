@@ -1,7 +1,11 @@
 package engine;
 
+import java.awt.AlphaComposite;
+import java.awt.Graphics2D;
+import entity.EnemyShip;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.FontFormatException;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
@@ -15,13 +19,16 @@ import screen.MenuItem;
 import screen.Screen;
 import entity.Coin;
 import entity.Entity;
+import entity.Particle;
 import entity.Ship;
+import item.ItemAPI;
+import item.ItemSystem;
 
 /**
  * Manages screen drawing.
- * 
+ *
  * @author <a href="mailto:RobertoIA1987@gmail.com">Roberto Izquierdo Amo</a>
- * 
+ *
  */
 public final class DrawManager {
 
@@ -39,6 +46,19 @@ public final class DrawManager {
 	private static Graphics backBufferGraphics;
 	/** Buffer image. */
 	private static BufferedImage backBuffer;
+	/** Top of the item panel, right below the HUD line (Team CS). */
+	private static final int ITEM_PANEL_TOP = 43;
+	/** Size of one item slot box in the item panel. */
+	private static final int ITEM_SLOT_WIDTH = 52;
+	private static final int ITEM_SLOT_HEIGHT = 16;
+	/** Item notice baseline, measured up from the bottom of the screen. */
+	private static final int ITEM_NOTICE_BOTTOM_OFFSET = 60;
+	/** The shield bubble blinks during this many last milliseconds. */
+	private static final long SHIELD_BLINK_MILLIS = 2000;
+	/** Current world offset X (screen shake). */
+	private static int worldOffsetX;
+	/** Current world offset Y (screen shake). */
+	private static int worldOffsetY;
 	/** Normal sized font. */
 	private static Font fontRegular;
 	/** Normal sized font properties. */
@@ -47,6 +67,11 @@ public final class DrawManager {
 	private static Font fontBig;
 	/** Big sized font properties. */
 	private static FontMetrics fontBigMetrics;
+
+		/** Font used for the highlighted menu item. */
+	private static Font fontSelected;
+	/** Highlighted menu item font properties. */
+	private static FontMetrics fontSelectedMetrics;
 
 	/** Sprite types mapped to their images. */
 	private static Map<SpriteType, boolean[][]> spriteMap;
@@ -77,13 +102,27 @@ public final class DrawManager {
 		EnemyShipSpecial,
 		/** Destroyed enemy ship. */
 		Explosion,
-
-		/* add enum MidBoss, FinalBoss  */
-		MidBoss_1,
-		MidBoss_2,
-
-		FinalBoss_1,
-		FinalBoss_2
+		/** Player ship with a high movement speed (Fast Move). */
+		ShipFastMove,
+		/** Player ship that shoots from two barrels (Two-Way Shot). */
+		ShipTwoWay,
+		/** First Flight achievement icon. */
+		FirstFlight,
+        /** Fast Attack player ship. */
+        ShipFastAttack,
+        /** Big Bullet player ship. */
+        ShipBigBullet,
+		/** Fleet Master achievement icon. */
+		FleetMaster,
+		/** Weakestship sprite. */
+		Weakestship,
+		/** Infinity Void achievement icon. */
+		InfinityVoid,
+        /** First Boss Kill achievement icon. */
+        BossKill,
+		/** Bouncing boss animation frames. */
+		MidBoss1,
+		MidBoss2
 	};
 
 	/**
@@ -109,30 +148,33 @@ public final class DrawManager {
 			spriteMap.put(SpriteType.EnemyShipC2, new boolean[12][8]);
 			spriteMap.put(SpriteType.EnemyShipSpecial, new boolean[16][7]);
 			spriteMap.put(SpriteType.Explosion, new boolean[13][7]);
-
-			/* MidBoss, FinalBoss size */
-			spriteMap.put(SpriteType.MidBoss_1, new boolean[16][10]);
-			spriteMap.put(SpriteType.MidBoss_2, new boolean[16][10]);
-
-			spriteMap.put(SpriteType.FinalBoss_1, new boolean[24][16]);
-			spriteMap.put(SpriteType.FinalBoss_2, new boolean[24][16]);
+			spriteMap.put(SpriteType.ShipFastMove, new boolean[13][8]);
+			spriteMap.put(SpriteType.ShipTwoWay, new boolean[13][8]);
+			spriteMap.put(SpriteType.FirstFlight, new boolean[11][8]);
+            spriteMap.put(SpriteType.ShipFastAttack, new boolean[13][8]);
+            spriteMap.put(SpriteType.ShipBigBullet, new boolean[13][8]);
+			spriteMap.put(SpriteType.FleetMaster, new boolean[23][23]);
+			spriteMap.put(SpriteType.Weakestship, new boolean[11][11]);
+			spriteMap.put(SpriteType.InfinityVoid, new boolean[11][11]);
+            spriteMap.put(SpriteType.BossKill, new boolean[11][11]);
+			spriteMap.put(SpriteType.MidBoss1, new boolean[16][10]);
+			spriteMap.put(SpriteType.MidBoss2, new boolean[16][10]);
 
 			fileManager.loadSprite(spriteMap);
 			logger.info("Finished loading the sprites.");
 
 			// Font loading.
-			try {
-				fontRegular = fileManager.loadFont(14f);
-				fontBig = fileManager.loadFont(24f);
-				logger.info("Finished loading the fonts.");
-			} catch (Exception e) {
-				logger.warning("Font loading failed, using default font.");
-				fontRegular = new Font("SansSerif", Font.PLAIN, 14);
-				fontBig = new Font("SansSerif", Font.BOLD, 24);
-			}
+			fontRegular = fileManager.loadFont(14f);
+			fontBig = fileManager.loadFont(24f);
+			fontSelected = fontRegular.deriveFont(17f);
+			logger.info("Finished loading the fonts.");
 
 		} catch (IOException e) {
 			logger.warning("Loading failed.");
+			fontRegular = new Font(Font.MONOSPACED, Font.PLAIN, 14);
+			fontBig = new Font(Font.MONOSPACED, Font.PLAIN, 24);
+		} catch (FontFormatException e) {
+			logger.warning("Font formating failed.");
 			fontRegular = new Font(Font.MONOSPACED, Font.PLAIN, 14);
 			fontBig = new Font(Font.MONOSPACED, Font.PLAIN, 24);
 		}
@@ -140,7 +182,7 @@ public final class DrawManager {
 
 	/**
 	 * Returns shared instance of DrawManager.
-	 * 
+	 *
 	 * @return Shared instance of DrawManager.
 	 */
 	protected static DrawManager getInstance() {
@@ -151,7 +193,7 @@ public final class DrawManager {
 
 	/**
 	 * Sets the frame to draw the image on.
-	 * 
+	 *
 	 * @param currentFrame
 	 *            Frame to draw on.
 	 */
@@ -162,49 +204,74 @@ public final class DrawManager {
 	/**
 	 * First part of the drawing process. Initialices buffers, draws the
 	 * background and prepares the images.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw in.
 	 */
 	public void initDrawing(final Screen screen) {
+
+		if (fontRegular == null) {
+			fontRegular = new Font(Font.MONOSPACED, Font.PLAIN, 14);
+		}
+		if (fontBig == null) {
+			fontBig = new Font(Font.MONOSPACED, Font.PLAIN, 24);
+		}
+		if (fontSelected == null) {
+			fontSelected = fontRegular;
+		}
 		backBuffer = new BufferedImage(screen.getWidth(), screen.getHeight(),
 				BufferedImage.TYPE_INT_RGB);
 
 		graphics = frame.getGraphics();
 		backBufferGraphics = backBuffer.getGraphics();
+		worldOffsetX = 0;
+		worldOffsetY = 0;
 
 		backBufferGraphics.setColor(Color.BLACK);
 		backBufferGraphics
 				.fillRect(0, 0, screen.getWidth(), screen.getHeight());
 
-		// font가 null일 경우 대비한 Fallback 처리
-		if (fontRegular == null) {
-			fontRegular = new Font("SansSerif", Font.PLAIN, 14);
-		}
-		if (fontBig == null) {
-			fontBig = new Font("SansSerif", Font.BOLD, 24);
-		}
-
 		fontRegularMetrics = backBufferGraphics.getFontMetrics(fontRegular);
 		fontBigMetrics = backBufferGraphics.getFontMetrics(fontBig);
+				fontSelectedMetrics = backBufferGraphics.getFontMetrics(fontSelected);
+
 		// drawBorders(screen);
 		// drawGrid(screen);
 	}
 
 	/**
 	 * Draws the completed drawing on screen.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 */
 	public void completeDrawing(final Screen screen) {
+		setWorldOffset(0, 0);
 		graphics.drawImage(backBuffer, frame.getInsets().left,
 				frame.getInsets().top, frame);
 	}
 
 	/**
+	 * AUTHORED BY: VFX TEAM (Effection)
+	 *
+	 * Moves everything drawn after this call by the given offset.
+	 * Used for screen shake. Call setWorldOffset(0, 0) before the HUD.
+	 *
+	 * @param offsetX
+	 *            X offset in pixels.
+	 * @param offsetY
+	 *            Y offset in pixels.
+	 */
+	public void setWorldOffset(final int offsetX, final int offsetY) {
+		backBufferGraphics.translate(offsetX - worldOffsetX,
+				offsetY - worldOffsetY);
+		worldOffsetX = offsetX;
+		worldOffsetY = offsetY;
+	}
+
+	/**
 	 * Draws an entity, using the apropiate image.
-	 * 
+	 *
 	 * @param entity
 	 *            Entity to be drawn.
 	 * @param positionX
@@ -214,14 +281,73 @@ public final class DrawManager {
 	 */
 	public void drawEntity(final Entity entity, final int positionX,
 			final int positionY) {
-		boolean[][] image = spriteMap.get(entity.getSpriteType());
+		// Enemy ships can be see-through while flickering / fading out.
+		float alpha = 1f;
+		if (entity instanceof EnemyShip)
+			alpha = ((EnemyShip) entity).getAlpha();
+		if (alpha <= 0f)
+			return;
 
-		backBufferGraphics.setColor(entity.getColor());
+		Graphics2D g2d = (Graphics2D) backBufferGraphics;
+		g2d.setComposite(AlphaComposite.getInstance(
+				AlphaComposite.SRC_OVER, alpha));
+
+		drawSprite(entity.getSpriteType(), positionX, positionY,
+				entity.getColor());
+
+		g2d.setComposite(AlphaComposite.SrcOver); // back to normal
+	}
+
+	/**
+	 * Draws a sprite using the game's standard two-pixel scale.
+	 *
+	 * @param spriteType Sprite to draw.
+	 * @param positionX Coordinates for the left side of the image.
+	 * @param positionY Coordinates for the upper side of the image.
+	 * @param color Color used for filled pixels.
+	 */
+	public void drawSprite(final SpriteType spriteType, final int positionX,
+						   final int positionY, final Color color) {
+		boolean[][] image = spriteMap.get(spriteType);
+
+		backBufferGraphics.setColor(color);
+
 		for (int i = 0; i < image.length; i++)
 			for (int j = 0; j < image[i].length; j++)
 				if (image[i][j])
-					backBufferGraphics.drawRect(positionX + i * 2, positionY
-							+ j * 2, 1, 1);
+					backBufferGraphics.drawRect(
+							positionX + i * 2,
+							positionY + j * 2,
+							1, 1);
+	}
+	/**
+	 * Draws regular text at an exact position, left aligned.
+	 *
+	 * @param string    Text to draw.
+	 * @param positionX Horizontal position of the left edge.
+	 * @param positionY Vertical position of the baseline.
+	 * @param color     Colour of the text.
+	 */
+	public void drawRegularString(final String string, final int positionX,
+			final int positionY, final Color color) {
+		backBufferGraphics.setFont(fontRegular);
+		backBufferGraphics.setColor(color);
+		backBufferGraphics.drawString(string, positionX, positionY);
+	}
+
+	/**
+	 * Draws an empty rectangle outline.
+	 *
+	 * @param positionX Horizontal position of the left edge.
+	 * @param positionY Vertical position of the top edge.
+	 * @param width     Width of the box.
+	 * @param height    Height of the box.
+	 * @param color     Colour of the outline.
+	 */
+	public void drawBox(final int positionX, final int positionY,
+			final int width, final int height, final Color color) {
+		backBufferGraphics.setColor(color);
+		backBufferGraphics.drawRect(positionX, positionY, width, height);
 	}
 
 	/**
@@ -241,6 +367,150 @@ public final class DrawManager {
 		backBufferGraphics.setColor(coin.getColor());
 		backBufferGraphics.fillOval(positionX, positionY, coin.getWidth(),
 				coin.getHeight());
+	}
+
+	/**
+	 * Draws the item drops on the field (Team CS - Item System). Drops have
+	 * no entry in the shared sprite file yet, so the item system draws
+	 * placeholder shapes on the back buffer.
+	 *
+	 * @param items
+	 *            Item system of the current run.
+	 */
+	public void drawItemDrops(final ItemSystem items) {
+		backBufferGraphics.setFont(fontRegular);
+		items.drawDrops(backBufferGraphics);
+	}
+
+	/**
+	 * Draws the shield item around the player ship while it is active
+	 * (Team CS - Item System): a cyan bubble that blinks during its last
+	 * seconds.
+	 *
+	 * @param ship
+	 *            Player ship.
+	 * @param items
+	 *            Item system of the current run.
+	 */
+	public void drawItemShield(final Entity ship, final ItemSystem items) {
+		ItemAPI.EffectView shield = items.shield();
+		if (shield == null)
+			return;
+		long remaining = shield.remainingMillis == null ? Long.MAX_VALUE
+				: shield.remainingMillis;
+		if (remaining < SHIELD_BLINK_MILLIS
+				&& (System.currentTimeMillis() / 150) % 2 == 0)
+			return;
+		int padding = 6;
+		int x = ship.getPositionX() - padding;
+		int y = ship.getPositionY() - padding;
+		int width = ship.getWidth() + padding * 2;
+		int height = ship.getHeight() + padding * 2;
+		Color color = ItemSystem.colorOf(shield.item.effectKind);
+		backBufferGraphics.setColor(new Color(color.getRed(),
+				color.getGreen(), color.getBlue(), 60));
+		backBufferGraphics.fillOval(x, y, width, height);
+		backBufferGraphics.setColor(color);
+		backBufferGraphics.drawOval(x, y, width, height);
+	}
+
+	/**
+	 * Draws the item panel right below the HUD line (Team CS - Item System):
+	 * inventory slots on the left, each with the number key that uses it,
+	 * and running effects on the right with stacks or seconds left. The
+	 * latest item notice is shown above the player ship.
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param items
+	 *            Item system of the current run.
+	 */
+	public void drawItemHud(final Screen screen, final ItemSystem items) {
+		ItemAPI.View view = items.api().getView();
+		Font font = fontRegular.deriveFont(12f);
+		FontMetrics metrics = backBufferGraphics.getFontMetrics(font);
+		backBufferGraphics.setFont(font);
+		int baseline = ITEM_PANEL_TOP + ITEM_SLOT_HEIGHT - 4;
+
+		// Slots: "1 [Shield]" ... an empty slot is a dark box.
+		int x = 6;
+		for (int i = 0; i < view.slots.size(); i++) {
+			ItemAPI.ItemInfo item = view.slots.get(i);
+			backBufferGraphics.setColor(Color.GRAY);
+			backBufferGraphics.drawString(Integer.toString(i + 1), x, baseline);
+			x += metrics.stringWidth("0") + 3;
+			backBufferGraphics.setColor(item == null ? Color.DARK_GRAY
+					: ItemSystem.colorOf(item.effectKind));
+			backBufferGraphics.drawRect(x, ITEM_PANEL_TOP, ITEM_SLOT_WIDTH,
+					ITEM_SLOT_HEIGHT);
+			if (item != null)
+				backBufferGraphics.drawString(item.displayName, x + 4, baseline);
+			x += ITEM_SLOT_WIDTH + 8;
+		}
+
+		// Effects, right-aligned: "RF x2  SH 8s".
+		int right = screen.getWidth() - 6;
+		for (int i = view.effects.size() - 1; i >= 0; i--) {
+			ItemAPI.EffectView effect = view.effects.get(i);
+			String label = shortItemName(effect.item.effectKind);
+			if (effect.stacks != null)
+				label += " x" + effect.stacks;
+			else if (effect.remainingMillis != null)
+				label += " " + (effect.remainingMillis + 999) / 1000 + "s";
+			right -= metrics.stringWidth(label);
+			backBufferGraphics.setColor(ItemSystem
+					.colorOf(effect.item.effectKind));
+			backBufferGraphics.drawString(label, right, baseline);
+			right -= 10;
+		}
+
+		String notice = items.getNotice();
+		if (notice != null) {
+			backBufferGraphics.setColor(Color.YELLOW);
+			drawCenteredRegularString(screen, notice, screen.getHeight()
+					- ITEM_NOTICE_BOTTOM_OFFSET);
+		}
+	}
+
+	/**
+	 * Explains the items while the level countdown runs (Team CS - Item
+	 * System).
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param items
+	 *            Item system of the current run.
+	 */
+	public void drawItemHint(final Screen screen, final ItemSystem items) {
+		int slots = items.api().getView().slots.size();
+		backBufferGraphics.setColor(Color.GRAY);
+		drawCenteredRegularString(screen, "Catch item drops with your ship",
+				screen.getHeight() * 2 / 3);
+		drawCenteredRegularString(screen, "Keys 1-" + slots
+				+ " use stored items", screen.getHeight() * 2 / 3
+				+ fontRegularMetrics.getHeight());
+	}
+
+	/**
+	 * Short label for a running item effect in the HUD.
+	 *
+	 * @param kind
+	 *            Effect kind.
+	 * @return Two-letter label.
+	 */
+	private static String shortItemName(final ItemAPI.EffectKind kind) {
+		switch (kind) {
+		case RAPID_FIRE:
+			return "RF";
+		case BULLET_SPEED:
+			return "BS";
+		case SHIELD:
+			return "SH";
+		case FREEZE:
+			return "FZ";
+		default:
+			return kind.name();
+		}
 	}
 
 	/**
@@ -324,8 +594,25 @@ public final class DrawManager {
 	}
 
 	/**
+	 * Draws a sparkle, see-through according to its age.
+	 * AUTHORED BY: VFX TEAM (Effection)
+	 *
+	 * @param particle
+	 *            Particle to draw.
+	 */
+	public void drawParticle(final Particle particle) {
+		java.awt.Graphics2D g2d = (java.awt.Graphics2D) backBufferGraphics;
+		g2d.setComposite(java.awt.AlphaComposite.getInstance(
+				java.awt.AlphaComposite.SRC_OVER, particle.getAlpha()));
+		g2d.setColor(particle.getColor());
+		g2d.fillRect(particle.getX(), particle.getY(), particle.getSize(),
+				particle.getSize());
+		g2d.setComposite(java.awt.AlphaComposite.SrcOver);
+	}
+
+	/**
 	 * For debugging purpouses, draws the canvas borders.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw in.
 	 */
@@ -342,7 +629,7 @@ public final class DrawManager {
 
 	/**
 	 * For debugging purpouses, draws a grid over the canvas.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw in.
 	 */
@@ -357,7 +644,7 @@ public final class DrawManager {
 
 	/**
 	 * Draws current score on screen.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param score
@@ -372,7 +659,7 @@ public final class DrawManager {
 
 	/**
 	 * Draws number of remaining lives on screen.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param lives
@@ -389,7 +676,7 @@ public final class DrawManager {
 
 	/**
 	 * Draws a thick line from side to side of the screen.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param positionY
@@ -404,7 +691,7 @@ public final class DrawManager {
 
 	/**
 	 * Draws game title.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 */
@@ -417,7 +704,7 @@ public final class DrawManager {
 
 	/**
 	 * Draws main menu.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param selected
@@ -425,14 +712,21 @@ public final class DrawManager {
 	 */
 	public void drawMenu(final Screen screen, final MenuItem selected) {
 		for (MenuItem item : MenuItem.values()) {
-			if (item == selected)
+			int baseline = menuItemBaseline(screen, item.ordinal());
+
+			if (item == selected) {
+				String text = "> " + item.getTitle() + " <";
 				backBufferGraphics.setColor(Color.GREEN);
-			else if (!item.isEnabled())
-				backBufferGraphics.setColor(Color.DARK_GRAY);
-			else
-				backBufferGraphics.setColor(Color.WHITE);
-			drawCenteredRegularString(screen, item.getTitle(),
-					menuItemBaseline(screen, item.ordinal()));
+				backBufferGraphics.setFont(fontSelected);
+				backBufferGraphics.drawString(text, screen.getWidth() / 2
+						- fontSelectedMetrics.stringWidth(text) / 2, baseline);
+			} else {
+				if (!item.isEnabled())
+					backBufferGraphics.setColor(Color.DARK_GRAY);
+				else
+					backBufferGraphics.setColor(Color.WHITE);
+				drawCenteredRegularString(screen, item.getTitle(), baseline);
+			}
 		}
 	}
 
@@ -440,7 +734,7 @@ public final class DrawManager {
 	 * Finds the menu item drawn at a given height. Each item owns a full-width
 	 * row as tall as the spacing between items, so the whole row is clickable,
 	 * not just the text.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen the menu is drawn on.
 	 * @param positionY
@@ -465,7 +759,7 @@ public final class DrawManager {
 	/**
 	 * Height of the baseline of a menu item. Drawing and hit-testing both use
 	 * this, so they cannot drift apart.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen the menu is drawn on.
 	 * @param index
@@ -478,7 +772,7 @@ public final class DrawManager {
 
 	/**
 	 * Distance between two menu items.
-	 * 
+	 *
 	 * @return Spacing, in pixels.
 	 */
 	private int menuItemSpacing() {
@@ -495,9 +789,20 @@ public final class DrawManager {
 	 *            Keys to show, already worded for the current state.
 	 */
 	public void drawKeyHints(final Screen screen, final String hints) {
+		Font hintFont = fontRegular;
+		FontMetrics metrics = fontRegularMetrics;
+		int maxWidth = screen.getWidth() - 20;
+		int textWidth = metrics.stringWidth(hints);
+		if (textWidth > maxWidth) {
+			hintFont = fontRegular.deriveFont(
+					fontRegular.getSize2D() * maxWidth / textWidth);
+			metrics = backBufferGraphics.getFontMetrics(hintFont);
+		}
+		backBufferGraphics.setFont(hintFont);
 		backBufferGraphics.setColor(Color.GRAY);
-		drawCenteredRegularString(screen, hints,
-				screen.getHeight() - fontRegularMetrics.getHeight());
+		backBufferGraphics.drawString(hints,
+				(screen.getWidth() - metrics.stringWidth(hints)) / 2,
+				screen.getHeight() - fontRegularMetrics.getHeight() * 2);
 	}
 
 	/**
@@ -549,31 +854,97 @@ public final class DrawManager {
 	 *
 	 * @param screen Screen where the popup is drawn.
 	 * @param achievement Newly unlocked achievement.
+	 * @param elapsedMilliseconds Time since the popup started.
+	 * @param durationMilliseconds Total popup duration.
+	 * @param slideInMilliseconds Slide-in duration.
+	 * @param slideOutMilliseconds Slide-out duration.
 	 */
 	public void drawAchievementUnlocked(final Screen screen,
-			final Achievement achievement) {
-		int boxWidth = screen.getWidth() / 2;
-		int boxHeight = fontRegularMetrics.getHeight() * 3;
-		int boxX = (screen.getWidth() - boxWidth) / 2;
-		int boxY = screen.getHeight() - boxHeight
-				- fontRegularMetrics.getHeight();
+			final Achievement achievement, final long elapsedMilliseconds,
+			final int durationMilliseconds, final int slideInMilliseconds,
+			final int slideOutMilliseconds) {
+		int boxWidth = 218;
+		int boxHeight = 44;
+		int visibleX = screen.getWidth() - boxWidth - 6;
+		int hiddenX = screen.getWidth() + 2;
+		int boxY = 46;
+		int boxX = visibleX;
+
+		if (elapsedMilliseconds < slideInMilliseconds)
+			boxX = hiddenX - (hiddenX - visibleX) * (int) elapsedMilliseconds
+					/ slideInMilliseconds;
+		else if (elapsedMilliseconds > durationMilliseconds
+				- slideOutMilliseconds)
+			boxX = visibleX + (hiddenX - visibleX) * (int) (elapsedMilliseconds
+					- (durationMilliseconds - slideOutMilliseconds))
+					/ slideOutMilliseconds;
 
 		backBufferGraphics.setColor(Color.BLACK);
 		backBufferGraphics.fillRect(boxX, boxY, boxWidth, boxHeight);
 		backBufferGraphics.setColor(Color.GREEN);
 		backBufferGraphics.drawRect(boxX, boxY, boxWidth, boxHeight);
-		drawCenteredRegularString(screen, "Achievement unlocked!", boxY
-				+ fontRegularMetrics.getHeight() * 3 / 2);
+		backBufferGraphics.setColor(Color.GREEN);
+		backBufferGraphics.drawString("ACHIEVEMENT UNLOCKED", boxX + 34,
+				boxY + 16);
+		drawSprite(achievement.getSpriteType(),
+				boxX + 8, boxY + 20, achievement.getIconColor());
 		backBufferGraphics.setColor(Color.WHITE);
-		drawCenteredRegularString(screen, achievement.getName(), boxY
-				+ fontRegularMetrics.getHeight() * 5 / 2);
+		backBufferGraphics.drawString(achievement.getName(), boxX + 34,
+				boxY + 35);
 	}
+
+	/**
+	 * Draws an achievement icon alongside its name, status, and description.
+	 *
+	 * @param screen Screen where the achievement is drawn.
+	 * @param achievement Achievement to display.
+	 */
+	public void drawAchievement(final Screen screen,
+			final Achievement achievement) {
+		int iconX = screen.getWidth() / 5;
+		int contentX = iconX + 40;
+		int nameY = screen.getHeight() / 2;
+		String status = achievement.isUnlocked() ? "UNLOCKED" : "LOCKED";
+		drawSprite(achievement.getSpriteType(),
+				iconX, nameY - 20,
+				achievement.isUnlocked() ? achievement.getIconColor() : Color.DARK_GRAY);
+		backBufferGraphics.setFont(fontRegular);
+		backBufferGraphics.setColor(achievement.isUnlocked() ? Color.WHITE
+				: Color.GRAY);
+		backBufferGraphics.drawString(achievement.getName() + " - " + status,
+				contentX, nameY);
+		backBufferGraphics.setColor(Color.GRAY);
+		backBufferGraphics.drawString(Core.getAchievementManager()
+				.getRequirementText(achievement), contentX,
+				nameY + fontRegularMetrics.getHeight() * 2);
+	}
+	/**Draw smaller sprite in achievement
+	 *
+	 */
+	public void drawSmallSprite(final SpriteType spriteType,
+								final int positionX, final int positionY, final Color color) {
+
+		boolean[][] image = spriteMap.get(spriteType);
+		backBufferGraphics.setColor(color);
+
+		for (int x = 0; x < image.length; x++) {
+			for (int y = 0; y < image[x].length; y++) {
+				if (image[x][y]) {
+					backBufferGraphics.fillRect(
+							positionX + x,
+							positionY + y,
+							1, 1);
+				}
+			}
+		}
+	}
+
 
 	/**
 	 * Draws the title of a screen reached from the main menu, in the same
 	 * colour and place as the high score screen's title. Sets its own colour,
 	 * so it does not depend on what was drawn before it.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param title
@@ -586,7 +957,7 @@ public final class DrawManager {
 
 	/**
 	 * Draws game results.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param score
@@ -626,7 +997,7 @@ public final class DrawManager {
 
 	/**
 	 * Draws interactive characters for name input.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param name
@@ -675,7 +1046,7 @@ public final class DrawManager {
 
 	/**
 	 * Draws basic content of game over screen.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param acceptsInput
@@ -705,7 +1076,7 @@ public final class DrawManager {
 
 	/**
 	 * Draws high score screen title and instructions.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 */
@@ -723,7 +1094,7 @@ public final class DrawManager {
 
 	/**
 	 * Draws high scores.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param highScores
@@ -746,7 +1117,7 @@ public final class DrawManager {
 
 	/**
 	 * Draws a centered string on regular font.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param string
@@ -763,7 +1134,7 @@ public final class DrawManager {
 
 	/**
 	 * Draws a centered string on big font.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param string
@@ -779,8 +1150,85 @@ public final class DrawManager {
 	}
 
 	/**
+	 * AUTHORED BY: VFX TEAM (Effection)
+	 * Any further inquiries please contact us.
+	 * Draws an entity shrunk around its center and faded, used when enemies
+	 * disappear on game over.
+	 *
+	 * @param entity
+	 *            Entity to be drawn.
+	 * @param scale
+	 *            Size of the entity, from 0 (gone) to 1 (normal size).
+	 */
+	public void drawEntityShrunk(final Entity entity, final double scale) {
+		if (scale <= 0)
+			return;
+		boolean[][] image = spriteMap.get(entity.getSpriteType());
+		Color color = entity.getColor();
+		int alpha = (int) (255 * Math.min(1, scale));
+
+		double centerX = entity.getPositionX() + entity.getWidth() / 2.0;
+		double centerY = entity.getPositionY() + entity.getHeight() / 2.0;
+		int pixelSize = Math.max(1, (int) Math.round(2 * scale));
+
+		backBufferGraphics.setColor(new Color(color.getRed(),
+				color.getGreen(), color.getBlue(), alpha));
+		for (int i = 0; i < image.length; i++)
+			for (int j = 0; j < image[i].length; j++)
+				if (image[i][j])
+					backBufferGraphics.fillRect(
+							(int) (centerX + (i * 2 - entity.getWidth()
+									/ 2.0) * scale),
+							(int) (centerY + (j * 2 - entity.getHeight()
+									/ 2.0) * scale),
+							pixelSize, pixelSize);
+	}
+
+	/**
+	 * AUTHORED BY: VFX TEAM (Effection)
+	 * Any further inquiries please contact us.
+	 * Draws the game over banner shown on the game screen, typed out up to
+	 * the given number of characters. The text stays centered as a whole so
+	 * letters do not shift while typing.
+	 *
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param text
+	 *            Full banner text.
+	 * @param visibleChars
+	 *            Number of characters typed so far.
+	 */
+	public void drawGameOverBanner(final Screen screen, final String text,
+			final int visibleChars) {
+		backBufferGraphics.setColor(Color.GREEN);
+		backBufferGraphics.setFont(fontBig);
+		backBufferGraphics.drawString(
+				text.substring(0, Math.min(visibleChars, text.length())),
+				screen.getWidth() / 2 - fontBigMetrics.stringWidth(text) / 2,
+				screen.getHeight() / 2);
+	}
+
+	/**
+	 * Covers the screen with a translucent black layer, used to fade out.
+	 * AUTHORED BY: VFX TEAM (Effection)
+	 * Any further inquiries please contact us.
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param alpha
+	 *            Opacity of the layer, from 0 (clear) to 255 (black).
+	 */
+	public void drawFadeOverlay(final Screen screen, final int alpha) {
+		backBufferGraphics.setColor(new Color(0, 0, 0,
+				Math.max(0, Math.min(255, alpha))));
+		backBufferGraphics.fillRect(0, 0, screen.getWidth(),
+				screen.getHeight());
+	}
+
+	/**
 	 * Countdown to game start.
-	 * 
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param level
@@ -875,13 +1323,13 @@ public final class DrawManager {
 		if (effect != null)
 			effect.draw(backBufferGraphics, screen.getWidth(),
 					screen.getHeight());
-	}                                          // <- ADD
+	}
 
-	/**                                        // <- ADD
+	/**
 	 * Draws the low-health glitch effect.
 	 * AUTHORED BY: VFX TEAM (Effection)
 	 *Any further inquiries please contact us.
-	 * 
+	 *
 	 * @param screen Screen to draw on.
 	 * @param effect Glitch effect to draw.
 	 */
