@@ -28,6 +28,8 @@ public class TitleScreen extends Screen {
 	private boolean exitConfirmYes;
 	/** Whether Escape was held during the previous update. */
 	private boolean escapeWasDown;
+	/** Stars behind the menu, kept between visits so they don't jump. */
+	private static Starfield starfield;
 	/**
 	 * Constructor, establishes the properties of the screen.
 	 * 
@@ -46,6 +48,8 @@ public class TitleScreen extends Screen {
 		this.selectionCooldown = Core.getCooldown(SELECTION_TIME);
 		this.selectionCooldown.reset();
 		this.escapeWasDown = this.inputManager.isKeyDown(KeyEvent.VK_ESCAPE);
+		if (starfield == null)
+			starfield = new Starfield(width, height);
 	}
 
 	/**
@@ -70,6 +74,7 @@ public class TitleScreen extends Screen {
 		final boolean escapePressed = escapeDown && !this.escapeWasDown;
 		this.escapeWasDown = escapeDown;
 
+		starfield.update();
 		draw();
 
 		if (!this.inputDelay.checkFinished()) {
@@ -93,10 +98,19 @@ public class TitleScreen extends Screen {
 			}
 		}
 
-		if (inputManager.isMouseMoved() && !this.showingExitConfirm) {
-			MenuItem item = drawManager.menuItemAt(this, inputManager.getMouseY());
-			if (item != null) {
-				this.selected = item;
+		if (inputManager.isMouseMoved()) {
+			if (this.showingExitConfirm) {
+				final Boolean answer = drawManager.exitConfirmAnswerAt(this,
+						inputManager.getMouseX(), inputManager.getMouseY());
+				if (answer != null) {
+					this.exitConfirmYes = answer;
+				}
+			} else {
+				MenuItem item = drawManager.menuItemAt(this,
+						inputManager.getMouseY());
+				if (item != null) {
+					this.selected = item;
+				}
 			}
 		}
 
@@ -116,7 +130,8 @@ public class TitleScreen extends Screen {
 			this.selected = this.selected.next();
 			this.selectionCooldown.reset();
 		}
-		if (inputManager.isKeyDown(KeyEvent.VK_SPACE))
+		if (inputManager.isKeyDown(KeyEvent.VK_SPACE)
+				|| inputManager.isKeyDown(KeyEvent.VK_ENTER))
 			confirm();
 
 		if (inputManager.isMousePressed()) {
@@ -140,13 +155,30 @@ public class TitleScreen extends Screen {
 			this.exitConfirmYes = !this.exitConfirmYes;
 			this.selectionCooldown.reset();
 		}
-		if (inputManager.isKeyDown(KeyEvent.VK_SPACE)) {
-			if (this.exitConfirmYes) {
-				this.returnCode = MenuItem.EXIT.getCode();
-				this.isRunning = false;
-			} else
-				closeExitConfirm();
+		if (inputManager.isKeyDown(KeyEvent.VK_SPACE)
+				|| inputManager.isKeyDown(KeyEvent.VK_ENTER))
+			answerExitConfirm();
+
+		if (inputManager.isMousePressed()) {
+			final Boolean answer = drawManager.exitConfirmAnswerAt(this,
+					inputManager.getMouseX(), inputManager.getMouseY());
+			if (answer != null) {
+				this.exitConfirmYes = answer;
+				answerExitConfirm();
+			}
 		}
+	}
+
+	/**
+	 * Acts on the answer the cursor is on. Every way of answering - Space,
+	 * Enter or a mouse click - goes through here.
+	 */
+	private void answerExitConfirm() {
+		if (this.exitConfirmYes) {
+			this.returnCode = MenuItem.EXIT.getCode();
+			this.isRunning = false;
+		} else
+			closeExitConfirm();
 	}
 
 	/**
@@ -196,6 +228,7 @@ public class TitleScreen extends Screen {
 	private void draw() {
 		drawManager.initDrawing(this);
 
+		drawManager.drawStarfield(this, starfield);
 		drawManager.drawTitle(this);
 		drawManager.drawMenu(this, this.selected);
 		drawManager.drawKeyHints(this, keyHints());
