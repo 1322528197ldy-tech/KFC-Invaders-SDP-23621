@@ -9,18 +9,31 @@ import java.util.List;
 
 import engine.CurrencyManager;
 import engine.DiamondManager;
+import engine.DrawManager.SpriteType;
 import engine.PurchaseManager;
+import engine.PurchaseManager.PurchaseResult;
+import entity.Ship.ShipType;
+import item.ItemAPI;
+import item.ItemSystem;
 import shop.Currency;
 import shop.ShopCatalog;
 import shop.ShopCategory;
 import shop.ShopItem;
+import shop.Skin;
 
 /**
- * The shop (GoG - Currency System). Three tabs: Ships, Skins and Upgrades,
- * each listing what is for sale with its coin and diamond prices. Prices
- * come from {@link PurchaseManager}, so they show the next upgrade level.
+ * The shop (GoG - Currency System). Three tabs: Ships, Skins and Upgrades.
+ * The left side lists what is for sale, the right side
+ * shows the selected entry with its price and BUY buttons.
  *
- * Keyboard: left/right switch tabs, up/down select, esc back.
+ * Skins and upgrades can be paid with coins or diamonds, so they get one
+ * BUY button per currency. Upgrades can be bought again to level them up.
+ *
+ * Buying happens here; choosing what to use happens in Customize. Both go
+ * through {@link PurchaseManager}, so they always agree.
+ *
+ * Keyboard: left/right switch tabs, up/down select, C (or space/enter) buy
+ * with coins, V buy with diamonds, esc back.
  *
  * @author GoG - Currency System
  */
@@ -79,6 +92,8 @@ public class ShopScreen extends Screen {
 	private static final int PANEL_GAP = 8;
 	/** Width of the scroll arrows column. */
 	private static final int SCROLL_WIDTH = 12;
+	/** How long a purchase message stays on screen. */
+	private static final long MESSAGE_MILLIS = 3000;
 	/** Colour of prices the player cannot afford. */
 	private static final Color TOO_EXPENSIVE = new Color(255, 70, 70);
 	/** Colour of unselected panel borders. */
@@ -89,7 +104,9 @@ public class ShopScreen extends Screen {
 	/** Keys watched for presses (not holds). */
 	private static final int[] KEYS = { KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT,
 			KeyEvent.VK_UP, KeyEvent.VK_DOWN, KeyEvent.VK_A, KeyEvent.VK_D,
-			KeyEvent.VK_W, KeyEvent.VK_S, KeyEvent.VK_ESCAPE };
+			KeyEvent.VK_W, KeyEvent.VK_S, KeyEvent.VK_SPACE,
+			KeyEvent.VK_ENTER, KeyEvent.VK_ESCAPE, KeyEvent.VK_C,
+			KeyEvent.VK_V };
 
 	/** Tab shown. */
 	private Tab tab = Tab.SHIPS;
@@ -99,6 +116,10 @@ public class ShopScreen extends Screen {
 	private int selected;
 	/** First row shown, for scrolling. */
 	private int scroll;
+	/** Last purchase message, and when and in what colour it was set. */
+	private String message;
+	private long messageTime;
+	private Color messageColor = Color.WHITE;
 	/** Key states last frame, so a held key acts once. */
 	private boolean[] keysWereDown;
 
@@ -135,7 +156,7 @@ public class ShopScreen extends Screen {
 		super.update();
 
 		if (this.keysWereDown == null) {
-			// Keys still held from the menu must not act here.
+			// Keys still held from the menu must not buy anything.
 			this.keysWereDown = new boolean[KEYS.length];
 			for (int i = 0; i < KEYS.length; i++)
 				this.keysWereDown[i] = this.inputManager.isKeyDown(KEYS[i]);
@@ -175,6 +196,12 @@ public class ShopScreen extends Screen {
 			select(this.selected - 1);
 		} else if (pressed(KeyEvent.VK_DOWN) || pressed(KeyEvent.VK_S)) {
 			select(this.selected + 1);
+		} else if (pressed(KeyEvent.VK_SPACE) || pressed(KeyEvent.VK_ENTER)) {
+			buySelected(null);
+		} else if (pressed(KeyEvent.VK_C)) {
+			buySelected(Currency.COINS);
+		} else if (pressed(KeyEvent.VK_V)) {
+			buySelected(Currency.DIAMONDS);
 		}
 		for (int i = 0; i < KEYS.length; i++)
 			this.keysWereDown[i] = this.inputManager.isKeyDown(KEYS[i]);
@@ -237,6 +264,73 @@ public class ShopScreen extends Screen {
 			result.add(new Entry(item));
 	}
 
+	/**
+	 * Buys the selected row and shows what happened.
+	 *
+	 * @param chosen
+	 *            Currency to pay with, or null for coins when accepted,
+	 *            otherwise diamonds.
+	 */
+	private void buySelected(final Currency chosen) {
+		if (this.entries.isEmpty())
+			return;
+		Entry entry = this.entries.get(this.selected);
+		ShopItem item = entry.item;
+		Currency currency = chosen;
+		if (currency == null)
+			currency = item.accepts(Currency.COINS) ? Currency.COINS
+					: Currency.DIAMONDS;
+		PurchaseManager purchases = PurchaseManager.getInstance();
+		int price = entry.price(currency);
+		PurchaseResult result = purchases.purchase(item, currency);
+		switch (result) {
+		case SUCCESS:
+			showMessage((item.isRepeatable() ? item.getName() + " is now"
+					+ " level " + purchases.getQuantity(item) + "! "
+					: "Bought " + item.getName() + "! ") + afterBuying(item),
+					Color.GREEN);
+			break;
+		case INSUFFICIENT_FUNDS:
+			showMessage("Not enough " + currency.getLabel() + " (need "
+					+ price + ").", TOO_EXPENSIVE);
+			break;
+		case ALREADY_OWNED:
+			showMessage("You already own this.", TOO_EXPENSIVE);
+			break;
+		case MAX_LEVEL:
+			showMessage("Already at max level.", TOO_EXPENSIVE);
+			break;
+		case CURRENCY_NOT_ACCEPTED:
+			showMessage("Can't be paid with " + currency.getLabel() + ".",
+					TOO_EXPENSIVE);
+			break;
+		case NOT_ON_SALE:
+			showMessage("This limited edition is no longer sold.",
+					TOO_EXPENSIVE);
+			break;
+		default:
+			showMessage("Purchase failed, nothing was charged.",
+					TOO_EXPENSIVE);
+			break;
+		}
+	}
+
+	/**
+	 * @param item
+	 *            Entry just bought.
+	 * @return Where to find it now.
+	 */
+	private static String afterBuying(final ShopItem item) {
+		if (item.getCategory() == ShopCategory.UPGRADE)
+			return "It is on.";
+		return "Choose it in Customize.";
+	}
+
+	private void showMessage(final String text, final Color color) {
+		this.message = text;
+		this.messageColor = color;
+		this.messageTime = System.currentTimeMillis();
+	}
 
 	// --- Layout ---
 
@@ -283,6 +377,41 @@ public class ShopScreen extends Screen {
 				ROW_HEIGHT);
 	}
 
+	private Rectangle detailArea() {
+		int left = MARGIN + LIST_WIDTH + PANEL_GAP;
+		return new Rectangle(left, bodyTop(), this.width - MARGIN - left,
+				visibleRows() * ROW_HEIGHT - 3);
+	}
+
+	/** @return Area of the BUY button(s) row. */
+	private Rectangle buyRow() {
+		Rectangle detail = detailArea();
+		return new Rectangle(detail.x + 12, detail.y + detail.height - 32,
+				detail.width - 24, 22);
+	}
+
+	/**
+	 * BUY button for one currency: the whole row when the entry takes one
+	 * currency, half of it when it takes both (coins left, diamonds right).
+	 *
+	 * @param item
+	 *            Entry shown.
+	 * @param currency
+	 *            Currency of the button.
+	 * @return Its area, or an empty one if there is no such button.
+	 */
+	private Rectangle buyArea(final ShopItem item, final Currency currency) {
+		Rectangle row = buyRow();
+		if (!item.accepts(currency))
+			return new Rectangle();
+		if (!item.accepts(Currency.COINS) || !item.accepts(Currency.DIAMONDS))
+			return row;
+		int half = (row.width - 6) / 2;
+		return currency == Currency.COINS
+				? new Rectangle(row.x, row.y, half, row.height)
+				: new Rectangle(row.x + row.width - half, row.y, half,
+						row.height);
+	}
 
 	// --- Drawing ---
 
@@ -295,8 +424,10 @@ public class ShopScreen extends Screen {
 		drawBalances();
 		drawTabs();
 		drawList();
+		drawDetail();
+		drawMessage();
 		this.drawManager.drawKeyHints(this,
-				"left/right tab | up/down select | esc back");
+				"arrows select | C coins | V diamonds | esc back");
 		this.drawManager.completeDrawing(this);
 	}
 
@@ -434,8 +565,241 @@ public class ShopScreen extends Screen {
 		return left + 12 + this.drawManager.getSmallStringWidth(text) + 12;
 	}
 
+	/** Right-hand panel: preview, description, price and BUY. */
+	private void drawDetail() {
+		Rectangle area = detailArea();
+		this.drawManager.drawBox(area.x, area.y, area.width, area.height,
+				BORDER);
+		if (this.entries.isEmpty())
+			return;
 
+		Entry entry = this.entries.get(this.selected);
+		ShopItem item = entry.item;
+		PurchaseManager purchases = PurchaseManager.getInstance();
+		int centerX = area.x + area.width / 2;
 
+		String name = item.getName();
+		this.drawManager.drawRegularString(name, centerX
+				- this.drawManager.getRegularStringWidth(name) / 2,
+				area.y + 22, this.tab.color);
+
+		drawPreview(item, centerX, area.y + 36);
+
+		int lineHeight = this.drawManager.getSmallLineHeight();
+		int y = area.y + 94;
+		drawCentered(item.getCategory().getLabel().toUpperCase(), centerX, y,
+				Color.GRAY);
+		y += lineHeight + 4;
+		for (String line : wrap(item.getDescription().toUpperCase(),
+				area.width - 20)) {
+			drawCentered(line, centerX, y, Color.WHITE);
+			y += lineHeight;
+		}
+		y += 4;
+		for (String line : extraLines(item)) {
+			drawCentered(line, centerX, y, new Color(170, 170, 170));
+			y += lineHeight;
+		}
+
+		// Price label above the buttons.
+		int priceBaseline = buyRow().y - 10;
+		boolean maxed = purchases.isMaxed(item);
+		boolean ended = !maxed
+				&& !ShopCatalog.isOnSale(item, LocalDate.now());
+		String priceLabel = item.isRepeatable() && !maxed
+				? "PRICE OF LEVEL " + (purchases.getQuantity(item) + 1)
+				: "PRICE";
+		this.drawManager.drawSmallString(priceLabel, area.x + 12,
+				priceBaseline, Color.GRAY);
+
+		// One finished button, or one BUY button per currency.
+		if (maxed || ended) {
+			Rectangle button = buyRow();
+			String label = ended ? "SOLD OUT"
+					: item.isRepeatable() ? "MAX LEVEL" : "OWNED";
+			this.drawManager.drawBox(button.x, button.y, button.width,
+					button.height, Color.DARK_GRAY);
+			drawCentered(label, centerX, button.y + 15, Color.DARK_GRAY);
+			return;
+		}
+		for (Currency currency : Currency.values()) {
+			if (!item.accepts(currency))
+				continue;
+			Rectangle button = buyArea(item, currency);
+			int price = entry.price(currency);
+			boolean affordable = purchases.canAfford(currency, price);
+			Color color = affordable ? this.tab.color : Color.GRAY;
+			if (affordable)
+				this.drawManager.fillBox(button.x, button.y, button.width,
+						button.height, tint(this.tab.color));
+			this.drawManager.drawBox(button.x, button.y, button.width,
+					button.height, color);
+			String label = "BUY " + price;
+			int labelWidth = 12 + this.drawManager.getSmallStringWidth(label);
+			int left = button.x + (button.width - labelWidth) / 2;
+			this.drawManager.drawCurrencyIcon(left, button.y + 15,
+					currency == Currency.DIAMONDS, 8);
+			this.drawManager.drawSmallString(label, left + 12, button.y + 15,
+					affordable ? color : TOO_EXPENSIVE);
+		}
+	}
+
+	/**
+	 * Big picture of the entry: the ship, the ship in the skin's colour, or
+	 * an item badge in the Item System's colour for it.
+	 *
+	 * @param item
+	 *            Entry to show.
+	 * @param centerX
+	 *            Horizontal centre.
+	 * @param top
+	 *            Top of the preview.
+	 */
+	private void drawPreview(final ShopItem item, final int centerX,
+			final int top) {
+		PurchaseManager purchases = PurchaseManager.getInstance();
+		final int pixel = 3;
+		switch (item.getCategory()) {
+		case SHIP:
+		case SKIN: {
+			ShipType type = item.getCategory() == ShopCategory.SHIP
+					? ShipType.valueOf(item.getRef())
+					: purchases.getSelectedShip();
+			// Animated skins move in the preview too.
+			long now = System.currentTimeMillis();
+			Color color = item.getCategory() == ShopCategory.SKIN
+					? Skin.valueOf(item.getRef()).colorAt(now)
+					: purchases.getSelectedSkin().colorAt(now);
+			SpriteType sprite = type.getIdleSprite();
+			int[] size = this.drawManager.getSpriteSize(sprite);
+			this.drawManager.drawSpriteScaled(sprite, centerX - size[0]
+					* pixel / 2, top + 6, pixel, color);
+			break;
+		}
+		default: {
+			Color color = itemColor(item);
+			int badge = 30;
+			int left = centerX - badge / 2;
+			this.drawManager.fillBox(left, top, badge, badge, tint(color));
+			this.drawManager.drawBox(left, top, badge, badge, color);
+			String letter = item.getName().substring(0, 1);
+			this.drawManager.drawRegularString(letter, centerX
+					- this.drawManager.getRegularStringWidth(letter) / 2,
+					top + 21, color);
+			break;
+		}
+		}
+	}
+
+	/**
+	 * Extra facts under the description: ship stats, how many items the
+	 * player has, or how gear is used.
+	 *
+	 * @param item
+	 *            Entry shown.
+	 * @return Lines to draw.
+	 */
+	private static List<String> extraLines(final ShopItem item) {
+		List<String> lines = new ArrayList<String>();
+		PurchaseManager purchases = PurchaseManager.getInstance();
+		switch (item.getCategory()) {
+		case SHIP: {
+			ShipType type = ShipType.valueOf(item.getRef());
+			lines.add("SPEED " + type.getSpeed() + "  |  BULLETS "
+					+ type.getBulletsPerShot());
+			lines.add("SHOTS PER SEC " + String.format("%.2f",
+					type.getBulletsPerShot() * 1000.0
+							/ type.getShootingInterval()));
+			break;
+		}
+		case SKIN: {
+			Skin skin = ShopCatalog.limitedSkin(item);
+			if (skin == null)
+				break;
+			long days = skin.daysLeft(LocalDate.now());
+			lines.add(days == 0 ? "LIMITED EDITION - NO LONGER SOLD"
+					: "LIMITED EDITION - " + days
+							+ (days == 1 ? " DAY LEFT" : " DAYS LEFT"));
+			break;
+		}
+		case UPGRADE: {
+			int level = purchases.getQuantity(item);
+			if (level == 0) {
+				lines.add("UP TO LEVEL " + item.getMaxLevel());
+			} else {
+				lines.add("LEVEL " + level + "/" + item.getMaxLevel() + " - "
+						+ (purchases.isUpgradeOn(item.getRef()) ? "ON"
+								: "OFF"));
+				lines.add("SWITCH ON/OFF IN CUSTOMIZE");
+			}
+			break;
+		}
+		default:
+			break;
+		}
+		return lines;
+	}
+
+	/**
+	 * @param item
+	 *            Upgrade entry.
+	 * @return The Item System's colour for it; light grey for upgrades,
+	 *         which have no colour there.
+	 */
+	private static Color itemColor(final ShopItem item) {
+		try {
+			Color color = ItemSystem.colorOf(ItemAPI.EffectKind.valueOf(
+					item.getRef().toUpperCase()));
+			if (!Color.WHITE.equals(color))
+				return color;
+		} catch (IllegalArgumentException e) {
+			// Not an Item System kind; use the default below.
+		}
+		return new Color(200, 200, 200);
+	}
+
+	private void drawMessage() {
+		if (this.message == null || System.currentTimeMillis()
+				- this.messageTime > MESSAGE_MILLIS)
+			return;
+		drawCentered(this.message.toUpperCase(), this.width / 2,
+				bodyBottom() + 20, this.messageColor);
+	}
+
+	private void drawCentered(final String text, final int centerX,
+			final int baseline, final Color color) {
+		this.drawManager.drawSmallString(text, centerX
+				- this.drawManager.getSmallStringWidth(text) / 2, baseline,
+				color);
+	}
+
+	/**
+	 * Splits text into lines that fit a width in the small font.
+	 *
+	 * @param text
+	 *            Text to split.
+	 * @param maxWidth
+	 *            Widest a line may be.
+	 * @return Lines, in order.
+	 */
+	private List<String> wrap(final String text, final int maxWidth) {
+		List<String> lines = new ArrayList<String>();
+		StringBuilder line = new StringBuilder();
+		for (String word : text.split(" ")) {
+			String candidate = line.length() == 0 ? word : line + " " + word;
+			if (line.length() > 0
+					&& this.drawManager.getSmallStringWidth(candidate)
+							> maxWidth) {
+				lines.add(line.toString());
+				line = new StringBuilder(word);
+			} else {
+				line = new StringBuilder(candidate);
+			}
+		}
+		if (line.length() > 0)
+			lines.add(line.toString());
+		return lines;
+	}
 
 	/**
 	 * @param color
