@@ -1,0 +1,875 @@
+From e1da0c3bbaf8052728f0e2b02a315d0bae242ecb Mon Sep 17 00:00:00 2001
+From: sofiajourke <nursofia02@gmail.com>
+Date: Tue, 13 Oct 2026 18:06:51 +0900
+Subject: [PATCH] feat: add meteor with diamond drop
+
+---
+ src/engine/DrawManager.java   |  12 ++
+ src/engine/MeteorManager.java | 323 ++++++++++++++++++++++++++++++++++
+ src/engine/MeteorSpawner.java | 132 ++++++++++++++
+ src/entity/DiamondDrop.java   |  95 ++++++++++
+ src/entity/Meteor.java        | 169 ++++++++++++++++++
+ src/screen/GameScreen.java    |  12 ++
+ 6 files changed, 743 insertions(+)
+ create mode 100644 src/engine/MeteorManager.java
+ create mode 100644 src/engine/MeteorSpawner.java
+ create mode 100644 src/entity/DiamondDrop.java
+ create mode 100644 src/entity/Meteor.java
+
+diff --git a/src/engine/DrawManager.java b/src/engine/DrawManager.java
+index f6dc7a0..7c815a4 100644
+--- a/src/engine/DrawManager.java
++++ b/src/engine/DrawManager.java
+@@ -19,7 +19,9 @@ import screen.MenuItem;
+ import screen.Screen;
+ import screen.Starfield;
+ import entity.Coin;
++import entity.DiamondDrop;
+ import entity.Entity;
++import entity.Meteor;
+ import entity.Particle;
+ import entity.Ship;
+ import item.ItemAPI;
+@@ -377,6 +379,16 @@ public final class DrawManager {
+ 				coin.getHeight());
+ 	}
+ 
++	/** Draws the bonus meteor. AUTHORED BY: VFX TEAM (Effection) */
++	public void drawMeteor(final Meteor meteor) {
++		MeteorManager.drawMeteor(backBufferGraphics, meteor);
++	}
++
++	/** Draws a meteor diamond. AUTHORED BY: VFX TEAM (Effection) */
++	public void drawDiamondDrop(final DiamondDrop drop) {
++		MeteorManager.drawDiamond(backBufferGraphics, drop, fontRegular);
++	}
++	
+ 	/**
+ 	 * Draws the item drops on the field (Team CS - Item System). Drops have
+ 	 * no entry in the shared sprite file yet, so the item system draws
+diff --git a/src/engine/MeteorManager.java b/src/engine/MeteorManager.java
+new file mode 100644
+index 0000000..e9d670d
+--- /dev/null
++++ b/src/engine/MeteorManager.java
+@@ -0,0 +1,323 @@
++package engine;
++
++import java.awt.AlphaComposite;
++import java.awt.Color;
++import java.awt.Font;
++import java.awt.Graphics;
++import java.awt.Graphics2D;
++import java.util.ArrayList;
++import java.util.Iterator;
++import java.util.List;
++import java.util.Random;
++import java.util.logging.Logger;
++
++import entity.Bullet;
++import entity.DiamondDrop;
++import entity.EnemyShip;
++import entity.Entity;
++import entity.Meteor;
++import entity.Ship;
++
++/**
++ * AUTHORED BY: VFX TEAM (Effection)
++ * Runs and draws the bonus meteor for one level: spawns it, moves it,handles hits, moves the diamonds it drops, and draws the burning rock,
++ * its fire and smoke tail, the burst and the diamonds. GameScreen and DrawManager only call these methods.
++ */
++public class MeteorManager {
++
++	private static final int TOP_MARGIN = 4; // px below the HUD line
++	private static final int PLAYER_MARGIN = 30; // px above the ship
++	private final MeteorSpawner spawner;
++	private final int width;
++	private final int height;
++	private final int topY;
++	private final Logger logger = Core.getLogger();
++	private Meteor meteor; // null when none on screen
++	private final List<DiamondDrop> drops = new ArrayList<DiamondDrop>();
++
++	/** Creates the meteor manager for a level. */
++	public MeteorManager(final int level, final int width, final int height,final int hudLineY) {
++		this.spawner = MeteorSpawner.forLevel(level);
++		this.width = width;
++		this.height = height;
++		this.topY = hudLineY + TOP_MARGIN;
++	}
++
++	/** Spawns a meteor on a random path above the player, if it is time. */
++	public final void trySpawn(final Iterable<EnemyShip> enemies,final Ship ship) {
++		int enemiesLeft = 0;
++		for (EnemyShip enemy : enemies)
++			if (!enemy.isDestroyed())
++				enemiesLeft++;
++		long now = System.currentTimeMillis();
++		if (!this.spawner.shouldSpawn(now, enemiesLeft, this.meteor != null))
++			return;
++
++		double startAngle = this.spawner.rollStartAngle();
++		double endAngle = this.spawner.rollEndAngle(startAngle);
++		// Flatten the path just enough to fit between the HUD and the player.
++		int bottomY = ship.getPositionY() - PLAYER_MARGIN - Meteor.SIZE;
++		int room = bottomY - this.topY;
++		int drop = Meteor.getTotalDrop(this.width, startAngle, endAngle);
++		if (drop > room) {
++			double scale = (double) room / drop;
++			startAngle = Math.toDegrees(Math.atan(scale * Math.tan(Math.toRadians(startAngle))));
++			endAngle = Math.toDegrees(Math.atan(scale * Math.tan(Math.toRadians(endAngle))));
++			drop = Meteor.getTotalDrop(this.width, startAngle, endAngle);
++		}
++		int maxStartY = Math.max(this.topY, bottomY - drop);
++		this.meteor = new Meteor(this.spawner.rollFromLeft(),
++				this.spawner.rollHeight(this.topY, maxStartY), this.width,
++				this.spawner.getCrossTime(), startAngle, endAngle,
++				this.spawner.getDiamondValue(), new Random());
++		this.spawner.markSpawned(now);
++		this.logger.info("A meteor appears");
++	}
++
++	/**
++	 * Moves the meteor and its diamonds. Call every frame.
++	 *
++	 * @return Diamonds caught by the ship this frame.
++	 */
++	public final int update(final Ship ship, final boolean canCatch) {
++		if (this.meteor != null) {
++			this.meteor.update();
++			if (this.meteor.isOffScreen(this.width)
++					|| this.meteor.isBurstFinished())
++				this.meteor = null;
++		}
++		int caught = 0;
++		Iterator<DiamondDrop> it = this.drops.iterator();
++		while (it.hasNext()) {
++			DiamondDrop drop = it.next();
++			drop.update();
++			if (!drop.isCaught() && canCatch && !ship.isDestroyed()
++					&& overlaps(drop, ship)) {
++				drop.catchIt();
++				caught += drop.getValue();
++				this.logger.info("Meteor diamond caught, +" + drop.getValue());
++			} else if (drop.isFinished()
++					|| (!drop.isCaught() && drop.getPositionY() > this.height)) {
++				it.remove();
++			}
++		}
++		return caught;
++	}
++
++	/** @return True if a player bullet hit the meteor (it bursts and drops a diamond). */
++	public final boolean tryHit(final Bullet bullet) {
++		if (this.meteor == null || this.meteor.isBursting()
++				|| !overlaps(bullet, this.meteor))
++			return false;
++		this.meteor.burst();
++		this.drops.add(new DiamondDrop(
++				this.meteor.getPositionX() + Meteor.SIZE / 2,
++				this.meteor.getPositionY() + Meteor.SIZE / 2,
++				this.meteor.getDiamondValue(), this.meteor.getSpeedX(),
++				this.width));
++		this.logger.info("Meteor shot, dropped a diamond");
++		return true;
++	}
++
++	/** @return Diamonds still falling at level clear (given like leftover coins). */
++	public final int collectRemaining() {
++		int total = 0;
++		for (DiamondDrop drop : this.drops)
++			if (!drop.isCaught())
++				total += drop.getValue();
++		this.drops.clear();
++		return total;
++	}
++
++	/** Removes the meteor and diamonds, e.g. on game over. */
++	public final void clear() {
++		this.meteor = null;
++		this.drops.clear();
++	}
++
++	/** Draws the meteor and the falling diamonds. */
++	public final void draw(final DrawManager drawManager) {
++		if (this.meteor != null)
++			drawManager.drawMeteor(this.meteor);
++		for (DiamondDrop drop : this.drops)
++			drawManager.drawDiamondDrop(drop);
++	}
++
++	/** @return True when two entities overlap (same test as GameScreen). */
++	private static boolean overlaps(final Entity a, final Entity b) {
++		return Math.abs((a.getPositionX() + a.getWidth() / 2) - (b.getPositionX() + b.getWidth() / 2)) < a.getWidth() / 2 + b.getWidth() / 2
++				&& Math.abs((a.getPositionY() + a.getHeight() / 2) - (b.getPositionY() + b.getHeight() / 2))< a.getHeight() / 2 + b.getHeight() / 2;
++	}
++    
++	// Lumpy rock, 9x9 cells of 2 px: # rock, o crater, . empty.
++	private static final String[] SHAPE = { "...###...", ".######..",".##o####.", "###oo####", "####o####", "##o######", ".#####o#.","..#####..", "...###..." };
++	private static final int MID = 4; // center cell
++	private static final Color ROCK = new Color(124, 100, 84);
++	private static final Color SHADOW = new Color(78, 60, 52);
++	private static final Color SMOKE = new Color(120, 110, 105);
++	// Flame: white-hot core, yellow, orange, red edge.
++	private static final Color[] FLAME = { new Color(255, 250, 220),new Color(255, 225, 90), new Color(255, 150, 40),new Color(220, 60, 30) };
++	private static final java.util.Random FLICKER = new java.util.Random();
++
++	/** Draws the bonus meteor, flying or bursting. */
++	public static void drawMeteor(final Graphics g, final Meteor meteor) {
++		if (meteor.isBursting())
++			drawBurst(g, meteor);
++		else
++			drawFlying(g, meteor);
++		setAlpha(g, 1f);
++	}
++
++	/** Sets the opacity (0 to 1) of everything drawn next. */
++	private static void setAlpha(final Graphics g, final float alpha) {
++		((Graphics2D) g).setComposite(AlphaComposite
++				.getInstance(AlphaComposite.SRC_OVER,
++						Math.max(0f, Math.min(1f, alpha))));
++	}
++
++	/** Draws a flying meteor: a burning rock with a fire and smoke tail. */
++	private static void drawFlying(final Graphics g, final Meteor meteor) {
++		int size = meteor.getWidth();
++		int r = size / 2;
++		int cx = meteor.getPositionX() + r;
++		int cy = meteor.getPositionY() + r;
++		int dir = meteor.getDirection();
++		float slope = meteor.getFallSlope();
++
++		// Red heat glow around the rock.
++		setAlpha(g, 0.25f);
++		g.setColor(FLAME[3]);
++		g.fillOval(cx - r - 4, cy - r - 4, size + 8, size + 8);
++
++		// Tail: hot fire near the rock, cooling to red, then grey smoke.
++		for (int i = 24; i >= 1; i--) {
++			int back = r / 3 + i * 3 + FLICKER.nextInt(4);
++			int tx = cx - dir * back;
++			int ty = cy - Math.round(slope * back) + FLICKER.nextInt(5) - 2;
++			int outer = Math.max(2, r - i * r / 26 + FLICKER.nextInt(3));
++			setAlpha(g, i > 16 ? 0.35f - (i - 16) * 0.04f : 0.95f - i * 0.03f);
++			for (int layer = 3; layer >= 0; layer--) {
++				int fr = outer * (layer + 1) / 4;
++				g.setColor(i > 16 ? SMOKE
++						: FLAME[Math.min(3, layer + i / 6)]);
++				g.fillOval(tx - fr, ty - fr, fr * 2, fr * 2);
++			}
++		}
++		setAlpha(g, 1f);
++
++		// Spinning pixel rock: the front and bottom burn bright, the back
++		// stays dark with glowing cracks.
++		float cos = (float) Math.cos(meteor.getRotation());
++		float sin = (float) Math.sin(meteor.getRotation());
++		for (int row = 0; row < 9; row++)
++			for (int col = 0; col < 9; col++) {
++				char cell = cellAt(row, col, cos, sin);
++				if (cell == '.')
++					continue;
++				int heat = dir * (col - MID) + (row - MID)
++						+ FLICKER.nextInt(2);
++				if (heat >= 5)
++					g.setColor(FLAME[0]);
++				else if (heat >= 2)
++					g.setColor(FLAME[1 + (5 - heat) / 2]);
++				else if (cell == 'o')
++					g.setColor(FLAME[3]);
++				else
++					g.setColor(heat <= -4 ? SHADOW : ROCK);
++				g.fillRect(cx - r + col * 2, cy - r + row * 2, 2, 2);
++			}
++
++		// Flames wrapping over the back of the rock.
++		for (int i = 0; i < 4; i++) {
++			int fr = 2 + FLICKER.nextInt(3);
++			setAlpha(g, 0.5f + FLICKER.nextFloat() * 0.4f);
++			g.setColor(FLAME[1 + FLICKER.nextInt(2)]);
++			g.fillOval(cx - dir * FLICKER.nextInt(r) - fr,cy - FLICKER.nextInt(r) - fr, fr * 2, fr * 2);
++		}
++	}
++
++	/** @return Rock cell shown at a screen cell after rotation, '.' if empty. */
++	private static char cellAt(final int row, final int col, final float cos,final float sin) {
++		int dx = col - MID;
++		int dy = row - MID;
++		int srcCol = MID + Math.round(cos * dx + sin * dy);
++		int srcRow = MID + Math.round(-sin * dx + cos * dy);
++		if (srcRow < 0 || srcRow > 8 || srcCol < 0 || srcCol > 8)
++			return '.';
++		return SHAPE[srcRow].charAt(srcCol);
++	}
++
++	/** Draws a falling meteor diamond, or its "+N" popup once caught. */
++	public static void drawDiamond(final Graphics g, final DiamondDrop drop,final Font font) {
++		int x = drop.getPositionX();
++		int y = drop.getPositionY();
++		int size = drop.getWidth();
++		int cx = x + size / 2;
++
++		if (drop.isCaught()) {
++			float progress = Math.min(1f, (float) drop.getCaughtElapsed() / DiamondDrop.POPUP_DURATION);
++			String popup = "+" + drop.getValue();
++			int textX = cx - g.getFontMetrics(font).stringWidth(popup) / 2;
++			int textY = y - (int) (progress * 28);
++			g.setFont(font);
++			setAlpha(g, 1f - progress * progress);
++			g.setColor(Color.BLACK);
++			g.drawString(popup, textX + 1, textY + 1);
++			g.setColor(Color.CYAN);
++			g.drawString(popup, textX, textY);
++			setAlpha(g, 1f);
++			return;
++		}
++
++		// Soft pulsing glow so it stands out while it falls.
++		float pulse = 0.5f + 0.5f * (float) Math.sin(drop.getAge() / 120.0);
++		setAlpha(g, 0.15f + 0.15f * pulse);
++		g.setColor(Color.CYAN);
++		g.fillOval(x - 4, y - 4, size + 8, size + 8);
++		setAlpha(g, 1f);
++
++		// Gem: darker lower half, bright upper half, white edge and sparkle.
++		int[] gemX = { cx, x + size, cx, x };
++		int[] gemY = { y, y + size / 2, y + size, y + size / 2 };
++		g.setColor(new Color(0, 170, 200));
++		g.fillPolygon(gemX, gemY, 4);
++		g.setColor(Color.CYAN);
++		g.fillPolygon(new int[] { cx, x + size, x },new int[] { y, y + size / 2, y + size / 2 }, 3);
++		g.setColor(Color.WHITE);
++		g.drawPolygon(gemX, gemY, 4);
++		if (pulse > 0.6f)
++			g.fillRect(cx - 3, y + 3, 2, 2);
++	}
++
++	/** Draws a shot meteor: flash, shockwave, rock pieces and sparks. */
++	private static void drawBurst(final Graphics g, final Meteor meteor) {
++		long elapsed = meteor.getBurstElapsed();
++		float progress = Math.min(1f, (float) elapsed / Meteor.BURST_DURATION);
++		int cx = meteor.getPositionX() + meteor.getWidth() / 2;
++		int cy = meteor.getPositionY() + meteor.getHeight() / 2;
++		int radius = 8 + (int) (progress * 40);
++
++		// Flash, then a shockwave ring growing outward.
++		setAlpha(g, 1f - progress);
++		if (progress < 0.15f) {
++			g.setColor(FLAME[0]);
++			g.fillOval(cx - radius, cy - radius,radius * 2, radius * 2);
++		}
++		g.setColor(FLAME[2]);
++		g.drawOval(cx - radius, cy - radius,radius * 2, radius * 2);
++
++		// Even sparks: rock pieces that fall. Odd sparks: hot streaks.
++		for (int i = 0; i < meteor.getSparkCount(); i++) {
++			float sx = meteor.getSparkSpeedX(i) * elapsed;
++			float sy = meteor.getSparkSpeedY(i) * elapsed;
++			if (i % 2 == 0) {
++				g.setColor(i % 4 == 0 ? ROCK : SHADOW);
++				g.fillRect(cx + Math.round(sx * 0.45f) - 2,cy + Math.round(sy * 0.45f + 0.00006f * elapsed * elapsed) - 2, 4, 4);
++			} else {
++				g.setColor(FLAME[Math.min(3, 1 + (int) (progress * 3))]);
++				g.drawLine(cx + Math.round(sx * 0.7f), cy + Math.round(sy * 0.7f),cx + Math.round(sx), cy + Math.round(sy));
++				g.fillRect(cx + Math.round(sx) - 1, cy + Math.round(sy) - 1, 2, 2);
++			}
++		}
++	}
++}
+\ No newline at end of file
+diff --git a/src/engine/MeteorSpawner.java b/src/engine/MeteorSpawner.java
+new file mode 100644
+index 0000000..7899d17
+--- /dev/null
++++ b/src/engine/MeteorSpawner.java
+@@ -0,0 +1,132 @@
++package engine;
++
++import java.util.Random;
++
++/**
++ * AUTHORED BY: VFX TEAM (Effection)
++ * Decides when the bonus meteor appears, for any number of levels:none before METEOR_START_LEVEL or in the final level, up to
++ * METEOR_MAX_LATE_LEVEL in the METEOR_LATE_LEVELS levels before the final,otherwise up to METEOR_MAX_PER_LEVEL. Each meteor drops one diamond.The meteor count is rolled once when the level starts.
++ */
++public class MeteorSpawner {
++
++	public static final int METEOR_START_LEVEL = 3;
++	public static final double METEOR_BASE_CHANCE = 0.40; // chance at the start level
++	public static final double METEOR_CHANCE_STEP = 0.10; // extra chance per level
++	public static final double METEOR_MAX_CHANCE = 0.80;
++	public static final int METEOR_MAX_PER_LEVEL = 1;
++	public static final int METEOR_MAX_LATE_LEVEL = 2;
++	public static final int METEOR_LATE_LEVELS = 2; // levels before the final
++	public static final int METEOR_SAFE_START = 10000; // ms with no meteor
++	public static final int METEOR_FIRST_VARIANCE = 15000; // ms
++	public static final int METEOR_MIN_GAP = 20000; // ms between two meteors
++	public static final int METEOR_GAP_VARIANCE = 10000; // ms
++	public static final int METEOR_MIN_ENEMIES = 5; // no meteor below this
++	public static final int METEOR_BASE_CROSS_TIME = 5000; // ms at the start level
++	public static final int METEOR_CROSS_TIME_STEP = 200; // ms faster per level
++	public static final int METEOR_MIN_CROSS_TIME = 4000; // ms, fastest
++	public static final double METEOR_MIN_ANGLE = 10; // degrees
++	public static final double METEOR_MAX_ANGLE =30; // degrees
++	public static final double METEOR_MAX_CURVE = 10; // extra bend, degrees
++	public static final double METEOR_SPEED_VARIANCE = 0.15; // +-15% speed
++	public static final int METEOR_DIAMOND_VALUE = 1;
++
++	private final int level;
++	private final Random random;
++	private final int plannedMeteors;
++	private int spawnedMeteors;
++	private long playStart;
++	private long nextSpawnAt;
++
++	/** Creates the spawner for one level and rolls its meteors. */
++	public MeteorSpawner(final int level, final int finalLevel,
++			final Random random) {
++		this.level = level;
++		this.random = random == null ? new Random() : random;
++		int planned = 0;
++		double chance = chanceForLevel(level);
++		for (int i = 0; i < maxForLevel(level, finalLevel); i++)
++			if (this.random.nextDouble() < chance)
++				planned++;
++		this.plannedMeteors = planned;
++	}
++
++	/** Creates the spawner for a level, using the game's number of levels. */
++	public static MeteorSpawner forLevel(final int level) {
++		return new MeteorSpawner(level, Core.getNumLevels(), new Random());
++	}
++
++	/** @return Chance of each meteor in a level, 0 before the start level. */
++	public static double chanceForLevel(final int level) {
++		if (level < METEOR_START_LEVEL)
++			return 0;
++		return Math.min(METEOR_MAX_CHANCE, METEOR_BASE_CHANCE
++				+ METEOR_CHANCE_STEP * (level - METEOR_START_LEVEL));
++	}
++
++	/** @return Most meteors a level can have. */
++	public static int maxForLevel(final int level, final int finalLevel) {
++		if (level < METEOR_START_LEVEL || level >= finalLevel)
++			return 0;
++		if (level >= finalLevel - METEOR_LATE_LEVELS)
++			return METEOR_MAX_LATE_LEVEL;
++		return METEOR_MAX_PER_LEVEL;
++	}
++
++	/** @return Time to cross the screen in a level, in ms. */
++	public static int crossTimeForLevel(final int level) {
++		int levelsIn = Math.max(0, level - METEOR_START_LEVEL);
++		return Math.max(METEOR_MIN_CROSS_TIME, METEOR_BASE_CROSS_TIME - METEOR_CROSS_TIME_STEP * levelsIn);
++	}
++
++	/** @return True if a meteor should appear now. Call every frame. */
++	public final boolean shouldSpawn(final long now, final int enemiesLeft,
++			final boolean meteorOnScreen) {
++		if (this.playStart == 0) {
++			this.playStart = now;
++			this.nextSpawnAt = now + METEOR_SAFE_START + this.random.nextInt(METEOR_FIRST_VARIANCE + 1);
++		}
++		return this.spawnedMeteors < this.plannedMeteors && !meteorOnScreen && now >= this.nextSpawnAt && enemiesLeft >= METEOR_MIN_ENEMIES;
++	}
++
++	/** Records a spawned meteor and schedules the earliest next one. */
++	public final void markSpawned(final long now) {
++		this.spawnedMeteors++;
++		this.nextSpawnAt = now + METEOR_MIN_GAP + this.random.nextInt(METEOR_GAP_VARIANCE + 1);
++	}
++
++	/** @return True to make the next meteor enter from the left. */
++	public final boolean rollFromLeft() {
++		return this.random.nextBoolean();
++	}
++
++	/** @return Random height between minY and maxY. */
++	public final int rollHeight(final int minY, final int maxY) {
++		return minY + this.random.nextInt(Math.max(0, maxY - minY) + 1);
++	}
++
++	/** @return This level's crossing time, a little faster or slower. */
++	public final int getCrossTime() {
++		double change = (this.random.nextDouble() * 2 - 1) * METEOR_SPEED_VARIANCE;
++		return (int) Math.round(crossTimeForLevel(this.level) * (1 + change));
++	}
++
++	/** @return Random entry angle, in degrees below the horizontal. */
++	public final double rollStartAngle() {
++		return METEOR_MIN_ANGLE + this.random.nextDouble() * (METEOR_MAX_ANGLE - METEOR_MIN_ANGLE);
++	}
++
++	/** @return Exit angle: entry angle plus a random bend, max 80. */
++	public final double rollEndAngle(final double startAngle) {
++		return Math.min(80, startAngle + this.random.nextDouble() * METEOR_MAX_CURVE);
++	}
++
++	/** @return Diamonds each meteor drops. */
++	public final int getDiamondValue() {
++		return METEOR_DIAMOND_VALUE;
++	}
++
++	/** @return Meteors rolled for this level. */
++	public final int getPlannedMeteors() {
++		return this.plannedMeteors;
++	}
++}
+diff --git a/src/entity/DiamondDrop.java b/src/entity/DiamondDrop.java
+new file mode 100644
+index 0000000..897c651
+--- /dev/null
++++ b/src/entity/DiamondDrop.java
+@@ -0,0 +1,95 @@
++package entity;
++
++import java.awt.Color;
++
++/**
++ * AUTHORED BY: VFX TEAM (Effection)
++ * Diamond dropped by a shot meteor. It drifts sideways while falling and bounces off the screen edges; the player must catch it with the ship.
++ * After being caught it stays briefly for the "+N" popup.
++ */
++public class DiamondDrop extends Entity {
++
++	public static final int SIZE = 12;
++	public static final int POPUP_DURATION = 800; // ms
++	private static final float FALL_SPEED = 0.1f; // px per ms
++	public static final float DRIFT = 0.35f; // part of the meteor's sideways speed kept
++	private static final long MAX_STEP = 50; // ms, avoids jumps on lag
++
++	private final int value;
++	private float exactX;
++	private float exactY;
++	private float speedX;
++	private final int screenWidth;
++	private long lastUpdate;
++	private final long createdAt;
++	private boolean caught;
++	private long caughtAt;
++
++	/** Creates a diamond centred on a point, drifting with the meteor. */
++	public DiamondDrop(final int centerX, final int centerY, final int value, final float meteorSpeedX, final int screenWidth) {
++		super(centerX - SIZE / 2, centerY - SIZE / 2, SIZE, SIZE, Color.CYAN);
++		this.value = value;
++		this.exactX = this.positionX;
++		this.exactY = this.positionY;
++		this.speedX = meteorSpeedX * DRIFT;
++		this.screenWidth = screenWidth;
++		this.createdAt = System.currentTimeMillis();
++		this.lastUpdate = this.createdAt;
++	}
++
++	/** Makes the drop fall while it has not been caught. Call once per frame. */
++	public final void update() {
++		long now = System.currentTimeMillis();
++		long step = Math.min(MAX_STEP, now - this.lastUpdate);
++		this.lastUpdate = now;
++		if (this.caught)
++			return;
++		this.exactY += FALL_SPEED * step;
++		this.exactX += this.speedX * step;
++		// Bounce off the side edges so it never leaves the screen.
++		if (this.exactX < 0) {
++			this.exactX = -this.exactX;
++			this.speedX = -this.speedX;
++		} else if (this.exactX > this.screenWidth - SIZE) {
++			this.exactX = 2 * (this.screenWidth - SIZE) - this.exactX;
++			this.speedX = -this.speedX;
++		}
++		this.positionX = Math.round(this.exactX);
++		this.positionY = Math.round(this.exactY);
++	}
++
++	/** Marks the drop as caught and starts its "+N" popup. */
++	public final void catchIt() {
++		if (this.caught)
++			return;
++		this.caught = true;
++		this.caughtAt = System.currentTimeMillis();
++	}
++
++	/** @return True once the drop has been caught. */
++	public final boolean isCaught() {
++		return this.caught;
++	}
++
++	/** @return True when the drop was caught and its popup has finished. */
++	public final boolean isFinished() {
++		return this.caught && getCaughtElapsed() >= POPUP_DURATION;
++	}
++
++	/** @return Milliseconds since the drop was caught, 0 before that. */
++	public final long getCaughtElapsed() {
++		if (!this.caught)
++			return 0;
++		return System.currentTimeMillis() - this.caughtAt;
++	}
++
++	/** @return Milliseconds since the drop appeared. */
++	public final long getAge() {
++		return System.currentTimeMillis() - this.createdAt;
++	}
++
++	/** @return Diamonds given when caught. */
++	public final int getValue() {
++		return this.value;
++	}
++}
+diff --git a/src/entity/Meteor.java b/src/entity/Meteor.java
+new file mode 100644
+index 0000000..64b2127
+--- /dev/null
++++ b/src/entity/Meteor.java
+@@ -0,0 +1,169 @@
++package entity;
++
++import java.awt.Color;
++import java.util.Random;
++
++/**
++ * AUTHORED BY: VFX TEAM (Effection)
++ * Rare bonus meteor that flies across the screen on a curved path. When shot
++ * it bursts into sparks and drops a diamond. It never harms the player.
++ */
++public class Meteor extends Entity {
++
++	public static final int SIZE = 9 * 2; // 9x9 sprite at 2-px scale
++	public static final int BURST_DURATION = 900; // ms
++	private static final int SPARK_COUNT = 12;
++	private static final float SPARK_MIN_SPEED = 0.04f; // px per ms
++	private static final float SPARK_SPEED_VARIANCE = 0.06f;
++	private static final long MAX_STEP = 50; // ms, avoids jumps on lag
++	private static final float SPIN_MIN = 0.003f; // radians per ms
++	private static final float SPIN_VARIANCE = 0.006f;
++
++	private final int direction; // 1 = right, -1 = left
++	private final float speed; // signed sideways speed, px per ms
++	private final float fallSpeedStart; // downward speed when entering
++	private final float fallSpeedEnd; // downward speed when leaving
++	private final float flightTime;
++	private float flightElapsed;
++	private float fallSpeed;
++	private final float spinSpeed;
++	private float rotation;
++	private float exactX;
++	private float exactY;
++	private long lastUpdate;
++	private final int diamondValue;
++	private boolean bursting;
++	private long burstStart;
++	private final float[] sparkSpeedX;
++	private final float[] sparkSpeedY;
++	private final Random random;
++
++	/** Creates a meteor just outside the left or right side of the screen. */
++	public Meteor(final boolean fromLeft, final int positionY,
++			final int screenWidth, final int crossTime,
++			final double startAngle, final double endAngle,
++			final int diamondValue, final Random random) {
++		super(fromLeft ? -SIZE : screenWidth, positionY, SIZE, SIZE,new Color(120, 100, 90));
++		this.direction = fromLeft ? 1 : -1;
++		this.speed = this.direction * (float) (screenWidth + SIZE)/ Math.max(1, crossTime);
++		this.fallSpeedStart = Math.abs(this.speed) * (float) Math.tan(Math.toRadians(startAngle));
++		this.fallSpeedEnd = Math.abs(this.speed) * (float) Math.tan(Math.toRadians(endAngle));
++		this.fallSpeed = this.fallSpeedStart;
++		this.flightTime = Math.max(1, crossTime);
++		this.exactX = this.positionX;
++		this.exactY = this.positionY;
++		this.lastUpdate = System.currentTimeMillis();
++		this.diamondValue = diamondValue;
++		this.random = random == null ? new Random() : random;
++		// Rolls forward in its flight direction, at a random speed.
++		this.spinSpeed = this.direction * (SPIN_MIN + this.random.nextFloat() * SPIN_VARIANCE);
++		this.rotation = this.random.nextFloat() * (float) (2 * Math.PI);
++		this.sparkSpeedX = new float[SPARK_COUNT];
++		this.sparkSpeedY = new float[SPARK_COUNT];
++	}
++
++	/** Moves the meteor while it is flying. Call once per frame. */
++	public final void update() {
++		long now = System.currentTimeMillis();
++		long step = Math.min(MAX_STEP, now - this.lastUpdate);
++		this.lastUpdate = now;
++		if (this.bursting)
++			return;
++		// Fall speed grows over the flight, so the path bends downward.
++		this.flightElapsed += step;
++		float progress = Math.min(1f, this.flightElapsed / this.flightTime);
++		this.fallSpeed = this.fallSpeedStart + (this.fallSpeedEnd - this.fallSpeedStart) * progress;
++		this.exactX += this.speed * step;
++		this.exactY += this.fallSpeed * step;
++		this.rotation += this.spinSpeed * step;
++		this.positionX = Math.round(this.exactX);
++		this.positionY = Math.round(this.exactY);
++	}
++
++	/** @return Total drop in pixels while crossing the screen. */
++	public static int getTotalDrop(final int screenWidth,
++			final double startAngle, final double endAngle) {
++		// The fall speed changes evenly, so the drop uses the average slope.
++		return (int) Math.ceil((screenWidth + SIZE) * (Math.tan(Math.toRadians(startAngle)) + Math.tan(Math.toRadians(endAngle))) / 2);
++	}
++
++	/** @return Current rotation of the rock, in radians. */
++	public final float getRotation() {
++		return this.rotation;
++	}
++
++	/** @return Downward speed divided by sideways speed (tail slope). */
++	public final float getFallSlope() {
++		return this.speed == 0 ? 0 : this.fallSpeed / Math.abs(this.speed);
++	}
++
++	/** Starts the burst: the meteor stops and its sparks fly out. */
++	public final void burst() {
++		if (this.bursting)
++			return;
++		this.bursting = true;
++		this.burstStart = System.currentTimeMillis();
++		for (int i = 0; i < SPARK_COUNT; i++) {
++			// Even angles with a little jitter: round but never identical.
++			double angle = 2 * Math.PI * (i + this.random.nextDouble() * 0.6) / SPARK_COUNT;
++			float sparkSpeed = SPARK_MIN_SPEED + this.random.nextFloat() * SPARK_SPEED_VARIANCE;
++			this.sparkSpeedX[i] = (float) Math.cos(angle) * sparkSpeed;
++			this.sparkSpeedY[i] = (float) Math.sin(angle) * sparkSpeed;
++		}
++	}
++
++	/** @return True once the meteor has been shot. */
++	public final boolean isBursting() {
++		return this.bursting;
++	}
++
++	/** @return Milliseconds since the burst started, 0 while flying. */
++	public final long getBurstElapsed() {
++		if (!this.bursting)
++			return 0;
++		return System.currentTimeMillis() - this.burstStart;
++	}
++
++	/** @return True when the burst animation has fully played. */
++	public final boolean isBurstFinished() {
++		return this.bursting && getBurstElapsed() >= BURST_DURATION;
++	}
++
++	/** @return True when a flying meteor has left the far side. */
++	public final boolean isOffScreen(final int screenWidth) {
++		if (this.bursting)
++			return false;
++		return this.direction > 0 ? this.positionX > screenWidth
++				: this.positionX + this.width < 0;
++	}
++
++	/** @return Sideways speed in px per ms (sign = direction). */
++	public final float getSpeedX() {
++		return this.speed;
++	}
++
++	/** @return 1 when flying right, -1 when flying left. */
++	public final int getDirection() {
++		return this.direction;
++	}
++
++	/** @return Diamonds dropped when shot. */
++	public final int getDiamondValue() {
++		return this.diamondValue;
++	}
++
++	/** @return Number of sparks in the burst. */
++	public final int getSparkCount() {
++		return SPARK_COUNT;
++	}
++
++	/** @return Horizontal speed of a spark, in px per ms. */
++	public final float getSparkSpeedX(final int index) {
++		return this.sparkSpeedX[index];
++	}
++
++	/** @return Vertical speed of a spark, in px per ms. */
++	public final float getSparkSpeedY(final int index) {
++		return this.sparkSpeedY[index];
++	}
++}
+diff --git a/src/screen/GameScreen.java b/src/screen/GameScreen.java
+index 5483e3a..9634db4 100644
+--- a/src/screen/GameScreen.java
++++ b/src/screen/GameScreen.java
+@@ -23,6 +23,7 @@ import engine.Achievement;
+ import engine.DamageDimEffect;
+ import engine.GameEvents;
+ import engine.GlitchEffect;
++import engine.MeteorManager;
+ import engine.PurchaseManager;
+ import engine.ScreenShake;
+ import engine.PointsEffect;
+@@ -228,6 +229,8 @@ public class GameScreen extends Screen {
+ 	private GlitchEffect glitch;
+ 	/** Screen shake when an enemy is destroyed. */
+ 	private ScreenShake screenShake;
++	/** Bonus meteor and its diamonds. AUTHORED BY: VFX TEAM (Effection) */
++	private MeteorManager meteors; 
+ 	/** Points shown when enemies are destroyed. AUTHORED BY: VFX TEAM (Effection) */
+ 	private PointsEffect pointsEffect;
+ 	/** Diamonds earned this run but not yet cashed out; lost on death,
+@@ -332,6 +335,7 @@ public class GameScreen extends Screen {
+ 		GameEvents.subscribe(GameEvents.Type.PLAYER_HIT, this.damageDim);
+ 		this.glitch = new GlitchEffect();
+ 		this.screenShake = new ScreenShake();
++		this.meteors = new MeteorManager(this.level, this.width, this.height,SEPARATION_LINE_HEIGHT);
+ 		this.pointsEffect = new PointsEffect(SEPARATION_LINE_HEIGHT);
+ 		this.scoreBoostPopups = new ArrayList<long[]>(); // Item System (Team CS)
+ 		this.coins = new HashSet<Coin>();
+@@ -466,6 +470,7 @@ public class GameScreen extends Screen {
+ 			if (!this.items.enemiesFrozen()) // Freeze item (Team CS)
+ 				this.enemyShipFormation.update();
+ 			this.enemyShipFormation.shoot(this.bullets);
++			this.meteors.trySpawn(this.enemyShipFormation, this.ship); // VFX TEAM (Effection)
+ 			/**
+ 			 * AUTHORED BY: VFX TEAM (effection)
+ 			 *
+@@ -484,6 +489,7 @@ public class GameScreen extends Screen {
+ 		cleanBullets();
+ 		updateParticles(); // AUTHORED BY: VFX TEAM (Effection)
+ 		updateCoins();
++		this.pendingDiamonds += this.meteors.update(this.ship, this.lives > 0); // VFX TEAM (Effection): updates the meteor and its diamonds, returns the diamonds to be added to pending
+ 		handleItemEvents();
+ 		updateAchievementPopup();
+ 		draw();
+@@ -507,6 +513,7 @@ public class GameScreen extends Screen {
+ 			if (this.enemyShipFormation.isEmpty() && this.lives > 0) {
+ 				this.pendingDiamonds += this.level;
+ 				collectRemainingCoins();
++				this.pendingDiamonds += this.meteors.collectRemaining(); // VFX TEAM (Effection): collects remaining diamonds from the meteor and adds them to pending
+ 				showUnlockedAchievement(Core.getAchievementManager()
+ 						.recordLevelCompleted(this.level));
+ 
+@@ -545,6 +552,7 @@ public class GameScreen extends Screen {
+ 
+ 		BulletPool.recycle(this.bullets);
+ 		this.bullets.clear();
++		this.meteors.clear(); // VFX TEAM (Effection):
+ 
+ 		// Clears explosions left from enemies shot just before.
+ 		this.enemyShipFormation.removeDestroyed();
+@@ -777,6 +785,7 @@ public class GameScreen extends Screen {
+ 			for (Coin coin : this.coins)
+ 				drawManager.drawCoin(coin, coin.getPositionX(),
+ 						coin.getPositionY());
++			this.meteors.draw(drawManager); // VFX TEAM (Effection): draws the meteor and its diamonds
+ 			drawManager.drawItemDrops(this.items); // Item System (Team CS)
+ 			// HUD must stay still: remove shake offset.
+ 			drawManager.setWorldOffset(0, 0);
+@@ -953,6 +962,9 @@ public class GameScreen extends Screen {
+ 					this.enemyShipSpecialExplosionCooldown.reset();
+ 					recyclable.add(bullet);
+ 				}
++				// Bonus meteor: only player bullets hit it. VFX TEAM (Effection)
++				if (!recyclable.contains(bullet) && this.meteors.tryHit(bullet))
++					recyclable.add(bullet);
+ 			}
+ 		this.bullets.removeAll(recyclable);
+ 		BulletPool.recycle(recyclable);
+-- 
+2.43.0
+
