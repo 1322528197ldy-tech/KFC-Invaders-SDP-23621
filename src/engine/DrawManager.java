@@ -1720,4 +1720,63 @@ public final class DrawManager {
 		return backBufferGraphics.getFontMetrics(smallFont()).getHeight()
 				+ 2;
 	}
+
+	/**
+	 * Draws a coin or diamond icon in the same colours as the balance HUD.
+	 *
+	 * @param positionX Horizontal position of the left edge.
+	 * @param baseline  Baseline of the text the icon sits next to.
+	 * @param diamond   true for a diamond, false for a coin.
+	 * @param size      Icon size in pixels.
+	 */
+	public void drawCurrencyIcon(final int positionX, final int baseline,
+			final boolean diamond, final int size) {
+		int top = baseline - size + 1;
+		if (diamond) {
+			int[] xPoints = { positionX + size / 2, positionX + size,
+					positionX + size / 2, positionX };
+			int[] yPoints = { top, top + size / 2, top + size,
+					top + size / 2 };
+			backBufferGraphics.setColor(Color.CYAN);
+			backBufferGraphics.fillPolygon(xPoints, yPoints, 4);
+		} else {
+			backBufferGraphics.setColor(Color.YELLOW);
+			backBufferGraphics.fillOval(positionX, top, size, size);
+		}
+	}
+
+	/**
+	 * Draws a sprite with square pixels of any size, for big previews.
+	 *
+	 * @param spriteType Sprite to draw.
+	 * @param positionX  Horizontal position of the left edge.
+	 * @param positionY  Vertical position of the top edge.
+	 * @param pixelSize  Size of one sprite pixel on screen (2 = in game).
+	 * @param color      Colour of the filled pixels.
+	 */
+	public void drawSpriteScaled(final SpriteType spriteType,
+			final int positionX, final int positionY, final int pixelSize,
+			final Color color) {
+		boolean[][] image = spriteMap.get(spriteType);
+		if (image == null)
+			return;
+		backBufferGraphics.setColor(color);
+		for (int i = 0; i < image.length; i++)
+			for (int j = 0; j < image[i].length; j++)
+				if (image[i][j])
+					backBufferGraphics.fillRect(positionX + i * pixelSize,
+							positionY + j * pixelSize, pixelSize, pixelSize);
+	}
+
+	/**
+	 * @param spriteType Sprite to measure.
+	 * @return Sprite width and height in sprite pixels, {0, 0} if unknown.
+	 */
+	public int[] getSpriteSize(final SpriteType spriteType) {
+		boolean[][] image = spriteMap == null ? null
+				: spriteMap.get(spriteType);
+		if (image == null || image.length == 0)
+			return new int[] { 0, 0 };
+		return new int[] { image.length, image[0].length };
+	}
 }
