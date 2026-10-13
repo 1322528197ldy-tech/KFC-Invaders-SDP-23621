@@ -8,6 +8,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import entity.Ship;
 import screen.AchievementsScreen;
 import screen.CashOutScreen;
 import screen.GameScreen;
@@ -78,8 +79,8 @@ public final class Core {
 	private static ConsoleHandler consoleHandler;
 	/** Persistent achievement progress manager. */
 	private static AchievementManager achievementManager;
-	/** Ship used for the current run. Only the starter ship exists for now. */
-	private static String selectedShipId = AchievementManager.STARTER_SHIP_ID;
+	/** Ship type chosen on the Customize screen, used for every run. */
+	private static Ship.ShipType selectedShipType = Ship.ShipType.STANDARD;
 
 
 	/**
@@ -349,8 +350,35 @@ public final class Core {
 			achievementManager = new AchievementManager();
 		return achievementManager;
 	}
+	/**
+	 * Returns the achievement ID of the selected ship. The standard ship is
+	 * the starter ship; other ships use their lower-case type name.
+	 *
+	 * @return Achievement ID of the selected ship.
+	 */
 	public static String getSelectedShipId() {
-		return selectedShipId;
+		if (selectedShipType == Ship.ShipType.STANDARD)
+			return AchievementManager.STARTER_SHIP_ID;
+		return selectedShipType.name().toLowerCase();
+	}
+
+	/**
+	 * Returns the ship type chosen on the Customize screen.
+	 *
+	 * @return Selected ship type.
+	 */
+	public static Ship.ShipType getSelectedShipType() {
+		return selectedShipType;
+	}
+
+	/**
+	 * Remembers the ship type chosen on the Customize screen.
+	 *
+	 * @param shipType Ship type to use for the next runs.
+	 */
+	public static void setSelectedShipType(final Ship.ShipType shipType) {
+		if (shipType != null)
+			selectedShipType = shipType;
 	}
 	/** @return Number of levels in the game. */
 	public static int getNumLevels() {

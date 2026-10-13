@@ -695,7 +695,7 @@ public final class DrawManager {
 		backBufferGraphics.setColor(Color.WHITE);
 		backBufferGraphics.drawString("LIVES", 20, 25);
 
-		Ship dummyShip = new Ship(0, 0);
+		Ship dummyShip = new Ship(0, 0, Core.getSelectedShipType());
 		for (int i = 0; i < lives; i++)
 			drawEntity(dummyShip, 20 + LIVES_LABEL_WIDTH
 					+ LIVES_ICON_SPACING * i, 10);
