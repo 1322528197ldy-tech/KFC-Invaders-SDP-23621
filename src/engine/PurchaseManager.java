@@ -1,9 +1,20 @@
 package engine;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.logging.Logger;
 
 import shop.Currency;
@@ -30,7 +41,9 @@ import shop.ShopListener;
  * <li>Skins and upgrades can be paid with coins or diamonds.</li>
  * </ul>
  *
- * Purchases are kept in memory for now; saving them comes next.
+ * Everything is saved to its own "shop-owned" file next to the other save
+ * files, so it cannot overwrite balances or the player profile. A purchase
+ * that cannot be saved is undone and refunded.
  *
  * @author GoG - Currency System
  */
@@ -51,8 +64,15 @@ public final class PurchaseManager {
 		/** Entry is null or not in the catalog; nothing changed. */
 		UNKNOWN_ITEM,
 		/** Limited edition that is no longer sold; nothing changed. */
-		NOT_ON_SALE
+		NOT_ON_SALE,
+		/** The purchase could not be saved; the price was refunded. */
+		SAVE_FAILED
 	}
+
+	/** Name of the file purchases and the loadout are saved to. */
+	private static final String OWNED_FILE = "shop-owned";
+	/** Save key prefix for owned entries and upgrade levels. */
+	private static final String OWNED_PREFIX = "owned.";
 
 	/** Singleton instance. */
 	private static PurchaseManager instance;
@@ -65,12 +85,13 @@ public final class PurchaseManager {
 	private final Logger logger;
 
 	/**
-	 * Private constructor.
+	 * Private constructor, loads whatever was last saved.
 	 */
 	private PurchaseManager() {
 		this.logger = Core.getLogger();
 		this.owned = new LinkedHashMap<String, Integer>();
 		this.listeners = new ArrayList<ShopListener>();
+		load();
 	}
 
 	/**
@@ -113,6 +134,16 @@ public final class PurchaseManager {
 
 		int before = getQuantity(item);
 		this.owned.put(item.getId(), before + 1);
+		if (!save()) {
+			if (before == 0)
+				this.owned.remove(item.getId());
+			else
+				this.owned.put(item.getId(), before);
+			refund(currency, price);
+			this.logger.warning("Purchase of " + item.getId()
+					+ " could not be saved, refunded.");
+			return PurchaseResult.SAVE_FAILED;
+		}
 
 		this.logger.info("Bought " + item.getId() + " (" + (before + 1) + "/"
 				+ item.getMaxLevel() + ") for " + price + " "
@@ -212,6 +243,10 @@ public final class PurchaseManager {
 		return new ArrayList<ShopListener>(this.listeners);
 	}
 
+	private void removeAll() {
+		this.owned.clear();
+	}
+
 	/**
 	 * Deducts a price from the right balance.
 	 *
@@ -229,4 +264,100 @@ public final class PurchaseManager {
 		return CurrencyManager.getInstance().trySpend(price);
 	}
 
+	/**
+	 * Gives a price back after a purchase that could not be saved.
+	 *
+	 * @param currency
+	 *            Currency that was paid.
+	 * @param price
+	 *            Amount to give back.
+	 */
+	private void refund(final Currency currency, final int price) {
+		if (currency == Currency.DIAMONDS)
+			DiamondManager.getInstance().addDiamonds(price);
+		else
+			CurrencyManager.getInstance().addCoins(price);
+	}
+
+	/**
+	 * Loads purchases. Never throws: a missing or broken file just means
+	 * owning nothing.
+	 */
+	private void load() {
+		Properties saved = new Properties();
+		try {
+			File file = getOwnedFile();
+			if (file.exists()) {
+				try (Reader reader = Files.newBufferedReader(file.toPath(),
+						StandardCharsets.UTF_8)) {
+					saved.load(reader);
+				}
+			}
+		} catch (IOException | IllegalArgumentException e) {
+			this.logger.warning("Couldn't load shop purchases.");
+			removeAll();
+			return;
+		}
+
+		for (String key : saved.stringPropertyNames()) {
+			if (!key.startsWith(OWNED_PREFIX))
+				continue;
+			String id = key.substring(OWNED_PREFIX.length());
+			try {
+				int quantity = Integer.parseInt(saved.getProperty(key).trim());
+				ShopItem item = ShopCatalog.findById(id);
+				// Entries no longer sold (e.g. old power-up items) are dropped.
+				if (quantity > 0 && item != null)
+					this.owned.put(id, Math.min(quantity, item.getMaxLevel()));
+			} catch (NumberFormatException e) {
+				this.logger.warning("Skipping broken shop entry " + id);
+			}
+		}
+		this.logger.info("Loaded shop purchases.");
+	}
+
+	/**
+	 * Writes purchases. Writes a temporary file first and
+	 * then replaces the save, so a crash while saving never leaves a
+	 * half-written file.
+	 *
+	 * @return false (and logs) when the file could not be written.
+	 */
+	private boolean save() {
+		Properties saved = new Properties();
+		for (Map.Entry<String, Integer> entry : this.owned.entrySet())
+			saved.setProperty(OWNED_PREFIX + entry.getKey(),
+					Integer.toString(entry.getValue()));
+		try {
+			Path file = getOwnedFile().toPath();
+			Path temp = file.resolveSibling(OWNED_FILE + ".tmp");
+			try (Writer writer = Files.newBufferedWriter(temp,
+					StandardCharsets.UTF_8)) {
+				saved.store(writer, "Space Invaders shop purchases");
+			}
+			try {
+				Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,
+						StandardCopyOption.ATOMIC_MOVE);
+			} catch (AtomicMoveNotSupportedException e) {
+				Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
+			}
+			return true;
+		} catch (IOException e) {
+			this.logger.warning("Couldn't save shop purchases: "
+					+ e.getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * @return The save file, next to the game like the other saves.
+	 * @throws IOException
+	 *             In case the application directory cannot be decoded.
+	 */
+	private File getOwnedFile() throws IOException {
+		String path = PurchaseManager.class.getProtectionDomain()
+				.getCodeSource().getLocation().getPath();
+		path = URLDecoder.decode(path, "UTF-8");
+		return new File(new File(path).getParent(), OWNED_FILE);
+	}
 }
