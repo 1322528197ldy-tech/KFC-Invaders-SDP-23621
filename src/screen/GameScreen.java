@@ -23,6 +23,7 @@ import engine.Achievement;
 import engine.DamageDimEffect;
 import engine.GameEvents;
 import engine.GlitchEffect;
+import engine.PurchaseManager;
 import engine.ScreenShake;
 import engine.PointsEffect;
 import entity.Bullet;
@@ -232,6 +233,8 @@ public class GameScreen extends Screen {
 	private ItemSystem items;
 	/** Item slot keys (1-9) held last frame, so holding a key uses it once. */
 	private boolean[] itemSlotKeysHeld = new boolean[9];
+	/** Skin chosen in Customize; animated skins change colour each frame (GoG). */
+	private shop.Skin skin;
 	/** Whether gameplay is currently paused. */
 	private boolean paused;
 	/** Debounces the pause key so holding it doesn't toggle every frame. */
@@ -304,6 +307,9 @@ public class GameScreen extends Screen {
 		enemyShipFormation.attach(this);
 		this.ship = new Ship(this.width / 2, this.height - 30,
 				Core.getSelectedShipType());
+		// Skin chosen in Customize (GoG - Currency System).
+		this.skin = PurchaseManager.getInstance().getSelectedSkin();
+		this.ship.setSkinColor(this.skin.getColor());
 		// Appears each 10-30 seconds.
 		this.enemyShipSpecialCooldown = Core.getVariableCooldown(
 				BONUS_SHIP_INTERVAL, BONUS_SHIP_VARIANCE);
@@ -388,6 +394,8 @@ public class GameScreen extends Screen {
 				this.items.fireRateBonus(this.ship.getBaseFireRate()),
 				this.items.bulletSpeedBonus(),
 				this.items.movementSpeedBonus(this.ship.getBaseSpeed()));
+		// Animated skins (GoG); plain skins return the same colour.
+		this.ship.setSkinColor(this.skin.colorAt(System.currentTimeMillis()));
 
 		if (inputManager.isKeyDown(KeyEvent.VK_P)
 				&& this.pauseKeyCooldown.checkFinished()) {
