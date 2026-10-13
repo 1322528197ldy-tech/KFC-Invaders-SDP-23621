@@ -120,7 +120,31 @@ public final class DrawManager {
 		/** Infinity Void achievement icon. */
 		InfinityVoid,
         /** First Boss Kill achievement icon. */
-        BossKill
+                BossKill,
+        /** Fast Attack skin A1 (Arrow). */
+        ShipSkinA1,
+        /** Fast Attack skin A2 (Twin Fang). */
+        ShipSkinA2,
+        /** Fast Attack skin A3 (Stealth). */
+        ShipSkinA3,
+        /** Big Bullet skin B1 (Cannon). */
+        ShipSkinB1,
+        /** Big Bullet skin B2 (Mortar). */
+        ShipSkinB2,
+        /** Big Bullet skin B3 (Fortress). */
+        ShipSkinB3,
+        /** Fast Move skin C1 (Jet). */
+        ShipSkinC1,
+        /** Fast Move skin C2 (Triple Thruster). */
+        ShipSkinC2,
+        /** Fast Move skin C3 (Stealth). */
+        ShipSkinC3,
+        /** Two-Way Shot skin D1 (Long Barrels). */
+        ShipSkinD1,
+        /** Two-Way Shot skin D2 (Twin Spike). */
+        ShipSkinD2,
+        /** Two-Way Shot skin D3 (Hollow). */
+        ShipSkinD3
 	};
 
 	/**
@@ -155,6 +179,18 @@ public final class DrawManager {
 			spriteMap.put(SpriteType.Weakestship, new boolean[11][11]);
 			spriteMap.put(SpriteType.InfinityVoid, new boolean[11][11]);
             spriteMap.put(SpriteType.BossKill, new boolean[11][11]);
+			spriteMap.put(SpriteType.ShipSkinA1, new boolean[13][8]);
+			spriteMap.put(SpriteType.ShipSkinA2, new boolean[13][8]);
+			spriteMap.put(SpriteType.ShipSkinA3, new boolean[13][8]);
+			spriteMap.put(SpriteType.ShipSkinB1, new boolean[13][8]);
+			spriteMap.put(SpriteType.ShipSkinB2, new boolean[13][8]);
+			spriteMap.put(SpriteType.ShipSkinB3, new boolean[13][8]);
+			spriteMap.put(SpriteType.ShipSkinC1, new boolean[13][8]);
+			spriteMap.put(SpriteType.ShipSkinC2, new boolean[13][8]);
+			spriteMap.put(SpriteType.ShipSkinC3, new boolean[13][8]);
+			spriteMap.put(SpriteType.ShipSkinD1, new boolean[13][8]);
+			spriteMap.put(SpriteType.ShipSkinD2, new boolean[13][8]);
+			spriteMap.put(SpriteType.ShipSkinD3, new boolean[13][8]);
 
 			fileManager.loadSprite(spriteMap);
 			logger.info("Finished loading the sprites.");
