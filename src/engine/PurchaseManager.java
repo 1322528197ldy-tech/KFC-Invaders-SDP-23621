@@ -23,6 +23,7 @@ import java.util.logging.Logger;
 import entity.Ship.ShipType;
 import item.ItemSystem;
 import shop.Currency;
+import shop.NightMarket;
 import shop.ShopCatalog;
 import shop.ShopCategory;
 import shop.ShopItem;
@@ -76,7 +77,7 @@ public final class PurchaseManager {
 		CURRENCY_NOT_ACCEPTED,
 		/** Entry is null or not in the catalog; nothing changed. */
 		UNKNOWN_ITEM,
-		/** Limited edition that is no longer sold; nothing changed. */
+		/** Limited edition or discount that is no longer on; nothing changed. */
 		NOT_ON_SALE,
 		/** The purchase could not be saved; the price was refunded. */
 		SAVE_FAILED
@@ -139,9 +140,7 @@ public final class PurchaseManager {
 	// --- Buying ---
 
 	/**
-	 * Buys an entry (or the next level of an upgrade). Checks and pays in
-	 * one call; nothing changes unless it returns SUCCESS. Buying an
-	 * upgrade switches it on.
+	 * Buys an entry (or the next level of an upgrade) at its normal price.
 	 *
 	 * @param item
 	 *            Entry to buy.
@@ -151,6 +150,24 @@ public final class PurchaseManager {
 	 */
 	public PurchaseResult purchase(final ShopItem item,
 			final Currency currency) {
+		return purchase(item, currency, false);
+	}
+
+	/**
+	 * Buys an entry (or the next level of an upgrade). Checks and pays in
+	 * one call; nothing changes unless it returns SUCCESS. Buying an
+	 * upgrade switches it on.
+	 *
+	 * @param item
+	 *            Entry to buy.
+	 * @param currency
+	 *            Currency to pay with.
+	 * @param nightMarket
+	 *            true to buy at today's Night Market discount.
+	 * @return What happened.
+	 */
+	public PurchaseResult purchase(final ShopItem item,
+			final Currency currency, final boolean nightMarket) {
 		if (item == null || ShopCatalog.findById(item.getId()) == null
 				|| currency == null)
 			return PurchaseResult.UNKNOWN_ITEM;
@@ -159,10 +176,11 @@ public final class PurchaseManager {
 					: PurchaseResult.ALREADY_OWNED;
 		if (!item.accepts(currency))
 			return PurchaseResult.CURRENCY_NOT_ACCEPTED;
-		if (!ShopCatalog.isOnSale(item, java.time.LocalDate.now()))
+		if (!ShopCatalog.isOnSale(item, java.time.LocalDate.now())
+				|| (nightMarket && !NightMarket.isListedToday(item)))
 			return PurchaseResult.NOT_ON_SALE;
 
-		int price = getPrice(item, currency);
+		int price = getPrice(item, currency, nightMarket);
 		if (!spend(currency, price))
 			return PurchaseResult.INSUFFICIENT_FUNDS;
 
@@ -195,7 +213,7 @@ public final class PurchaseManager {
 	}
 
 	/**
-	 * Price of the next purchase of an entry.
+	 * Normal price of the next purchase of an entry.
 	 *
 	 * @param item
 	 *            Entry.
@@ -205,9 +223,27 @@ public final class PurchaseManager {
 	 *         accepted.
 	 */
 	public int getPrice(final ShopItem item, final Currency currency) {
+		return getPrice(item, currency, false);
+	}
+
+	/**
+	 * Price of the next purchase of an entry.
+	 *
+	 * @param item
+	 *            Entry.
+	 * @param currency
+	 *            Currency to pay with.
+	 * @param nightMarket
+	 *            true for today's Night Market price.
+	 * @return Price, or 0 if it is maxed, owned, or the currency is not
+	 *         accepted.
+	 */
+	public int getPrice(final ShopItem item, final Currency currency,
+			final boolean nightMarket) {
 		if (item == null || isMaxed(item) || !item.accepts(currency))
 			return 0;
-		return item.getPrice(currency, getQuantity(item));
+		int price = item.getPrice(currency, getQuantity(item));
+		return nightMarket ? NightMarket.discounted(price) : price;
 	}
 
 	/**
@@ -339,9 +375,10 @@ public final class PurchaseManager {
 	 * @return Ship id.
 	 */
 	public static String getShipId(final ShipType type) {
-		if (type == null || type == ShipType.STANDARD)
+		if (type == null)
 			return AchievementManager.STARTER_SHIP_ID;
-		return type.name().toLowerCase();
+		// One definition of the ids, shared with Core (Mantis).
+		return Core.getShipId(type);
 	}
 
 	// --- Upgrades, read by the Item System (Team CS) ---
