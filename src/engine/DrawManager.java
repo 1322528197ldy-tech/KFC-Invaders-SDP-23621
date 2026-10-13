@@ -1640,4 +1640,84 @@ public final class DrawManager {
 		if (effect != null)
 			effect.draw(backBufferGraphics, screen.getWidth(), fontRegular);
 	}
+
+	/** Point size of the small text used in the shop and Customize panels. */
+	private static final float SMALL_FONT_SIZE = 8f;
+	/** Small version of the regular game font, made on first use. */
+	private static Font fontSmall;
+
+	/**
+	 * @return Small version of the regular game font.
+	 */
+	private static Font smallFont() {
+		if (fontSmall == null
+				|| !fontSmall.getFamily().equals(fontRegular.getFamily()))
+			fontSmall = fontRegular.deriveFont(SMALL_FONT_SIZE);
+		return fontSmall;
+	}
+
+	/**
+	 * Draws a filled rectangle, e.g. a highlighted tab or row.
+	 *
+	 * @param positionX Horizontal position of the left edge.
+	 * @param positionY Vertical position of the top edge.
+	 * @param width     Width of the box.
+	 * @param height    Height of the box.
+	 * @param color     Fill colour.
+	 */
+	public void fillBox(final int positionX, final int positionY,
+			final int width, final int height, final Color color) {
+		backBufferGraphics.setColor(color);
+		backBufferGraphics.fillRect(positionX, positionY, width, height);
+	}
+
+	/**
+	 * Measures text in the regular font, for centring and right-aligning.
+	 *
+	 * @param string Text to measure.
+	 * @return Width in pixels; an estimate before the first frame is drawn.
+	 */
+	public int getRegularStringWidth(final String string) {
+		if (fontRegularMetrics == null)
+			return string.length() * 10;
+		return fontRegularMetrics.stringWidth(string);
+	}
+
+	/**
+	 * Draws small text at an exact position, left aligned.
+	 *
+	 * @param string    Text to draw.
+	 * @param positionX Horizontal position of the left edge.
+	 * @param positionY Vertical position of the baseline.
+	 * @param color     Colour of the text.
+	 */
+	public void drawSmallString(final String string, final int positionX,
+			final int positionY, final Color color) {
+		backBufferGraphics.setFont(smallFont());
+		backBufferGraphics.setColor(color);
+		backBufferGraphics.drawString(string, positionX, positionY);
+	}
+
+	/**
+	 * Measures text in the small font.
+	 *
+	 * @param string Text to measure.
+	 * @return Width in pixels; an estimate before the first frame is drawn.
+	 */
+	public int getSmallStringWidth(final String string) {
+		if (backBufferGraphics == null)
+			return string.length() * 7;
+		return backBufferGraphics.getFontMetrics(smallFont())
+				.stringWidth(string);
+	}
+
+	/**
+	 * @return Distance between two lines of small text, in pixels.
+	 */
+	public int getSmallLineHeight() {
+		if (backBufferGraphics == null)
+			return 12;
+		return backBufferGraphics.getFontMetrics(smallFont()).getHeight()
+				+ 2;
+	}
 }
