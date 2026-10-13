@@ -201,7 +201,7 @@ public class AchievementManager {
 	 */
 	public final Achievement recordLevelCompleted(final int level,
 			final String shipId, final boolean victory) {
-		if (!victory || level != 10 || !this.level10RosterConfigured
+		if (!victory || level != 7|| !this.level10RosterConfigured
 				|| !this.requiredLevel10Ships.contains(shipId))
 			return null;
 		boolean changed = this.playerProfile.recordLevel10Completed(shipId);

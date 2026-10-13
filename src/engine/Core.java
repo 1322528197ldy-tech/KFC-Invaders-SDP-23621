@@ -346,8 +346,18 @@ public final class Core {
 	 * @return Shared achievement manager.
 	 */
 	public static AchievementManager getAchievementManager() {
-		if (achievementManager == null)
+		if (achievementManager == null) {
 			achievementManager = new AchievementManager();
+
+			java.util.Set<String> roster = new java.util.HashSet<String>();
+
+			for (Ship.ShipType type : Ship.ShipType.values()) {
+				roster.add(getShipId(type));
+			}
+
+			achievementManager.configureLevel10Ships(roster);
+		}
+
 		return achievementManager;
 	}
 	/**
@@ -357,9 +367,30 @@ public final class Core {
 	 * @return Achievement ID of the selected ship.
 	 */
 	public static String getSelectedShipId() {
-		if (selectedShipType == Ship.ShipType.STANDARD)
-			return AchievementManager.STARTER_SHIP_ID;
-		return selectedShipType.name().toLowerCase();
+		return getShipId(selectedShipType);
+	}
+
+	/**
+	 * Returns the stable profile ID for a ship type.
+	 *
+	 * @param type Ship type.
+	 * @return Ship ID used for achievement progress.
+	 */
+	public static String getShipId(final Ship.ShipType type) {
+		switch (type) {
+			case STANDARD:
+				return AchievementManager.STARTER_SHIP_ID;
+			case FAST_MOVE:
+				return "fast_move";
+			case TWO_WAY:
+				return "two_way";
+			case FAST_ATTACK:
+				return "fast_attack";
+			case BIG_BULLET:
+				return "big_bullet";
+			default:
+				throw new IllegalArgumentException("Unknown ship type: " + type);
+		}
 	}
 
 	/**

@@ -1127,8 +1127,19 @@ public final class DrawManager {
 		backBufferGraphics.setColor(Color.GREEN);
 		backBufferGraphics.drawString("ACHIEVEMENT UNLOCKED", boxX + 34,
 				boxY + 16);
-		drawSprite(achievement.getSpriteType(),
-				boxX + 8, boxY + 20, achievement.getIconColor());
+		if (achievement.getSpriteType() == SpriteType.FleetMaster) {
+			drawSmallSprite(
+					achievement.getSpriteType(),
+					boxX + 8,
+					boxY + (boxHeight - 23) / 2,
+					Color.WHITE);
+		} else {
+			drawSprite(
+					achievement.getSpriteType(),
+					boxX + 8,
+					boxY + 20,
+					achievement.getIconColor());
+		}
 		backBufferGraphics.setColor(Color.WHITE);
 		backBufferGraphics.drawString(achievement.getName(), boxX + 34,
 				boxY + 35);

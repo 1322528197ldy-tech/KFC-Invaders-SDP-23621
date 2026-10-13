@@ -491,6 +491,12 @@ public class GameScreen extends Screen {
 				showUnlockedAchievement(Core.getAchievementManager()
 						.recordLevelCompleted(this.level));
 
+				showUnlockedAchievement(Core.getAchievementManager()
+						.recordLevelCompleted(
+								this.level,
+								Core.getShipId(this.ship.getType()),
+								true));
+
 				// Last level cleared alive: the game is beaten.
 				if (this.level == Core.getNumLevels())
 					showUnlockedAchievement(Core.getAchievementManager()
