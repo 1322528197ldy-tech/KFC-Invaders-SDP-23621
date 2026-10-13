@@ -49,9 +49,9 @@ public final class DrawManager {
 	private static BufferedImage backBuffer;
 	/** Top of the item panel, right below the HUD line (Team CS). */
 	private static final int ITEM_PANEL_TOP = 43;
-	/** Size of one item slot box in the item panel. */
-	private static final int ITEM_SLOT_WIDTH = 52;
 	private static final int ITEM_SLOT_HEIGHT = 16;
+	/** Item panel font size: small and fixed so the panel fits one line. */
+	private static final float ITEM_FONT_SIZE = 9f;
 	/** Item notice baseline, measured up from the bottom of the screen. */
 	private static final int ITEM_NOTICE_BOTTOM_OFFSET = 60;
 	/** The shield bubble blinks during this many last milliseconds. */
@@ -435,12 +435,15 @@ public final class DrawManager {
 	 */
 	public void drawItemHud(final Screen screen, final ItemSystem items) {
 		ItemAPI.View view = items.api().getView();
-		Font font = fontRegular.deriveFont(12f);
+		// Small fixed font with two-letter labels, so four slots and every
+		// effect fit one line even with the wide pixel font.
+		Font font = fontRegular.deriveFont(ITEM_FONT_SIZE);
 		FontMetrics metrics = backBufferGraphics.getFontMetrics(font);
 		backBufferGraphics.setFont(font);
 		int baseline = ITEM_PANEL_TOP + ITEM_SLOT_HEIGHT - 4;
+		int boxWidth = metrics.stringWidth("WW") + 8;
 
-		// Slots: "1 [Shield]" ... an empty slot is a dark box.
+		// Slots: "1 [SH]" ... an empty slot is a dark box.
 		int x = 6;
 		for (int i = 0; i < view.slots.size(); i++) {
 			ItemAPI.ItemInfo item = view.slots.get(i);
@@ -449,27 +452,33 @@ public final class DrawManager {
 			x += metrics.stringWidth("0") + 3;
 			backBufferGraphics.setColor(item == null ? Color.DARK_GRAY
 					: ItemSystem.colorOf(item.effectKind));
-			backBufferGraphics.drawRect(x, ITEM_PANEL_TOP, ITEM_SLOT_WIDTH,
+			backBufferGraphics.drawRect(x, ITEM_PANEL_TOP, boxWidth,
 					ITEM_SLOT_HEIGHT);
-			if (item != null)
-				backBufferGraphics.drawString(item.displayName, x + 4, baseline);
-			x += ITEM_SLOT_WIDTH + 8;
+			if (item != null) {
+				String label = shortItemName(item.effectKind);
+				backBufferGraphics.drawString(label, x + (boxWidth
+						- metrics.stringWidth(label)) / 2, baseline);
+			}
+			x += boxWidth + 6;
 		}
 
-		// Effects, right-aligned: "RF x2  SH 8s".
+		// Effects, right-aligned and compact: "RFx2 SH8s". The equipped item is
+		// not listed here; the countdown hint names it.
 		int right = screen.getWidth() - 6;
 		for (int i = view.effects.size() - 1; i >= 0; i--) {
 			ItemAPI.EffectView effect = view.effects.get(i);
+			if (effect.item.activationMode == ItemAPI.ActivationMode.EQUIPPED)
+				continue;
 			String label = shortItemName(effect.item.effectKind);
 			if (effect.stacks != null)
-				label += " x" + effect.stacks;
+				label += "x" + effect.stacks;
 			else if (effect.remainingMillis != null)
-				label += " " + (effect.remainingMillis + 999) / 1000 + "s";
+				label += (effect.remainingMillis + 999) / 1000 + "s";
 			right -= metrics.stringWidth(label);
 			backBufferGraphics.setColor(ItemSystem
 					.colorOf(effect.item.effectKind));
 			backBufferGraphics.drawString(label, right, baseline);
-			right -= 10;
+			right -= 8;
 		}
 
 		String notice = items.getNotice();
@@ -481,8 +490,8 @@ public final class DrawManager {
 	}
 
 	/**
-	 * Explains the items while the level countdown runs (Team CS - Item
-	 * System).
+	 * Explains the items while the level countdown runs and names the
+	 * equipped item (Team CS - Item System).
 	 *
 	 * @param screen
 	 *            Screen to draw on.
@@ -497,6 +506,10 @@ public final class DrawManager {
 		drawCenteredRegularString(screen, "Keys 1-" + slots
 				+ " use stored items", screen.getHeight() * 2 / 3
 				+ fontRegularMetrics.getHeight());
+		ItemAPI.ItemInfo equipped = items.equippedThisRun();
+		if (equipped != null)
+			drawCenteredRegularString(screen, "Equipped: " + equipped.displayName,
+					screen.getHeight() * 2 / 3 + fontRegularMetrics.getHeight() * 2);
 	}
 
 	/**
@@ -516,6 +529,10 @@ public final class DrawManager {
 				return "SH";
 			case FREEZE:
 				return "FZ";
+			case BOOST:
+				return "BO";
+			case SCORE_BOOST:
+				return "SC";
 			default:
 				return kind.name();
 		}
