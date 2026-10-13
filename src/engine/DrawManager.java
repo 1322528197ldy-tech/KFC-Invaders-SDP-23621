@@ -1,5 +1,8 @@
 package engine;
 
+import java.awt.AlphaComposite;
+import java.awt.Graphics2D;
+import entity.EnemyShip;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontFormatException;
@@ -14,8 +17,10 @@ import java.util.logging.Logger;
 
 import screen.MenuItem;
 import screen.Screen;
+import screen.Starfield;
 import entity.Coin;
 import entity.Entity;
+import entity.Particle;
 import entity.Ship;
 import item.ItemAPI;
 import item.ItemSystem;
@@ -51,6 +56,10 @@ public final class DrawManager {
 	private static final int ITEM_NOTICE_BOTTOM_OFFSET = 60;
 	/** The shield bubble blinks during this many last milliseconds. */
 	private static final long SHIELD_BLINK_MILLIS = 2000;
+	/** Current world offset X (screen shake). */
+	private static int worldOffsetX;
+	/** Current world offset Y (screen shake). */
+	private static int worldOffsetY;
 	/** Normal sized font. */
 	private static Font fontRegular;
 	/** Normal sized font properties. */
@@ -103,7 +112,15 @@ public final class DrawManager {
         /** Fast Attack player ship. */
         ShipFastAttack,
         /** Big Bullet player ship. */
-        ShipBigBullet
+        ShipBigBullet,
+		/** Fleet Master achievement icon. */
+		FleetMaster,
+		/** Weakestship sprite. */
+		Weakestship,
+		/** Infinity Void achievement icon. */
+		InfinityVoid,
+        /** First Boss Kill achievement icon. */
+        BossKill
 	};
 
 	/**
@@ -134,6 +151,10 @@ public final class DrawManager {
 			spriteMap.put(SpriteType.FirstFlight, new boolean[11][8]);
             spriteMap.put(SpriteType.ShipFastAttack, new boolean[13][8]);
             spriteMap.put(SpriteType.ShipBigBullet, new boolean[13][8]);
+			spriteMap.put(SpriteType.FleetMaster, new boolean[23][23]);
+			spriteMap.put(SpriteType.Weakestship, new boolean[11][11]);
+			spriteMap.put(SpriteType.InfinityVoid, new boolean[11][11]);
+            spriteMap.put(SpriteType.BossKill, new boolean[11][11]);
 
 			fileManager.loadSprite(spriteMap);
 			logger.info("Finished loading the sprites.");
@@ -141,7 +162,6 @@ public final class DrawManager {
 			// Font loading.
 			fontRegular = fileManager.loadFont(14f);
 			fontBig = fileManager.loadFont(24f);
-			fontSelected = fontRegular.deriveFont(17f);
 			logger.info("Finished loading the fonts.");
 
 		} catch (IOException e) {
@@ -153,6 +173,11 @@ public final class DrawManager {
 			fontRegular = new Font(Font.MONOSPACED, Font.PLAIN, 14);
 			fontBig = new Font(Font.MONOSPACED, Font.PLAIN, 24);
 		}
+
+		// Derived outside the try so it is set on the fallback path too.
+		// While it was inside, a missing font file left it null and the game
+		// died on the first frame.
+		fontSelected = fontRegular.deriveFont(17f);
 	}
 
 	/**
@@ -184,11 +209,23 @@ public final class DrawManager {
 	 *            Screen to draw in.
 	 */
 	public void initDrawing(final Screen screen) {
+
+		if (fontRegular == null) {
+			fontRegular = new Font(Font.MONOSPACED, Font.PLAIN, 14);
+		}
+		if (fontBig == null) {
+			fontBig = new Font(Font.MONOSPACED, Font.PLAIN, 24);
+		}
+		if (fontSelected == null) {
+			fontSelected = fontRegular;
+		}
 		backBuffer = new BufferedImage(screen.getWidth(), screen.getHeight(),
 				BufferedImage.TYPE_INT_RGB);
 
 		graphics = frame.getGraphics();
 		backBufferGraphics = backBuffer.getGraphics();
+		worldOffsetX = 0;
+		worldOffsetY = 0;
 
 		backBufferGraphics.setColor(Color.BLACK);
 		backBufferGraphics
@@ -209,8 +246,27 @@ public final class DrawManager {
 	 *            Screen to draw on.
 	 */
 	public void completeDrawing(final Screen screen) {
+		setWorldOffset(0, 0);
 		graphics.drawImage(backBuffer, frame.getInsets().left,
 				frame.getInsets().top, frame);
+	}
+
+	/**
+	 * AUTHORED BY: VFX TEAM (Effection)
+	 *
+	 * Moves everything drawn after this call by the given offset.
+	 * Used for screen shake. Call setWorldOffset(0, 0) before the HUD.
+	 *
+	 * @param offsetX
+	 *            X offset in pixels.
+	 * @param offsetY
+	 *            Y offset in pixels.
+	 */
+	public void setWorldOffset(final int offsetX, final int offsetY) {
+		backBufferGraphics.translate(offsetX - worldOffsetX,
+				offsetY - worldOffsetY);
+		worldOffsetX = offsetX;
+		worldOffsetY = offsetY;
 	}
 
 	/**
@@ -225,8 +281,21 @@ public final class DrawManager {
 	 */
 	public void drawEntity(final Entity entity, final int positionX,
 			final int positionY) {
+		// Enemy ships can be see-through while flickering / fading out.
+		float alpha = 1f;
+		if (entity instanceof EnemyShip)
+			alpha = ((EnemyShip) entity).getAlpha();
+		if (alpha <= 0f)
+			return;
+
+		Graphics2D g2d = (Graphics2D) backBufferGraphics;
+		g2d.setComposite(AlphaComposite.getInstance(
+				AlphaComposite.SRC_OVER, alpha));
+
 		drawSprite(entity.getSpriteType(), positionX, positionY,
 				entity.getColor());
+
+		g2d.setComposite(AlphaComposite.SrcOver); // back to normal
 	}
 
 	/**
@@ -238,17 +307,19 @@ public final class DrawManager {
 	 * @param color Color used for filled pixels.
 	 */
 	public void drawSprite(final SpriteType spriteType, final int positionX,
-			final int positionY, final Color color) {
+						   final int positionY, final Color color) {
 		boolean[][] image = spriteMap.get(spriteType);
 
 		backBufferGraphics.setColor(color);
+
 		for (int i = 0; i < image.length; i++)
 			for (int j = 0; j < image[i].length; j++)
 				if (image[i][j])
-					backBufferGraphics.drawRect(positionX + i * 2, positionY
-							+ j * 2, 1, 1);
+					backBufferGraphics.drawRect(
+							positionX + i * 2,
+							positionY + j * 2,
+							1, 1);
 	}
-
 	/**
 	 * Draws regular text at an exact position, left aligned.
 	 *
@@ -523,6 +594,23 @@ public final class DrawManager {
 	}
 
 	/**
+	 * Draws a sparkle, see-through according to its age.
+	 * AUTHORED BY: VFX TEAM (Effection)
+	 *
+	 * @param particle
+	 *            Particle to draw.
+	 */
+	public void drawParticle(final Particle particle) {
+		java.awt.Graphics2D g2d = (java.awt.Graphics2D) backBufferGraphics;
+		g2d.setComposite(java.awt.AlphaComposite.getInstance(
+				java.awt.AlphaComposite.SRC_OVER, particle.getAlpha()));
+		g2d.setColor(particle.getColor());
+		g2d.fillRect(particle.getX(), particle.getY(), particle.getSize(),
+				particle.getSize());
+		g2d.setComposite(java.awt.AlphaComposite.SrcOver);
+	}
+
+	/**
 	 * For debugging purpouses, draws the canvas borders.
 	 *
 	 * @param screen
@@ -701,9 +789,20 @@ public final class DrawManager {
 	 *            Keys to show, already worded for the current state.
 	 */
 	public void drawKeyHints(final Screen screen, final String hints) {
+		Font hintFont = fontRegular;
+		FontMetrics metrics = fontRegularMetrics;
+		int maxWidth = screen.getWidth() - 20;
+		int textWidth = metrics.stringWidth(hints);
+		if (textWidth > maxWidth) {
+			hintFont = fontRegular.deriveFont(
+					fontRegular.getSize2D() * maxWidth / textWidth);
+			metrics = backBufferGraphics.getFontMetrics(hintFont);
+		}
+		backBufferGraphics.setFont(hintFont);
 		backBufferGraphics.setColor(Color.GRAY);
-		drawCenteredRegularString(screen, hints,
-				screen.getHeight() - fontRegularMetrics.getHeight());
+		backBufferGraphics.drawString(hints,
+				(screen.getWidth() - metrics.stringWidth(hints)) / 2,
+				screen.getHeight() - fontRegularMetrics.getHeight() * 2);
 	}
 
 	/**
@@ -722,22 +821,21 @@ public final class DrawManager {
 		String noString = "No";
 
 		int spacing = menuItemSpacing();
-		int boxWidth = screen.getWidth() / 2;
-		int boxHeight = spacing * 4;
-		int boxX = (screen.getWidth() - boxWidth) / 2;
-		int boxY = (screen.getHeight() - boxHeight) / 2;
+		int boxWidth = exitConfirmBoxWidth(screen);
+		int boxX = exitConfirmBoxX(screen);
+		int boxY = exitConfirmBoxY(screen);
 
 		backBufferGraphics.setColor(Color.BLACK);
-		backBufferGraphics.fillRect(boxX, boxY, boxWidth, boxHeight);
+		backBufferGraphics.fillRect(boxX, boxY, boxWidth, spacing * 4);
 		backBufferGraphics.setColor(Color.GRAY);
-		backBufferGraphics.drawRect(boxX, boxY, boxWidth, boxHeight);
+		backBufferGraphics.drawRect(boxX, boxY, boxWidth, spacing * 4);
 
 		backBufferGraphics.setColor(Color.WHITE);
 		drawCenteredRegularString(screen, question, boxY + spacing * 3 / 2);
 
 		// Yes and No sit either side of the centre, so they need their own
 		// x positions rather than the centred helper.
-		int answerY = boxY + spacing * 3;
+		int answerY = exitConfirmAnswerBaseline(screen);
 		int yesX = screen.getWidth() / 2 - boxWidth / 4
 				- fontRegularMetrics.stringWidth(yesString) / 2;
 		int noX = screen.getWidth() / 2 + boxWidth / 4
@@ -748,6 +846,82 @@ public final class DrawManager {
 		backBufferGraphics.drawString(yesString, yesX, answerY);
 		backBufferGraphics.setColor(yesSelected ? Color.WHITE : Color.GREEN);
 		backBufferGraphics.drawString(noString, noX, answerY);
+	}
+
+	/**
+	 * Finds the answer the exit confirmation offers at a given point. Each
+	 * answer owns half the width of the box on the answer row, so the whole
+	 * half is clickable, not just the text.
+	 *
+	 * @param screen
+	 *            Screen the confirmation is drawn on.
+	 * @param positionX
+	 *            Horizontal position to check, in screen coordinates.
+	 * @param positionY
+	 *            Height to check, in screen coordinates.
+	 * @return True for Yes, false for No, or null when the point is outside
+	 *         the answer row or nothing has been drawn yet.
+	 */
+	public Boolean exitConfirmAnswerAt(final Screen screen,
+			final int positionX, final int positionY) {
+		if (fontRegularMetrics == null)
+			return null;
+		int spacing = menuItemSpacing();
+		int top = exitConfirmAnswerBaseline(screen)
+				- fontRegularMetrics.getAscent()
+				- (spacing - fontRegularMetrics.getHeight()) / 2;
+		if (positionY < top || positionY >= top + spacing)
+			return null;
+		int boxX = exitConfirmBoxX(screen);
+		if (positionX < boxX
+				|| positionX >= boxX + exitConfirmBoxWidth(screen))
+			return null;
+		return positionX < screen.getWidth() / 2;
+	}
+
+	/**
+	 * Width of the exit confirmation box. Drawing and hit-testing both use
+	 * this, so they cannot drift apart.
+	 *
+	 * @param screen
+	 *            Screen the confirmation is drawn on.
+	 * @return Width of the box, in pixels.
+	 */
+	private int exitConfirmBoxWidth(final Screen screen) {
+		return screen.getWidth() / 2;
+	}
+
+	/**
+	 * Left edge of the exit confirmation box.
+	 *
+	 * @param screen
+	 *            Screen the confirmation is drawn on.
+	 * @return X coordinate of the left edge.
+	 */
+	private int exitConfirmBoxX(final Screen screen) {
+		return (screen.getWidth() - exitConfirmBoxWidth(screen)) / 2;
+	}
+
+	/**
+	 * Top edge of the exit confirmation box.
+	 *
+	 * @param screen
+	 *            Screen the confirmation is drawn on.
+	 * @return Y coordinate of the top edge.
+	 */
+	private int exitConfirmBoxY(final Screen screen) {
+		return (screen.getHeight() - menuItemSpacing() * 4) / 2;
+	}
+
+	/**
+	 * Baseline of the row the Yes and No answers sit on.
+	 *
+	 * @param screen
+	 *            Screen the confirmation is drawn on.
+	 * @return Baseline of the answer row.
+	 */
+	private int exitConfirmAnswerBaseline(final Screen screen) {
+		return exitConfirmBoxY(screen) + menuItemSpacing() * 3;
 	}
 
 	/**
@@ -787,8 +961,8 @@ public final class DrawManager {
 		backBufferGraphics.setColor(Color.GREEN);
 		backBufferGraphics.drawString("ACHIEVEMENT UNLOCKED", boxX + 34,
 				boxY + 16);
-		drawSprite(achievement.getSpriteType(), boxX + 8, boxY + 23,
-				Color.YELLOW);
+		drawSprite(achievement.getSpriteType(),
+				boxX + 8, boxY + 20, achievement.getIconColor());
 		backBufferGraphics.setColor(Color.WHITE);
 		backBufferGraphics.drawString(achievement.getName(), boxX + 34,
 				boxY + 35);
@@ -806,24 +980,63 @@ public final class DrawManager {
 		int contentX = iconX + 40;
 		int nameY = screen.getHeight() / 2;
 		String status = achievement.isUnlocked() ? "UNLOCKED" : "LOCKED";
-
-		drawSprite(achievement.getSpriteType(), iconX, nameY - 20,
-				achievement.isUnlocked() ? Color.YELLOW : Color.DARK_GRAY);
+		drawSprite(achievement.getSpriteType(),
+				iconX, nameY - 20,
+				achievement.isUnlocked() ? achievement.getIconColor() : Color.DARK_GRAY);
 		backBufferGraphics.setFont(fontRegular);
 		backBufferGraphics.setColor(achievement.isUnlocked() ? Color.WHITE
 				: Color.GRAY);
 		backBufferGraphics.drawString(achievement.getName() + " - " + status,
 				contentX, nameY);
 		backBufferGraphics.setColor(Color.GRAY);
-		backBufferGraphics.drawString("Unlock: defeat "
-				+ achievement.getRequiredEnemyKills() + " enemies.", contentX,
+		backBufferGraphics.drawString(Core.getAchievementManager()
+				.getRequirementText(achievement), contentX,
 				nameY + fontRegularMetrics.getHeight() * 2);
+	}
+	/**Draw smaller sprite in achievement
+	 *
+	 */
+	public void drawSmallSprite(final SpriteType spriteType,
+								final int positionX, final int positionY, final Color color) {
+
+		boolean[][] image = spriteMap.get(spriteType);
+		backBufferGraphics.setColor(color);
+
+		for (int x = 0; x < image.length; x++) {
+			for (int y = 0; y < image[x].length; y++) {
+				if (image[x][y]) {
+					backBufferGraphics.fillRect(
+							positionX + x,
+							positionY + y,
+							1, 1);
+				}
+			}
+		}
+	}
+
+
+	/**
+	 * Draws the scrolling stars behind the main menu. Call it right after
+	 * initDrawing so everything else is drawn on top.
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param starfield
+	 *            Stars to draw.
+	 */
+	public void drawStarfield(final Screen screen, final Starfield starfield) {
+		for (int i = 0; i < starfield.getCount(); i++) {
+			int size = starfield.getSize(i);
+			backBufferGraphics.setColor(starfield.getColor(i));
+			backBufferGraphics.fillRect(starfield.getX(i), starfield.getY(i),
+					size, size);
+		}
 	}
 
 	/**
 	 * Draws the title of a screen reached from the main menu, in the same
-	 * colour and place as the high score screen's title. Sets its own colour,
-	 * so it does not depend on what was drawn before it.
+	 * colour and place on every screen. Sets its own colour, so it does not
+	 * depend on what was drawn before it.
 	 *
 	 * @param screen
 	 *            Screen to draw on.
