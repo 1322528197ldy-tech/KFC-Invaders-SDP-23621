@@ -292,8 +292,32 @@ public final class DrawManager {
 		g2d.setComposite(AlphaComposite.getInstance(
 				AlphaComposite.SRC_OVER, alpha));
 
-		drawSprite(entity.getSpriteType(), positionX, positionY,
-				entity.getColor());
+        // If the entity is a Bullet fired by the PLAYER (speed < 0), stretch its sprite to match its actual dimensions.
+        if (entity instanceof entity.Bullet && ((entity.Bullet) entity).getSpeed() < 0) {
+            boolean[][] image = spriteMap.get(entity.getSpriteType());
+            if (image != null && image.length > 0) {
+                // Calculate how much to stretch each pixel of the sprite
+                double scaleX = (double) entity.getWidth() / image.length;
+                double scaleY = (double) entity.getHeight() / image[0].length;
+
+                backBufferGraphics.setColor(entity.getColor());
+                for (int i = 0; i < image.length; i++) {
+                    for (int j = 0; j < image[i].length; j++) {
+                        if (image[i][j]) {
+                            backBufferGraphics.fillRect(
+                                    positionX + (int)(i * scaleX),
+                                    positionY + (int)(j * scaleY),
+                                    (int)Math.ceil(scaleX),
+                                    (int)Math.ceil(scaleY));
+                        }
+                    }
+                }
+            }
+        } else {
+            // For all other entities (ships, enemies, and ENEMY bullets), use the standard 2x pixel drawing
+            drawSprite(entity.getSpriteType(), positionX, positionY,
+                    entity.getColor());
+        }
 
 		g2d.setComposite(AlphaComposite.SrcOver); // back to normal
 	}

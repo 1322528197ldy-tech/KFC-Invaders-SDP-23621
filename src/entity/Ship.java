@@ -161,15 +161,19 @@ public class Ship extends Entity {
 			final int centerX = positionX + this.width / 2;
 			final int bulletSpeed = BULLET_SPEED
 					- (int) Math.round(this.itemBulletSpeedBonus);
-			if (this.type == ShipType.TWO_WAY) {
-				bullets.add(BulletPool.getBullet(centerX - BARREL_OFFSET,
-						positionY, bulletSpeed));
-				bullets.add(BulletPool.getBullet(centerX + BARREL_OFFSET,
-						positionY, bulletSpeed));
-			} else {
-				bullets.add(BulletPool.getBullet(centerX, positionY,
-						bulletSpeed));
-			}
+            if (this.type == ShipType.TWO_WAY) {
+                bullets.add(BulletPool.getBullet(centerX - BARREL_OFFSET,
+                        positionY, bulletSpeed));
+                bullets.add(BulletPool.getBullet(centerX + BARREL_OFFSET,
+                        positionY, bulletSpeed));
+            } else if (this.type == ShipType.BIG_BULLET) {
+                // Spawns a larger projectile (e.g., 9x15 scaled by 2)
+                bullets.add(BulletPool.getCustomBullet(centerX, positionY,
+                        bulletSpeed, 9 * 2, 15 * 2));
+            } else {
+                bullets.add(BulletPool.getBullet(centerX, positionY,
+                        bulletSpeed));
+            }
 			return true;
 		}
 		return false;
