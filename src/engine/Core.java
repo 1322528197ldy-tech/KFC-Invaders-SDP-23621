@@ -381,4 +381,31 @@ public final class Core {
 			final int variance) {
 		return new Cooldown(milliseconds, variance);
 	}
+
+    /**
+     * The currently selected ship type for gameplay.
+     * Defaults to STANDARD.
+     */
+    private static entity.Ship.ShipType currentShipType = entity.Ship.ShipType.STANDARD;
+
+    /**
+     * Sets the currently selected ship type.
+     * Call this method from ShipSelectScreen when the player confirms their choice.
+     *
+     * @param shipType
+     *            The type of ship selected by the player.
+     */
+    public static void setCurrentShipType(final entity.Ship.ShipType shipType) {
+        currentShipType = shipType;
+    }
+
+    /**
+     * Gets the currently selected ship type.
+     * Used by GameScreen to spawn the correct ship.
+     *
+     * @return The current ship type.
+     */
+    public static entity.Ship.ShipType getCurrentShipType() {
+        return currentShipType;
+    }
 }

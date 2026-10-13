@@ -50,6 +50,28 @@ public final class BulletPool {
 		}
 		return bullet;
 	}
+    public static Bullet getCustomBullet(final int positionX,
+                                         final int positionY, final int speed, final int width, final int height) {
+        Bullet bullet;
+        if (!pool.isEmpty()) {
+            // Find a recycled bullet that exactly matches the requested dimensions
+            for (Bullet b : pool) {
+                if (b.getWidth() == width && b.getHeight() == height) {
+                    bullet = b;
+                    pool.remove(bullet);
+                    bullet.setPositionX(positionX - bullet.getWidth() / 2);
+                    bullet.setPositionY(positionY);
+                    bullet.setSpeed(speed);
+                    bullet.setSprite();
+                    return bullet;
+                }
+            }
+        }
+        // If no matching bullet is found in the pool, create a new one
+        bullet = new Bullet(positionX, positionY, speed, width, height);
+        bullet.setPositionX(positionX - bullet.getWidth() / 2);
+        return bullet;
+    }
 
 	/**
 	 * Adds one or more bullets to the list of available ones.

@@ -74,6 +74,8 @@ public class ShipSelectScreen extends Screen {
 
         if (this.inputDelay.checkFinished()) {
             if (inputManager.isKeyDown(KeyEvent.VK_SPACE)) {
+                // Save the currently selected ship type before exiting the screen
+                engine.Core.setCurrentShipType(this.availableShips[this.selectionIndex]);
                 this.isRunning = false;
             }
             if (inputManager.isKeyDown(KeyEvent.VK_ESCAPE)) {
