@@ -11,39 +11,52 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.logging.Logger;
 
+import entity.Ship.ShipType;
+import item.ItemSystem;
 import shop.Currency;
 import shop.ShopCatalog;
 import shop.ShopCategory;
 import shop.ShopItem;
 import shop.ShopListener;
+import shop.Skin;
 
 /**
- * The one place that knows what the player has bought (GoG - Currency
- * System). The Shop screen buys through here, and other teams can ask what
- * the player owns:
+ * The one place that knows what the player has bought and what they are
+ * using (GoG - Currency System). The Shop screen buys through here, the
+ * Customize screen and the game read from here, and so do the other teams:
  *
  * <pre>
  * PurchaseManager shop = PurchaseManager.getInstance();
- * shop.purchase(item, Currency.COINS); // SUCCESS, INSUFFICIENT_FUNDS, ...
- * shop.isOwned(item);
+ * // Item team
+ * shop.getActiveUpgradeLevel("magnet"); // level while on, 0 when off/not bought
+ * shop.getActiveUpgrades();             // every upgrade that is on, with its level
+ * // Skin team
+ * shop.getSelectedSkin();               // CLASSIC = default look
+ * // Anyone
  * shop.addListener(new ShopListener() { ... });
  * </pre>
  *
  * <ul>
- * <li>Ships and skins: bought once.</li>
- * <li>Upgrades: bought up to their max level.</li>
+ * <li>Ships and skins: bought once. The chosen ship and skin (one at a
+ * time) are the player's loadout, used by GameScreen.</li>
+ * <li>Upgrades: bought up to their max level. On as soon as they are
+ * bought; the player can switch each one off and on in Customize. Any
+ * number can be on at once.</li>
  * <li>Skins and upgrades can be paid with coins or diamonds.</li>
  * </ul>
  *
  * Everything is saved to its own "shop-owned" file next to the other save
- * files, so it cannot overwrite balances or the player profile. A purchase
- * that cannot be saved is undone and refunded.
+ * files, so it cannot overwrite balances or the player profile. A change
+ * that cannot be saved is undone (and a purchase refunded).
  *
  * @author GoG - Currency System
  */
@@ -73,14 +86,30 @@ public final class PurchaseManager {
 	private static final String OWNED_FILE = "shop-owned";
 	/** Save key prefix for owned entries and upgrade levels. */
 	private static final String OWNED_PREFIX = "owned.";
+	/** Save key of the chosen ship. */
+	private static final String SHIP_KEY = "selected.ship";
+	/** Save key of the chosen skin. */
+	private static final String SKIN_KEY = "selected.skin";
+	/** Save key of the upgrades the player switched off. */
+	private static final String OFF_KEY = "upgrades.off";
+	/** Save key set once old gear from the Item System save was copied. */
+	private static final String MIGRATED_KEY = "upgrades.migrated";
 
 	/** Singleton instance. */
 	private static PurchaseManager instance;
 
 	/** Shop id mapped to how many the player has (upgrade level). */
 	private final Map<String, Integer> owned;
+	/** Shop ids of bought upgrades the player switched off. */
+	private final Set<String> upgradesOff;
+	/** Ship used in the next run. */
+	private ShipType selectedShip;
+	/** Skin used in the next run. */
+	private Skin selectedSkin;
 	/** Teams told about changes. */
 	private final List<ShopListener> listeners;
+	/** Upgrade most recently bought or switched on, for the bridge. */
+	private String lastSwitchedOn;
 	/** Application logger. */
 	private final Logger logger;
 
@@ -90,8 +119,12 @@ public final class PurchaseManager {
 	private PurchaseManager() {
 		this.logger = Core.getLogger();
 		this.owned = new LinkedHashMap<String, Integer>();
+		this.upgradesOff = new LinkedHashSet<String>();
 		this.listeners = new ArrayList<ShopListener>();
+		this.selectedShip = ShipType.STANDARD;
+		this.selectedSkin = Skin.CLASSIC;
 		load();
+		syncItemSystem();
 	}
 
 	/**
@@ -107,7 +140,8 @@ public final class PurchaseManager {
 
 	/**
 	 * Buys an entry (or the next level of an upgrade). Checks and pays in
-	 * one call; nothing changes unless it returns SUCCESS.
+	 * one call; nothing changes unless it returns SUCCESS. Buying an
+	 * upgrade switches it on.
 	 *
 	 * @param item
 	 *            Entry to buy.
@@ -133,12 +167,15 @@ public final class PurchaseManager {
 			return PurchaseResult.INSUFFICIENT_FUNDS;
 
 		int before = getQuantity(item);
+		boolean wasOff = this.upgradesOff.remove(item.getId());
 		this.owned.put(item.getId(), before + 1);
 		if (!save()) {
 			if (before == 0)
 				this.owned.remove(item.getId());
 			else
 				this.owned.put(item.getId(), before);
+			if (wasOff)
+				this.upgradesOff.add(item.getId());
 			refund(currency, price);
 			this.logger.warning("Purchase of " + item.getId()
 					+ " could not be saved, refunded.");
@@ -150,11 +187,15 @@ public final class PurchaseManager {
 				+ currency.getLabel() + ".");
 		for (ShopListener listener : listenersCopy())
 			listener.onPurchased(item, before + 1);
+		if (item.getCategory() == ShopCategory.UPGRADE) {
+			this.lastSwitchedOn = item.getId();
+			upgradeChanged(item);
+		}
 		return PurchaseResult.SUCCESS;
 	}
 
 	/**
-	 * Normal price of the next purchase of an entry.
+	 * Price of the next purchase of an entry.
 	 *
 	 * @param item
 	 *            Entry.
@@ -215,10 +256,184 @@ public final class PurchaseManager {
 		return item != null && getQuantity(item) >= item.getMaxLevel();
 	}
 
+	// --- Loadout, read by Customize and GameScreen ---
+
+	/**
+	 * A ship is unlocked when it is not sold (Standard, or a ship added
+	 * later without a price) or when it has been bought.
+	 *
+	 * @param type
+	 *            Ship type.
+	 * @return true if the player may fly it.
+	 */
+	public boolean isShipUnlocked(final ShipType type) {
+		ShopItem item = ShopCatalog.findByRef(ShopCategory.SHIP, type.name());
+		return item == null || isOwned(item);
+	}
+
+	/**
+	 * @param skin
+	 *            Skin.
+	 * @return true if the player may use it.
+	 */
+	public boolean isSkinUnlocked(final Skin skin) {
+		ShopItem item = ShopCatalog.findByRef(ShopCategory.SKIN, skin.name());
+		return item == null || isOwned(item);
+	}
+
+	/** @return Ship used in the next run. */
+	public ShipType getSelectedShip() {
+		return isShipUnlocked(this.selectedShip) ? this.selectedShip
+				: ShipType.STANDARD;
+	}
+
+	/** @return Skin used in the next run; CLASSIC is the default look. */
+	public Skin getSelectedSkin() {
+		return isSkinUnlocked(this.selectedSkin) ? this.selectedSkin
+				: Skin.CLASSIC;
+	}
+
+	/**
+	 * Chooses the ship for the next run.
+	 *
+	 * @param type
+	 *            Ship type.
+	 * @return false if the ship is locked; nothing changes then.
+	 */
+	public boolean selectShip(final ShipType type) {
+		if (type == null || !isShipUnlocked(type))
+			return false;
+		if (type != this.selectedShip) {
+			this.selectedShip = type;
+			save();
+		}
+		return true;
+	}
+
+	/**
+	 * Chooses the skin for the next run. Only one skin is used at a time;
+	 * CLASSIC takes the skin off.
+	 *
+	 * @param skin
+	 *            Skin.
+	 * @return false if the skin is locked; nothing changes then.
+	 */
+	public boolean selectSkin(final Skin skin) {
+		if (skin == null || !isSkinUnlocked(skin))
+			return false;
+		if (skin != this.selectedSkin) {
+			this.selectedSkin = skin;
+			save();
+			for (ShopListener listener : listenersCopy())
+				listener.onSkinChanged(skin);
+		}
+		return true;
+	}
+
+	/**
+	 * Stable ship id used by the achievements (Mantis): Standard is the
+	 * starter ship, every other ship uses its lower-case type name.
+	 *
+	 * @param type
+	 *            Ship type.
+	 * @return Ship id.
+	 */
+	public static String getShipId(final ShipType type) {
+		if (type == null || type == ShipType.STANDARD)
+			return AchievementManager.STARTER_SHIP_ID;
+		return type.name().toLowerCase();
+	}
+
+	// --- Upgrades, read by the Item System (Team CS) ---
+
+	/**
+	 * @param itemId
+	 *            Item System item id, e.g. "magnet".
+	 * @return Level bought, 0 if never bought.
+	 */
+	public int getUpgradeLevel(final String itemId) {
+		return getQuantity(upgrade(itemId));
+	}
+
+	/**
+	 * @param itemId
+	 *            Item System item id.
+	 * @return true if bought and switched on.
+	 */
+	public boolean isUpgradeOn(final String itemId) {
+		ShopItem item = upgrade(itemId);
+		return isOwned(item) && !this.upgradesOff.contains(item.getId());
+	}
+
+	/**
+	 * Level the Item System should apply in a run.
+	 *
+	 * @param itemId
+	 *            Item System item id.
+	 * @return Level while switched on; 0 when off or not bought.
+	 */
+	public int getActiveUpgradeLevel(final String itemId) {
+		return isUpgradeOn(itemId) ? getUpgradeLevel(itemId) : 0;
+	}
+
+	/**
+	 * @return Every upgrade that is on, as Item System item id to level, in
+	 *         shop order.
+	 */
+	public Map<String, Integer> getActiveUpgrades() {
+		Map<String, Integer> active = new LinkedHashMap<String, Integer>();
+		for (ShopItem item : ShopCatalog.getByCategory(ShopCategory.UPGRADE))
+			if (isUpgradeOn(item.getRef()))
+				active.put(item.getRef(), getQuantity(item));
+		return Collections.unmodifiableMap(active);
+	}
+
+	/**
+	 * Switches a bought upgrade on or off. Takes effect from the next run.
+	 *
+	 * @param itemId
+	 *            Item System item id.
+	 * @param on
+	 *            true to switch on.
+	 * @return false if it is not bought or could not be saved.
+	 */
+	public boolean setUpgradeOn(final String itemId, final boolean on) {
+		ShopItem item = upgrade(itemId);
+		if (!isOwned(item))
+			return false;
+		if (isUpgradeOn(itemId) == on)
+			return true;
+		if (on)
+			this.upgradesOff.remove(item.getId());
+		else
+			this.upgradesOff.add(item.getId());
+		if (!save()) {
+			if (on)
+				this.upgradesOff.add(item.getId());
+			else
+				this.upgradesOff.remove(item.getId());
+			return false;
+		}
+		if (on)
+			this.lastSwitchedOn = item.getId();
+		this.logger.info("Upgrade " + itemId + (on ? " on." : " off."));
+		upgradeChanged(item);
+		return true;
+	}
+
+	/**
+	 * @param itemId
+	 *            Item System item id.
+	 * @return false if it is not bought or could not be saved.
+	 */
+	public boolean toggleUpgrade(final String itemId) {
+		return setUpgradeOn(itemId, !isUpgradeOn(itemId));
+	}
+
 	// --- Listeners ---
 
 	/**
-	 * Tells a team about purchases.
+	 * Tells a team about purchases, upgrade changes and skin changes.
 	 *
 	 * @param listener
 	 *            Listener to add.
@@ -238,13 +453,90 @@ public final class PurchaseManager {
 
 	// --- Internals ---
 
+	/**
+	 * @param itemId
+	 *            Item System item id.
+	 * @return Its upgrade entry, or null.
+	 */
+	private static ShopItem upgrade(final String itemId) {
+		return itemId == null ? null
+				: ShopCatalog.findByRef(ShopCategory.UPGRADE, itemId);
+	}
 
 	private List<ShopListener> listenersCopy() {
 		return new ArrayList<ShopListener>(this.listeners);
 	}
 
+	/**
+	 * Tells listeners and the Item System an upgrade changed.
+	 *
+	 * @param item
+	 *            Upgrade entry.
+	 */
+	private void upgradeChanged(final ShopItem item) {
+		syncItemSystem();
+		int level = getActiveUpgradeLevel(item.getRef());
+		for (ShopListener listener : listenersCopy())
+			listener.onUpgradeChanged(item.getRef(), level);
+	}
+
+	/**
+	 * TEMPORARY bridge, delete once the Item team reads
+	 * {@link #getActiveUpgrades()}. Their run still reads one equipped item
+	 * at level 1 from their own "equipment" save, so this copies our state
+	 * there: every bought upgrade is owned, and the one most recently
+	 * switched on (or the first one on) is equipped.
+	 */
+	private void syncItemSystem() {
+		try {
+			String equip = null;
+			if (this.lastSwitchedOn != null) {
+				ShopItem last = ShopCatalog.findById(this.lastSwitchedOn);
+				if (last != null && isUpgradeOn(last.getRef()))
+					equip = last.getRef();
+			}
+			for (ShopItem item : ShopCatalog.getByCategory(
+					ShopCategory.UPGRADE)) {
+				if (!isOwned(item))
+					continue;
+				ItemSystem.grantEquipment(item.getRef());
+				if (equip == null && isUpgradeOn(item.getRef()))
+					equip = item.getRef();
+			}
+			if (equip == null)
+				ItemSystem.unequip();
+			else
+				ItemSystem.equip(equip);
+		} catch (RuntimeException e) {
+			this.logger.warning("Couldn't update the Item System: "
+					+ e.getMessage());
+		}
+	}
+
+	/**
+	 * Gear bought before upgrades existed was saved by the Item System.
+	 * Copies it over once, as level 1 and switched on.
+	 *
+	 * @return true if anything was copied.
+	 */
+	private boolean migrateOldGear() {
+		boolean copied = false;
+		try {
+			for (ShopItem item : ShopCatalog.getByCategory(
+					ShopCategory.UPGRADE))
+				if (!isOwned(item) && ItemSystem.isOwned(item.getRef())) {
+					this.owned.put(item.getId(), 1);
+					copied = true;
+				}
+		} catch (RuntimeException e) {
+			this.logger.warning("Couldn't read old gear: " + e.getMessage());
+		}
+		return copied;
+	}
+
 	private void removeAll() {
 		this.owned.clear();
+		this.upgradesOff.clear();
 	}
 
 	/**
@@ -280,8 +572,8 @@ public final class PurchaseManager {
 	}
 
 	/**
-	 * Loads purchases. Never throws: a missing or broken file just means
-	 * owning nothing.
+	 * Loads purchases and the loadout. Never throws: a missing or broken
+	 * file just means owning nothing and using the Standard ship.
 	 */
 	private void load() {
 		Properties saved = new Properties();
@@ -313,11 +605,31 @@ public final class PurchaseManager {
 				this.logger.warning("Skipping broken shop entry " + id);
 			}
 		}
+		for (String id : saved.getProperty(OFF_KEY, "").split(","))
+			if (this.owned.containsKey(id.trim()))
+				this.upgradesOff.add(id.trim());
+		try {
+			this.selectedShip = ShipType.valueOf(saved.getProperty(SHIP_KEY,
+					ShipType.STANDARD.name()).trim());
+		} catch (IllegalArgumentException e) {
+			this.selectedShip = ShipType.STANDARD;
+		}
+		try {
+			this.selectedSkin = Skin.valueOf(saved.getProperty(SKIN_KEY,
+					Skin.CLASSIC.name()).trim());
+		} catch (IllegalArgumentException e) {
+			this.selectedSkin = Skin.CLASSIC;
+		}
+		if (!Boolean.parseBoolean(saved.getProperty(MIGRATED_KEY, "false"))) {
+			if (migrateOldGear())
+				this.logger.info("Copied gear from the old save as upgrades.");
+			save();
+		}
 		this.logger.info("Loaded shop purchases.");
 	}
 
 	/**
-	 * Writes purchases. Writes a temporary file first and
+	 * Writes purchases and the loadout. Writes a temporary file first and
 	 * then replaces the save, so a crash while saving never leaves a
 	 * half-written file.
 	 *
@@ -328,12 +640,16 @@ public final class PurchaseManager {
 		for (Map.Entry<String, Integer> entry : this.owned.entrySet())
 			saved.setProperty(OWNED_PREFIX + entry.getKey(),
 					Integer.toString(entry.getValue()));
+		saved.setProperty(OFF_KEY, String.join(",", this.upgradesOff));
+		saved.setProperty(SHIP_KEY, this.selectedShip.name());
+		saved.setProperty(SKIN_KEY, this.selectedSkin.name());
+		saved.setProperty(MIGRATED_KEY, "true");
 		try {
 			Path file = getOwnedFile().toPath();
 			Path temp = file.resolveSibling(OWNED_FILE + ".tmp");
 			try (Writer writer = Files.newBufferedWriter(temp,
 					StandardCharsets.UTF_8)) {
-				saved.store(writer, "Space Invaders shop purchases");
+				saved.store(writer, "Space Invaders shop purchases and loadout");
 			}
 			try {
 				Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,
