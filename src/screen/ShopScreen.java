@@ -16,14 +16,15 @@ import entity.Ship.ShipType;
 import item.ItemAPI;
 import item.ItemSystem;
 import shop.Currency;
+import shop.NightMarket;
 import shop.ShopCatalog;
 import shop.ShopCategory;
 import shop.ShopItem;
 import shop.Skin;
 
 /**
- * The shop (GoG - Currency System). Three tabs: Ships, Skins and Upgrades.
- * The left side lists what is for sale, the right side
+ * The shop (GoG - Currency System). Four tabs: Ships, Skins, Upgrades and
+ * the Night Market. The left side lists what is for sale, the right side
  * shows the selected entry with its price and BUY buttons.
  *
  * Skins and upgrades can be paid with coins or diamonds, so they get one
@@ -47,7 +48,9 @@ public class ShopScreen extends Screen {
 		/** Ship skins. */
 		SKINS("Skins", Color.CYAN),
 		/** Item team upgrades. */
-		UPGRADES("Upgrades", new Color(255, 200, 0));
+		UPGRADES("Upgrades", new Color(255, 200, 0)),
+		/** Today's discounts. */
+		NIGHT_MARKET("Night Mkt", new Color(255, 80, 255));
 
 		/** Text on the tab. */
 		private final String title;
@@ -60,13 +63,16 @@ public class ShopScreen extends Screen {
 		}
 	}
 
-	/** One row in the list. */
+	/** One row in the list: an entry and whether it is discounted here. */
 	private static final class Entry {
 		/** Entry for sale. */
 		private final ShopItem item;
+		/** Whether this row sells at the Night Market discount. */
+		private final boolean discounted;
 
-		Entry(final ShopItem item) {
+		Entry(final ShopItem item, final boolean discounted) {
 			this.item = item;
+			this.discounted = discounted;
 		}
 
 		/**
@@ -77,7 +83,7 @@ public class ShopScreen extends Screen {
 		 */
 		int price(final Currency currency) {
 			return PurchaseManager.getInstance().getPrice(this.item,
-					currency);
+					currency, this.discounted);
 		}
 	}
 
@@ -295,8 +301,12 @@ public class ShopScreen extends Screen {
 		case SKINS:
 			addAll(result, ShopCatalog.getByCategory(ShopCategory.SKIN));
 			break;
-		default:
+		case UPGRADES:
 			addAll(result, ShopCatalog.getByCategory(ShopCategory.UPGRADE));
+			break;
+		default:
+			for (ShopItem item : NightMarket.getListings())
+				result.add(new Entry(item, true));
 			break;
 		}
 		return result;
@@ -305,7 +315,7 @@ public class ShopScreen extends Screen {
 	private static void addAll(final List<Entry> result,
 			final List<ShopItem> items) {
 		for (ShopItem item : items)
-			result.add(new Entry(item));
+			result.add(new Entry(item, false));
 	}
 
 	/**
@@ -326,7 +336,8 @@ public class ShopScreen extends Screen {
 					: Currency.DIAMONDS;
 		PurchaseManager purchases = PurchaseManager.getInstance();
 		int price = entry.price(currency);
-		PurchaseResult result = purchases.purchase(item, currency);
+		PurchaseResult result = purchases.purchase(item, currency,
+				entry.discounted);
 		switch (result) {
 		case SUCCESS:
 			showMessage((item.isRepeatable() ? item.getName() + " is now"
@@ -349,8 +360,9 @@ public class ShopScreen extends Screen {
 					TOO_EXPENSIVE);
 			break;
 		case NOT_ON_SALE:
-			showMessage("This limited edition is no longer sold.",
-					TOO_EXPENSIVE);
+			// A Night Market deal can end at midnight while the shop is open.
+			showMessage(entry.discounted ? "Today's deal has ended."
+					: "This limited edition is no longer sold.", TOO_EXPENSIVE);
 			break;
 		default:
 			showMessage("Purchase failed, nothing was charged.",
@@ -536,7 +548,9 @@ public class ShopScreen extends Screen {
 					.toUpperCase(), area.x + 6, area.y + 12, nameColor);
 			String tag = null;
 			Color tagColor = Color.YELLOW;
-			if (ShopCatalog.limitedSkin(entry.item) != null) {
+			if (entry.discounted) {
+				tag = "-" + NightMarket.DISCOUNT_PERCENT + "%";
+			} else if (ShopCatalog.limitedSkin(entry.item) != null) {
 				tag = "LIMITED";
 				tagColor = LIMITED;
 			}
@@ -655,6 +669,17 @@ public class ShopScreen extends Screen {
 				: "PRICE";
 		this.drawManager.drawSmallString(priceLabel, area.x + 12,
 				priceBaseline, Color.GRAY);
+		if (entry.discounted && !maxed) {
+			StringBuilder was = new StringBuilder("WAS");
+			for (Currency currency : Currency.values())
+				if (item.accepts(currency))
+					was.append(was.length() > 3 ? " / " : " ").append(item
+							.getPrice(currency, purchases.getQuantity(item)));
+			String text = was.toString();
+			this.drawManager.drawSmallString(text, area.x + area.width - 12
+					- this.drawManager.getSmallStringWidth(text),
+					priceBaseline, Color.GRAY);
+		}
 
 		// One finished button, or one BUY button per currency.
 		if (maxed || ended) {
