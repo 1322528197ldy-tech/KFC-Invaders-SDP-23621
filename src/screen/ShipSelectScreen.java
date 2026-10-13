@@ -3,6 +3,8 @@ package screen;
 import java.awt.Color;
 import java.awt.Rectangle;
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
+import java.util.List;
 
 import engine.Core;
 import engine.DrawManager.SpriteType;
@@ -17,19 +19,21 @@ import shop.Skin;
 /**
  * Implements the ship select screen, shown as "Customize" in the menu.
  * The player chooses the ship and skin for the next run from what they
- * own;
+ * own, and switches bought upgrades on or off (any number can be on);
  * locked choices can be looked at but not used, and point to the shop.
- * The ship goes through Core.setSelectedShipType() (Mantis), the skin
- * through {@link PurchaseManager}, as soon as they are chosen.
+ * The ship goes through Core.setSelectedShipType() (Mantis), the skin and
+ * upgrades through {@link PurchaseManager}, as soon as they are chosen.
  */
 public class ShipSelectScreen extends Screen {
 
-	/** The things that can be chosen. */
+	/** The three things that can be chosen. */
 	private enum Row {
 		/** Ship type. */
 		SHIP("Ship"),
 		/** Ship colour. */
-		SKIN("Skin");
+		SKIN("Skin"),
+		/** Item team upgrades, browsed and switched on/off one by one. */
+		UPGRADE("Upgrade");
 
 		/** Label on the left of the row. */
 		private final String label;
@@ -45,7 +49,7 @@ public class ShipSelectScreen extends Screen {
 	private static final int ROW_HEIGHT = 30;
 	/** Distance between two rows. */
 	private static final int ROW_SPACING = 38;
-	/** Width of the arrow at each end of a row. */
+	/** Width of the clickable arrow at each end of a row. */
 	private static final int ARROW_WIDTH = 28;
 	/** Size of one sprite pixel in the big preview. */
 	private static final int PREVIEW_PIXEL = 5;
@@ -67,14 +71,20 @@ public class ShipSelectScreen extends Screen {
 	private final ShipType[] availableShips = ShipType.values();
 	/** All skins. */
 	private final Skin[] availableSkins = Skin.values();
+	/** Every upgrade sold in the shop. */
+	private final List<ShopItem> availableUpgrades =
+			ShopCatalog.getByCategory(ShopCategory.UPGRADE);
 
 	/** Row the cursor is on. */
 	private Row row = Row.SHIP;
 	/** Choice shown in each row, which may be locked. */
 	private int shipIndex;
 	private int skinIndex;
+	private int upgradeIndex;
 	/** Key states last frame, so a held key acts once. */
 	private boolean[] keysWereDown;
+	/** Mouse state last frame, so a held button clicks once. */
+	private boolean mouseWasDown;
 
 	/**
 	 * Constructor, establishes the properties of the screen.
@@ -94,6 +104,10 @@ public class ShipSelectScreen extends Screen {
 		// Open on the ship chosen last time instead of always the first one.
 		this.shipIndex = Core.getSelectedShipType().ordinal();
 		this.skinIndex = loadout.getSelectedSkin().ordinal();
+		// Start on the first upgrade the player owns, if any.
+		for (int i = this.availableUpgrades.size() - 1; i >= 0; i--)
+			if (loadout.isOwned(this.availableUpgrades.get(i)))
+				this.upgradeIndex = i;
 	}
 
 	/**
@@ -113,14 +127,16 @@ public class ShipSelectScreen extends Screen {
 		super.update();
 
 		if (this.keysWereDown == null) {
-			// Keys still held from the menu must not act here.
+			// Keys and clicks still held from the menu must not act here.
 			this.keysWereDown = new boolean[KEYS.length];
 			for (int i = 0; i < KEYS.length; i++)
 				this.keysWereDown[i] = this.inputManager.isKeyDown(KEYS[i]);
+			this.mouseWasDown = this.inputManager.isMousePressed();
 		}
 
 		if (this.inputDelay.checkFinished()) {
 			handleKeys();
+			handleMouse();
 		}
 		draw();
 	}
@@ -138,7 +154,9 @@ public class ShipSelectScreen extends Screen {
 	private void handleKeys() {
 		boolean confirm = pressed(KeyEvent.VK_SPACE)
 				|| pressed(KeyEvent.VK_ENTER);
-		if (pressed(KeyEvent.VK_ESCAPE) || confirm) {
+		if (confirm && this.row == Row.UPGRADE) {
+			toggleUpgrade();
+		} else if (pressed(KeyEvent.VK_ESCAPE) || confirm) {
 			this.isRunning = false;
 		} else if (pressed(KeyEvent.VK_UP) || pressed(KeyEvent.VK_W)) {
 			this.row = Row.values()[Math.floorMod(this.row.ordinal() - 1,
@@ -153,6 +171,30 @@ public class ShipSelectScreen extends Screen {
 		}
 		for (int i = 0; i < KEYS.length; i++)
 			this.keysWereDown[i] = this.inputManager.isKeyDown(KEYS[i]);
+	}
+
+	/** Clicking a row selects it; clicking its arrows changes it. */
+	private void handleMouse() {
+		boolean down = this.inputManager.isMousePressed();
+		boolean clicked = down && !this.mouseWasDown;
+		this.mouseWasDown = down;
+		if (!clicked)
+			return;
+		int x = this.inputManager.getMouseX();
+		int y = this.inputManager.getMouseY();
+		for (Row each : Row.values()) {
+			Rectangle area = rowArea(each);
+			if (!area.contains(x, y))
+				continue;
+			this.row = each;
+			if (x < area.x + ARROW_WIDTH)
+				change(each, -1);
+			else if (x >= area.x + area.width - ARROW_WIDTH)
+				change(each, 1);
+			else if (each == Row.UPGRADE)
+				toggleUpgrade();
+			return;
+		}
 	}
 
 	/**
@@ -177,12 +219,31 @@ public class ShipSelectScreen extends Screen {
 				this.logger.info("Ship selected: " + ship);
 			}
 			break;
-		default:
+		case SKIN:
 			this.skinIndex = Math.floorMod(this.skinIndex + step,
 					this.availableSkins.length);
 			loadout.selectSkin(this.availableSkins[this.skinIndex]);
 			break;
+		default:
+			// Browsing only: upgrades are switched with space or a click.
+			if (!this.availableUpgrades.isEmpty())
+				this.upgradeIndex = Math.floorMod(this.upgradeIndex + step,
+						this.availableUpgrades.size());
+			break;
 		}
+	}
+
+	/** Switches the browsed upgrade on or off, if it is owned. */
+	private void toggleUpgrade() {
+		ShopItem upgrade = browsedUpgrade();
+		if (upgrade != null && PurchaseManager.getInstance().isOwned(upgrade))
+			PurchaseManager.getInstance().toggleUpgrade(upgrade.getRef());
+	}
+
+	/** @return Upgrade shown in the upgrade row, or null if none are sold. */
+	private ShopItem browsedUpgrade() {
+		return this.availableUpgrades.isEmpty() ? null
+				: this.availableUpgrades.get(this.upgradeIndex);
 	}
 
 	// --- State of each row ---
@@ -192,8 +253,10 @@ public class ShipSelectScreen extends Screen {
 		switch (which) {
 		case SHIP:
 			return loadout.isShipUnlocked(this.availableShips[this.shipIndex]);
-		default:
+		case SKIN:
 			return loadout.isSkinUnlocked(this.availableSkins[this.skinIndex]);
+		default:
+			return loadout.isOwned(browsedUpgrade());
 		}
 	}
 
@@ -201,8 +264,17 @@ public class ShipSelectScreen extends Screen {
 		switch (which) {
 		case SHIP:
 			return ShopCatalog.shipName(this.availableShips[this.shipIndex]);
-		default:
+		case SKIN:
 			return this.availableSkins[this.skinIndex].getDisplayName();
+		default:
+			ShopItem upgrade = browsedUpgrade();
+			if (upgrade == null)
+				return "None";
+			PurchaseManager loadout = PurchaseManager.getInstance();
+			if (!loadout.isOwned(upgrade))
+				return upgrade.getName();
+			return upgrade.getName() + " Lv" + loadout.getQuantity(upgrade)
+					+ (loadout.isUpgradeOn(upgrade.getRef()) ? " ON" : " OFF");
 		}
 	}
 
@@ -216,9 +288,11 @@ public class ShipSelectScreen extends Screen {
 		case SHIP:
 			return ShopCatalog.findByRef(ShopCategory.SHIP,
 					this.availableShips[this.shipIndex].name());
-		default:
+		case SKIN:
 			return ShopCatalog.findByRef(ShopCategory.SKIN,
 					this.availableSkins[this.skinIndex].name());
+		default:
+			return browsedUpgrade();
 		}
 	}
 
@@ -248,8 +322,9 @@ public class ShipSelectScreen extends Screen {
 			drawRow(each);
 		drawInfo();
 
-		drawManager.drawKeyHints(this,
-				"up/down row | left/right change | esc back");
+		drawManager.drawKeyHints(this, this.row == Row.UPGRADE
+				? "up/down row | left/right browse | space on/off | esc back"
+				: "up/down row | left/right change | esc back");
 
 		drawManager.completeDrawing(this);
 	}
@@ -299,7 +374,7 @@ public class ShipSelectScreen extends Screen {
 
 	/** Ship stats, then what the selected row's choice means. */
 	private void drawInfo() {
-		Rectangle last = rowArea(Row.SKIN);
+		Rectangle last = rowArea(Row.UPGRADE);
 		int lineHeight = drawManager.getSmallLineHeight();
 		int y = last.y + last.height + 22;
 
@@ -317,8 +392,16 @@ public class ShipSelectScreen extends Screen {
 		y += (lineHeight + 4) * 3 + 14;
 		String status;
 		Color color;
-		if (isUnlocked(this.row)) {
-			status = choiceName(this.row) + " is equipped";
+		if (this.row == Row.UPGRADE && isUnlocked(this.row)) {
+			boolean on = PurchaseManager.getInstance().isUpgradeOn(
+					browsedUpgrade().getRef());
+			status = browsedUpgrade().getName() + (on
+					? " is on - space to switch off"
+					: " is off - space to switch on");
+			color = on ? Color.GREEN : Color.GRAY;
+		} else if (isUnlocked(this.row)) {
+			status = this.row == Row.UPGRADE ? "No upgrades in the shop"
+					: choiceName(this.row) + " is equipped";
 			color = Color.GREEN;
 		} else {
 			ShopItem entry = shopEntry(this.row);
@@ -341,6 +424,19 @@ public class ShipSelectScreen extends Screen {
 		drawManager.drawSmallString(status, this.width / 2
 				- drawManager.getSmallStringWidth(status) / 2, y, color);
 
+		if (this.row == Row.UPGRADE) {
+			ShopItem upgrade = browsedUpgrade();
+			if (upgrade != null) {
+				int lineY = y + lineHeight + 4;
+				for (String line : wrap(upgrade.getDescription().toUpperCase(),
+						this.width - MARGIN * 2)) {
+					drawManager.drawSmallString(line, this.width / 2
+							- drawManager.getSmallStringWidth(line) / 2,
+							lineY, Color.GRAY);
+					lineY += lineHeight;
+				}
+			}
+		}
 	}
 
 	/**
@@ -374,6 +470,33 @@ public class ShipSelectScreen extends Screen {
 				Color.GREEN);
 		drawManager.drawSmallString(value, barLeft + barWidth + 8, baseline,
 				Color.WHITE);
+	}
+
+	/**
+	 * Splits text into lines that fit a width in the small font.
+	 *
+	 * @param text
+	 *            Text to split.
+	 * @param maxWidth
+	 *            Widest a line may be.
+	 * @return Lines, in order.
+	 */
+	private List<String> wrap(final String text, final int maxWidth) {
+		List<String> lines = new ArrayList<String>();
+		StringBuilder line = new StringBuilder();
+		for (String word : text.split(" ")) {
+			String candidate = line.length() == 0 ? word : line + " " + word;
+			if (line.length() > 0
+					&& drawManager.getSmallStringWidth(candidate) > maxWidth) {
+				lines.add(line.toString());
+				line = new StringBuilder(word);
+			} else {
+				line = new StringBuilder(candidate);
+			}
+		}
+		if (line.length() > 0)
+			lines.add(line.toString());
+		return lines;
 	}
 
 	private static double maxSpeed() {
