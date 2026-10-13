@@ -33,7 +33,8 @@ import shop.Skin;
  * through {@link PurchaseManager}, so they always agree.
  *
  * Keyboard: left/right switch tabs, up/down select, C (or space/enter) buy
- * with coins, V buy with diamonds, esc back.
+ * with coins, V buy with diamonds, esc back. Mouse: click a tab, an entry,
+ * the scroll arrows or a BUY button.
  *
  * @author GoG - Currency System
  */
@@ -122,6 +123,8 @@ public class ShopScreen extends Screen {
 	private Color messageColor = Color.WHITE;
 	/** Key states last frame, so a held key acts once. */
 	private boolean[] keysWereDown;
+	/** Mouse state last frame, so a held button clicks once. */
+	private boolean mouseWasDown;
 
 	/**
 	 * Constructor, establishes the properties of the screen.
@@ -156,14 +159,17 @@ public class ShopScreen extends Screen {
 		super.update();
 
 		if (this.keysWereDown == null) {
-			// Keys still held from the menu must not buy anything.
+			// Keys and clicks still held from the menu must not buy anything.
 			this.keysWereDown = new boolean[KEYS.length];
 			for (int i = 0; i < KEYS.length; i++)
 				this.keysWereDown[i] = this.inputManager.isKeyDown(KEYS[i]);
+			this.mouseWasDown = this.inputManager.isMousePressed();
 		}
 
-		if (this.inputDelay.checkFinished())
+		if (this.inputDelay.checkFinished()) {
 			handleKeys();
+			handleMouse();
+		}
 		draw();
 	}
 
@@ -207,6 +213,44 @@ public class ShopScreen extends Screen {
 			this.keysWereDown[i] = this.inputManager.isKeyDown(KEYS[i]);
 	}
 
+	/** Reacts to a mouse click on a tab, a row, a scroll arrow or BUY. */
+	private void handleMouse() {
+		boolean down = this.inputManager.isMousePressed();
+		boolean clicked = down && !this.mouseWasDown;
+		this.mouseWasDown = down;
+		if (!clicked)
+			return;
+
+		int x = this.inputManager.getMouseX();
+		int y = this.inputManager.getMouseY();
+		for (Tab each : Tab.values())
+			if (tabArea(each).contains(x, y)) {
+				showTab(each);
+				return;
+			}
+		for (int row = 0; row < visibleRows(); row++)
+			if (this.scroll + row < this.entries.size()
+					&& rowArea(row).contains(x, y)) {
+				select(this.scroll + row);
+				return;
+			}
+		if (scrollUpArea().contains(x, y)) {
+			select(this.scroll - 1);
+			return;
+		}
+		if (scrollDownArea().contains(x, y)) {
+			select(this.scroll + visibleRows());
+			return;
+		}
+		if (this.entries.isEmpty())
+			return;
+		ShopItem item = this.entries.get(this.selected).item;
+		for (Currency currency : Currency.values())
+			if (buyArea(item, currency).contains(x, y)) {
+				buySelected(currency);
+				return;
+			}
+	}
 
 	/**
 	 * Switches tab and selects its first row.
@@ -332,7 +376,7 @@ public class ShopScreen extends Screen {
 		this.messageTime = System.currentTimeMillis();
 	}
 
-	// --- Layout ---
+	// --- Layout. Drawing and clicking both use these, so they line up. ---
 
 	private int balanceBaseline() {
 		return this.height / 8 + 28;
@@ -427,7 +471,7 @@ public class ShopScreen extends Screen {
 		drawDetail();
 		drawMessage();
 		this.drawManager.drawKeyHints(this,
-				"arrows select | C coins | V diamonds | esc back");
+				"arrows/click select | C coins | V diamonds | esc back");
 		this.drawManager.completeDrawing(this);
 	}
 
