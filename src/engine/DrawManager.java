@@ -139,7 +139,7 @@ public final class DrawManager {
         ShipSkinC2,
         /** Fast Move skin C3 (Stealth). */
         ShipSkinC3,
-        /** Two-Way Shot skin D1 (Flared Barrels). */
+        /** Two-Way Shot skin D1 (Long Barrels). */
         ShipSkinD1,
         /** Two-Way Shot skin D2 (Twin Spike). */
         ShipSkinD2,

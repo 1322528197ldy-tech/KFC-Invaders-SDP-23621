@@ -221,14 +221,14 @@ The ship fires its two bullets from the centres of the third and eleventh column
 ### D1 · Long Barrels
 
 ```text
-  ·███·····███·
-  ·███·····███·
-  ·███·····███·
-  ·████···████·
-  ·███████████·
-  █████████████
-  ██·███████·██
-  █·█·█████·█·█
+·███·····███·
+·███·····███·
+·███·····███·
+·████···████·
+·███████████·
+█████████████
+██·███████·██
+█·█·█████·█·█
 ```
 
 The barrels are one row longer than the original, and small legs under the hull make the ship look like a gun carriage.
