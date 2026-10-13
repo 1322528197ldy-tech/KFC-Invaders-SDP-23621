@@ -730,10 +730,12 @@ public class GameScreen extends Screen {
 						this.enemyShipSpecial.getPositionY());
 
 			enemyShipFormation.draw();
-
-			// Hit sparkles. AUTHORED BY: VFX TEAM (Effection)
-			for (Particle particle : this.particles)
-				drawManager.drawParticle(particle);
+      
+		// Hit sparkles: drawn while the shake offset is applied so they move
+		// with the game world, and clipped to the play area so they never
+		// cover the HUD. AUTHORED BY: VFX TEAM (Effection)
+		drawManager.drawParticles(this, this.particles,
+				SEPARATION_LINE_HEIGHT);
 
 			for (Bullet bullet : this.bullets)
 				drawManager.drawEntity(bullet, bullet.getPositionX(),
@@ -819,6 +821,8 @@ public class GameScreen extends Screen {
 
 	/**
 	 * Scatters sparkles from the center of a destroyed ship.
+	 * Must be called BEFORE the ship is destroyed, while its position and
+	 * size are still valid.
 	 * AUTHORED BY: VFX TEAM (Effection)
 	 *
 	 * @param ship
@@ -835,13 +839,18 @@ public class GameScreen extends Screen {
 	}
 
 	/**
-	 * Moves the sparkles and removes the ones that faded away.
+	 * Moves the sparkles and removes the ones that faded away or left the
+	 * play area. Called every frame, outside the levelFinished gate, so
+	 * sparkles keep fading after a level ends instead of piling up.
+	 * Removal happens after the update loop, never during iteration.
 	 * AUTHORED BY: VFX TEAM (Effection)
 	 */
 	private void updateParticles() {
 		for (Particle particle : this.particles)
 			particle.update();
-		this.particles.removeIf(Particle::isDead);
+		this.particles.removeIf(particle -> particle.isDead()
+				|| !particle.isInside(0, SEPARATION_LINE_HEIGHT,
+						this.width, this.height));
 	}
 
 	/**
