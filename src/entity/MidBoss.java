@@ -146,12 +146,12 @@ public class MidBoss extends Entity {
             return 0;
         }
 
-        this.takeDamage();
-
         int scoreEarned = 0;
         if (this.spriteType == SpriteType.MidBoss_1 || this.spriteType == SpriteType.MidBoss_2) {
             scoreEarned = MID_BOSS_POINTS_HIT;
-        } 
+        }
+		
+	    this.takeDamage();
 
         if (this.isDestroyed()) {
             scoreEarned += this.getPointValue();

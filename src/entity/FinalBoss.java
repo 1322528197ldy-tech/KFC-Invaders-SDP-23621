@@ -26,7 +26,7 @@ public class FinalBoss extends Entity {
 	/** To calculate the health points. */
 	private int hp;
 	/** The health points of the Final Boss. */
-	private static final int FINAL_BOSS_HP = 3;
+	private static final int FINAL_BOSS_HP = 2;
 
 
 	/** Point value awarded for hitting the Final Boss. */
@@ -58,7 +58,7 @@ public class FinalBoss extends Entity {
 	 */
     public FinalBoss(final int positionX, final int positionY,
 			final SpriteType spriteType) {
-		super(positionX, positionY, 16 * 2, 10 * 2, Color.ORANGE);
+		super(positionX, positionY, 24 * 2, 16 * 2, Color.GRAY);
 
 		this.spriteType = spriteType;
 		this.animationCooldown = Core.getCooldown(500);
@@ -146,12 +146,13 @@ public class FinalBoss extends Entity {
             return 0;
         }
 
-        this.takeDamage();
-
         int scoreEarned = 0;
         if (this.spriteType == SpriteType.FinalBoss_1 || this.spriteType == SpriteType.FinalBoss_2) {
             scoreEarned = FINAL_BOSS_POINTS_HIT;
         } 
+
+	    this.takeDamage();
+
 
         if (this.isDestroyed()) {
             scoreEarned += this.getPointValue();
