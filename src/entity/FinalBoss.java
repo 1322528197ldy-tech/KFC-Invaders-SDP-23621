@@ -8,10 +8,10 @@ import engine.Core;
 import engine.DrawManager.SpriteType;
 import engine.GameSettings;
 
-public class EnemyShipBoss extends Entity {
+public class FinalBoss extends Entity {
 
-    /** Point value of a Mid Boss. */
-    private static final int MID_BOSS_POINTS = 1000;
+    /** Point value of a Final Boss. */
+    private static final int FINAL_BOSS_POINTS = 5000;
 
 
     /** Cooldown between sprite changes. */
@@ -22,18 +22,15 @@ public class EnemyShipBoss extends Entity {
 	private int pointValue;
 
 
+
 	/** To calculate the health points. */
 	private int hp;
-	/** The health points of the Mid Boss. */
-	private static final int MID_BOSS_HP = 2;
 	/** The health points of the Final Boss. */
-	private static final int FINAL_BOSS_HP = 2;
+	private static final int FINAL_BOSS_HP = 3;
 
 
-	/** Point value awarded for hitting the Mid Boss. */
-	private static final int MID_BOSS_POINTS_HIT = 100;
 	/** Point value awarded for hitting the Final Boss. */
-	private static final int FINAL_BOSS_POINTS_HIT = 250;
+	private static final int FINAL_BOSS_POINTS_HIT = 300;
 
 	/* Ship movement speeds */
 	private int speedX = 0;
@@ -43,14 +40,14 @@ public class EnemyShipBoss extends Entity {
     private Cooldown shootCooldown;
 	private int currentShootingFrequency;
 	/* Minimum shooting rate */
-	private static final int MIN_SHOOTING_RATE = 500;
+	private static final int MIN_SHOOTING_RATE = 250;
 	/* Shooting rate decline per shot */
-	private static final int DECLINE_RATE = 30;
+	private static final int DECLINE_RATE = 50;
 	/* Bullet speed */
 	private static int BULLET_SPEED = 5;
 
     /**
-	 * Constructor for MidBoss Ship.
+	 * Constructor for FinalBoss Ship.
 	 * 
 	 * @param positionX
 	 *            Initial position of the ship in the X axis.
@@ -59,7 +56,7 @@ public class EnemyShipBoss extends Entity {
 	 * @param spriteType
 	 *            Sprite type, image corresponding to the ship.
 	 */
-    public EnemyShipBoss(final int positionX, final int positionY,
+    public FinalBoss(final int positionX, final int positionY,
 			final SpriteType spriteType) {
 		super(positionX, positionY, 16 * 2, 10 * 2, Color.ORANGE);
 
@@ -68,10 +65,10 @@ public class EnemyShipBoss extends Entity {
 		this.isDestroyed = false;
 
 		switch (this.spriteType) {
-		case MidBoss_1:
-		case MidBoss_2:
-			this.pointValue = MID_BOSS_POINTS;
-			this.hp = MID_BOSS_HP;
+		case FinalBoss_1:
+		case FinalBoss_2:
+			this.pointValue = FINAL_BOSS_POINTS;
+			this.hp = FINAL_BOSS_HP;
 			break;
 		default:
 			this.pointValue = 0;
@@ -97,11 +94,11 @@ public class EnemyShipBoss extends Entity {
 			this.animationCooldown.reset();
 
 			switch (this.spriteType) {
-			case MidBoss_1:
-				this.spriteType = SpriteType.MidBoss_2;
+			case FinalBoss_1:
+				this.spriteType = SpriteType.FinalBoss_2;
 				break;
-			case MidBoss_2:
-				this.spriteType = SpriteType.MidBoss_1;
+			case FinalBoss_2:
+				this.spriteType = SpriteType.FinalBoss_1;
 				break;
 			default:
 				break;
@@ -151,12 +148,10 @@ public class EnemyShipBoss extends Entity {
 
         this.takeDamage();
 
-        int scoreEarned;
-        if (this.spriteType == SpriteType.MidBoss_1 || this.spriteType == SpriteType.MidBoss_2) {
-            scoreEarned = MID_BOSS_POINTS_HIT;
-        } else {
-			scoreEarned = FINAL_BOSS_POINTS_HIT;
-		}
+        int scoreEarned = 0;
+        if (this.spriteType == SpriteType.FinalBoss_1 || this.spriteType == SpriteType.FinalBoss_2) {
+            scoreEarned = FINAL_BOSS_POINTS_HIT;
+        } 
 
         if (this.isDestroyed()) {
             scoreEarned += this.getPointValue();

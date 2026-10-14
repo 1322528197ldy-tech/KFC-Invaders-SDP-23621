@@ -12,10 +12,11 @@ import engine.GameState;
 import entity.Bullet;
 import entity.BulletPool;
 import entity.EnemyShip;
-import entity.EnemyShipBoss;
 import entity.EnemyShipFormation;
 import entity.Entity;
 import entity.Ship;
+import entity.MidBoss;
+import entity.FinalBoss;
 
 /**
  * Implements the game screen, where the action happens.
@@ -73,8 +74,10 @@ public class GameScreen extends Screen {
 	/** Checks if a bonus life is received. */
 	private boolean bonusLife;
 
-	/** Mid Bodd enemy ship */
-	private EnemyShipBoss midBoss;
+	/** Mid Boss enemy ship */
+	private MidBoss midBoss;
+	/** Final Boss enemy ship */
+	private FinalBoss finalBoss;
 
 	/**
 	 * Constructor, establishes the properties of the screen.
@@ -119,14 +122,14 @@ public class GameScreen extends Screen {
 
 		// Spawn the boss Level 5, or standard enemy formation for other levels.
 		if (this.level == 5) {
-			this.midBoss = new EnemyShipBoss(this.width 
+			this.midBoss = new MidBoss(this.width 
 				/ 2 - 16, 60, DrawManager.SpriteType.MidBoss_1);
 		}
 
 		//Temporarily spawning a mid-boss before implementing the final boss for Stage 10.
 		else if (this.level == 10) {
-			this.midBoss = new EnemyShipBoss(this.width 
-				/ 2 - 16, 60, DrawManager.SpriteType.MidBoss_1);
+			this.finalBoss = new FinalBoss(this.width 
+				/ 2 - 16, 60, DrawManager.SpriteType.FinalBoss_1);
 		}
 		else {
 			enemyShipFormation = new EnemyShipFormation(this.gameSettings);
@@ -219,9 +222,9 @@ public class GameScreen extends Screen {
 
 			//Temporarily spawning a mid-boss before implementing the final boss for Stage 10.
 			else if (this.level == 10) {
-				this.midBoss.update();
-				this.midBoss.moveBoss(this.width, this.height, this.gameSettings);
-				this.midBoss.shoot(this.bullets, this.gameSettings);
+				this.finalBoss.update();
+				this.finalBoss.moveBoss(this.width, this.height, this.gameSettings);
+				this.finalBoss.shoot(this.bullets, this.gameSettings);
 			} else {
 				this.enemyShipFormation.update();
 				this.enemyShipFormation.shoot(this.bullets);
@@ -242,7 +245,7 @@ public class GameScreen extends Screen {
 
 		//Temporarily spawning a mid-boss before implementing the final boss for Stage 10. 
 		else if (this.level == 10) {
-			if (this.midBoss == null || this.midBoss.isDestroyed()) {
+			if (this.finalBoss == null || this.finalBoss.isDestroyed()) {
 				isCleared = true;
 			}
 		}
@@ -284,10 +287,10 @@ public class GameScreen extends Screen {
 
 		//Temporarily spawning a mid-boss before implementing the final boss for Stage 10.
 		else if (this.level == 10) {
-			if (this.midBoss != null) {
-				drawManager.drawEntity(this.midBoss, 
-					this.midBoss.getPositionX(), 
-					this.midBoss.getPositionY());
+			if (this.finalBoss != null) {
+				drawManager.drawEntity(this.finalBoss, 
+					this.finalBoss.getPositionX(), 
+					this.finalBoss.getPositionY());
 			}
 		}
 		else {
@@ -363,12 +366,12 @@ public class GameScreen extends Screen {
 				
 				//Temporarily spawning a mid-boss before implementing the final boss for Stage 10.
 				else if (this.level == 10) {
-					if (this.midBoss != null
-							&& !this.midBoss.isDestroyed()
-							&& checkCollision(bullet, this.midBoss)) {
+					if (this.finalBoss != null
+							&& !this.finalBoss.isDestroyed()
+							&& checkCollision(bullet, this.finalBoss)) {
 						
-						// Add score for hitting the Mid boss and check if it is destroyed
-						this.score += this.midBoss.manageCollisionsBoss(bullet);
+						// Add score for hitting the Final boss and check if it is destroyed
+						this.score += this.finalBoss.manageCollisionsBoss(bullet);
 						recyclable.add(bullet);
 					}
 				}
