@@ -2,6 +2,7 @@ package entity;
 
 import java.awt.Color;
 import java.util.Set;
+import java.util.Random;
 
 import engine.Cooldown;
 import engine.Core;
@@ -46,6 +47,20 @@ public class FinalBoss extends Entity {
 	/* Bullet speed */
 	private static int BULLET_SPEED = 5;
 
+
+	/* Tracks the current number of shots fired */
+	private int shotCount = 0;
+	/* Target number of shots before a burst attack is triggered */
+	private int targetShotsForBurst;
+
+	private Random random = new Random();
+	/* Maximum and minimum number of shots before a burst attack */
+	private static final int MAX_BURST_SHOTS = 5;
+	private static final int MIN_BURST_SHOTS = 3;
+
+	/* Vertical gap between bullets in a burst */
+	private static final int BULLET_GAP = 15;
+
     /**
 	 * Constructor for FinalBoss Ship.
 	 * 
@@ -74,6 +89,7 @@ public class FinalBoss extends Entity {
 			this.pointValue = 0;
 			break;
 		}
+		resetBurstCounter();
 	}
 
     /**
@@ -242,10 +258,40 @@ public class FinalBoss extends Entity {
 			this.shootCooldown = Core.getCooldown(this.currentShootingFrequency);
 			this.shootCooldown.reset();
 
-			bullets.add(BulletPool.getBullet(this.positionX + this.width / 2, 
-                    this.positionY + this.height, BULLET_SPEED));
-            return true;
+			this.shotCount++;
+			if (this.shotCount >= this.targetShotsForBurst) {
+				this.shoot3Burst(bullets);
+				resetBurstCounter();
+			} else {
+				bullets.add(BulletPool.getBullet(this.positionX + this.width / 2, 
+					this.positionY + this.height, BULLET_SPEED));
+			}
+			return true;
         }
         return false;
     }
+
+	/**
+     * Resets the shot counter and randomly assigns the next target count 
+	 * (between MIN_BURST_SHOTS and MAX_BURST_SHOTS) needed to trigger the burst attack.
+     */
+	private void resetBurstCounter() {
+		this.shotCount = 0;
+		int range = MAX_BURST_SHOTS - MIN_BURST_SHOTS + 1;
+		this.targetShotsForBurst = this.random.nextInt(range) + MIN_BURST_SHOTS;
+	}
+
+	/**
+     * Fires 3 bullets sequentially in a single attack by applying vertical Y offsets.
+     * 
+     * @param bullets General bullet set to add the new bullets to.
+     */
+	private void shoot3Burst(final Set<Bullet> bullets) {
+		int centerX = this.positionX + this.width / 2;
+		int startY = this.positionY + this.height;
+
+		bullets.add(BulletPool.getBullet(centerX, startY, BULLET_SPEED));
+		bullets.add(BulletPool.getBullet(centerX, startY - BULLET_GAP, BULLET_SPEED));
+		bullets.add(BulletPool.getBullet(centerX, startY - 2 * BULLET_GAP, BULLET_SPEED));
+	}
 }
