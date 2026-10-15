@@ -26,7 +26,7 @@ public class FinalBoss extends Entity {
 	/** To calculate the health points. */
 	private int hp;
 	/** The health points of the Final Boss. */
-	private static final int FINAL_BOSS_HP = 2;
+	private static final int FINAL_BOSS_HP = 5;
 
 
 	/** Point value awarded for hitting the Final Boss. */
