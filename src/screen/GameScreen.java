@@ -279,8 +279,8 @@ public class GameScreen extends Screen {
 	 *            Frames per second, frame rate at which the game is run.
 	 */
 	public GameScreen(final GameState gameState,
-			final GameSettings gameSettings, final boolean bonusLife,
-			final int width, final int height, final int fps) {
+					  final GameSettings gameSettings, final boolean bonusLife,
+					  final int width, final int height, final int fps) {
 		super(width, height, fps);
 
 		this.gameSettings = gameSettings;
@@ -316,6 +316,10 @@ public class GameScreen extends Screen {
 		// Skin chosen in Customize (GoG - Currency System).
 		this.skin = PurchaseManager.getInstance().getSelectedSkin();
 		this.ship.setSkinColor(this.skin.getColor());
+		// Ship look chosen in Customize (A1): only the sprite changes.
+		shop.ShapeSkin shape = PurchaseManager.getInstance()
+				.getSelectedShape(this.ship.getType());
+		this.ship.setShapeSprite(shape == null ? null : shape.getSprite());
 		// Appears each 10-30 seconds.
 		this.enemyShipSpecialCooldown = Core.getVariableCooldown(
 				BONUS_SHIP_INTERVAL, BONUS_SHIP_VARIANCE);
@@ -328,7 +332,7 @@ public class GameScreen extends Screen {
 		this.lowHealthActive = false;
 		this.bullets = new HashSet<Bullet>();
 		this.damageDim = new DamageDimEffect(900, 0.75f,
-        new java.awt.Color(150, 0, 0));  //new update dim effect
+				new java.awt.Color(150, 0, 0));  //new update dim effect
 		GameEvents.subscribe(GameEvents.Type.PLAYER_HIT, this.damageDim);
 		this.glitch = new GlitchEffect();
 		this.screenShake = new ScreenShake();
@@ -756,12 +760,12 @@ public class GameScreen extends Screen {
 						this.enemyShipSpecial.getPositionY());
 
 			enemyShipFormation.draw();
-      
-		// Hit sparkles: drawn while the shake offset is applied so they move
-		// with the game world, and clipped to the play area so they never
-		// cover the HUD. AUTHORED BY: VFX TEAM (Effection)
-		drawManager.drawParticles(this, this.particles,
-				SEPARATION_LINE_HEIGHT);
+
+			// Hit sparkles: drawn while the shake offset is applied so they move
+			// with the game world, and clipped to the play area so they never
+			// cover the HUD. AUTHORED BY: VFX TEAM (Effection)
+			drawManager.drawParticles(this, this.particles,
+					SEPARATION_LINE_HEIGHT);
 
 			for (Bullet bullet : this.bullets)
 				drawManager.drawEntity(bullet, bullet.getPositionX(),
@@ -818,7 +822,7 @@ public class GameScreen extends Screen {
 		if (!this.paused && !this.inputDelay.checkFinished()) {
 			int countdown = (int) ((INPUT_DELAY
 					- (System.currentTimeMillis()
-							- this.gameStartTime)) / 1000);
+					- this.gameStartTime)) / 1000);
 			drawManager.drawCountDown(this, this.level, countdown,
 					this.bonusLife);
 			drawManager.drawHorizontalLine(this, this.height / 2 - this.height
@@ -876,7 +880,7 @@ public class GameScreen extends Screen {
 			particle.update();
 		this.particles.removeIf(particle -> particle.isDead()
 				|| !particle.isInside(0, SEPARATION_LINE_HEIGHT,
-						this.width, this.height));
+				this.width, this.height));
 	}
 
 	/**
@@ -942,9 +946,9 @@ public class GameScreen extends Screen {
 					this.screenShake.trigger();
 					// Bonus points popup. AUTHORED BY: VFX TEAM (Effection)
 					this.pointsEffect.spawnBonus(
-						this.enemyShipSpecial.getPositionX() + this.enemyShipSpecial.getWidth() / 2,
-						this.enemyShipSpecial.getPositionY() + this.enemyShipSpecial.getHeight() / 2,
-						this.enemyShipSpecial.getPointValue());
+							this.enemyShipSpecial.getPositionX() + this.enemyShipSpecial.getWidth() / 2,
+							this.enemyShipSpecial.getPositionY() + this.enemyShipSpecial.getHeight() / 2,
+							this.enemyShipSpecial.getPointValue());
 					queueScoreBoostPopup(this.enemyShipSpecial, true); // Item System (Team CS)
 					dropCoin(this.enemyShipSpecial, BONUS_COIN_VALUE);
 					this.items.onEnemyDefeated(this.enemyShipSpecial, true);
@@ -1054,7 +1058,7 @@ public class GameScreen extends Screen {
 	 *            Whether it is the bonus ship (uses its own popup style).
 	 */
 	private void queueScoreBoostPopup(final EnemyShip enemy,
-			final boolean bonusShip) {
+									  final boolean bonusShip) {
 		int extra = this.items.scoreBonus(enemy.getPointValue());
 		if (extra <= 0)
 			return;
