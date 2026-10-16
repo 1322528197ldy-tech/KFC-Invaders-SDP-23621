@@ -32,7 +32,7 @@ Detailed Code Explanation
 
 private static final int FINAL_BOSS_POINTS = 5000; // Points on kill
 private static final int FINAL_BOSS_POINTS_HIT = 300; // Points per hit
-private static final int FINAL_BOSS_HP = 3; // (MidBoss has 2)
+private static final int FINAL_BOSS_HP = 5; // (MidBoss has 2)
 private static final int MIN_SHOOTING_RATE = 250; // The minimum cooldown time limit
 private static final int DECLINE_RATE = 50; // Cooldown reduction per shot
 private static int BULLET_SPEED = 5; // Speed of the bullet
@@ -52,7 +52,7 @@ Initializes the boss object with its starting position, sprite image, HP, point 
 public final void update()
 
 
-Swaps the sprite image (e.g., FinalBoss_1 ↔ FinalBoss_2) every 500ms when the animationCooldown finishes. This creates a continuous moving or glowing animation effect for the boss.
+Swaps the sprite image (e.g., FinalBoss1 ↔ FinalBoss2) every 500ms when the animationCooldown finishes. This creates a continuous moving or glowing animation effect for the boss.
 
 4. Taking Damage & Destruction (takeDamage, destroy)
 
