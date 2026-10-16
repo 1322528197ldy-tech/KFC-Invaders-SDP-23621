@@ -1,13 +1,30 @@
-# Boss encounter integration
+# Boss integration testing
 
-Stages 5 and 10 use a two-hit bouncing boss. Stage 10 is a mid-boss placeholder, not a completed dedicated final boss. Boss movement settings are pixels per update (5 and 8); normal formations use movement intervals.
+Stage 5 uses MidBoss (2 HP, 100 per hit + 1000 defeat = 1200 total).
+Stage 10 uses FinalBoss (5 HP, 300 per hit + 5000 defeat = 6500 total),
+with a 24x16 graphic scaled to a matching 48x32 collision box.
+Both bounce within the play area. FinalBoss fires one downward shot normally,
+then a three-projectile vertical train every random 3–5 firing cycles.
+The three projectiles share one X coordinate and are spaced 15 pixels vertically.
+The firing cooldown accelerates with floors of 500ms (mid) and 250ms (final).
 
-Each hit gives 100 points and defeat gives 1000 once: two hits total 1200. Shooting starts after the stage cooldown and accelerates by 30ms per shot to a 500ms floor. Freeze blocks movement, following the existing item policy.
+## Manual checks
 
-Check boss defeat, transition to Stage 6/final score, one kill credit, pending diamonds once, first-boss and Stage 10 achievements, item shield/freeze and game-over animation. Death must not award clear diamonds. Normal enemy/bonus coin drops, item drops, particles and shake must remain intact.
+- Play Stage 5 and Stage 10; verify correct boss graphic, movement, hits and score.
+- Check single-shot/train patterns, stage transition and one clear reward.
+- Verify purchased ships/skins, pause/resume/restart, item freeze/shield,
+  ordinary enemy drops/VFX and coin refund on restart.
+- Verify first-boss achievement and game over without normal formation errors.
+- Human balance testing remains necessary; splitting/summoning are not included.
 
-The ship selection screen currently previews ship variants but does not connect a selected model to a run in upstream. This PR preserves that baseline; Fleet Master roster/selection wiring remains with the owning teams.
+## Automated checks
 
-## Automated offscreen checks (Java 17)
+Java 17 production compilation; KfcBossChecks (62), KfcSyncChecks (27),
+KfcBurstChecks (61): 150 checks on this isolated boss/progression tree.
+Use a fresh temporary classes/save directory with res on the classpath.
+The tutorial is deliberately excluded; it remains in upstream PR #140.
+This branch includes the progression dependency from #141.
+Achievement conditions retain the course baseline pending Mantis coordination.
 
-Run in a fresh temporary classes directory so generated player profiles are isolated from real saves. The harness uses an offscreen frame adapter; it is not a human playthrough. Compile production sources first, then `tests/kfc/KfcBossChecks.java` against them, and run `KfcBossChecks <temporary-screenshot-directory>` with `res` on the classpath. Test-only Unsafe warnings are expected on Java 17.
+Authors: Donghee's internal KFC #22/#23 and earlier KFC boss integration.
+See Boss_Final.md and Boss_Mid.md for the technical details.

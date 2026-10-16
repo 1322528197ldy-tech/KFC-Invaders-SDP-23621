@@ -24,13 +24,17 @@ import engine.Achievement;
 import engine.DamageDimEffect;
 import engine.GameEvents;
 import engine.GlitchEffect;
+import engine.PurchaseManager;
 import engine.ScreenShake;
+import engine.PointsEffect;
 import entity.Bullet;
 import entity.BulletPool;
 import entity.Coin;
 import entity.CoinPool;
 import entity.EnemyShip;
-import entity.EnemyShipBoss;
+import entity.Boss;
+import entity.MidBoss;
+import entity.FinalBoss;
 import entity.EnemyShipFormation;
 import entity.Entity;
 import entity.Particle;
@@ -98,6 +102,56 @@ public class GameScreen extends Screen {
 	private static final int COIN_VALUE = 1;
 	/** Coins guaranteed when the special bonus ship is destroyed. */
 	private static final int BONUS_COIN_VALUE = 5;
+	/** Delay before the extra score boost popup follows the normal one (ms, Team CS). */
+	private static final int SCORE_BOOST_POPUP_DELAY = 250;
+	/** The extra score boost popup starts this much lower, so the two can be told apart (px, Team CS). */
+	private static final int SCORE_BOOST_POPUP_OFFSET_Y = 14;
+	/** Minimum time between two pause-key toggles, to debounce the key. */
+	private static final int PAUSE_KEY_DEBOUNCE = 200;
+	/** Minimum time between two pause-menu cursor moves. */
+	private static final int PAUSE_SELECTION_DEBOUNCE = 200;
+
+	/**
+	 * Options listed in the pause menu, in the order they are drawn.
+	 */
+	private enum PauseOption {
+		/** Closes the pause menu and continues the level. */
+		RESUME("Resume"),
+		/** Restarts the current level from the beginning. */
+		RESTART("Restart"),
+		/** Ends the run and returns to the score / main menu flow. */
+		QUIT("Quit to menu");
+
+		/** Text drawn for this option. */
+		private final String label;
+
+		PauseOption(final String label) {
+			this.label = label;
+		}
+
+		/**
+		 * @return Text drawn for this option.
+		 */
+		private String getLabel() {
+			return this.label;
+		}
+
+		/**
+		 * @return Option below this one, wrapping around to the top.
+		 */
+		private PauseOption next() {
+			PauseOption[] values = values();
+			return values[(this.ordinal() + 1) % values.length];
+		}
+
+		/**
+		 * @return Option above this one, wrapping around to the bottom.
+		 */
+		private PauseOption previous() {
+			PauseOption[] values = values();
+			return values[(this.ordinal() - 1 + values.length) % values.length];
+		}
+	}
 
 	/** Current game difficulty settings. */
 	private GameSettings gameSettings;
@@ -144,6 +198,10 @@ public class GameScreen extends Screen {
 	private Set<Bullet> bullets;
 	/** Set of coins currently dropped and falling on screen. */
 	private Set<Coin> coins;
+	/** Coins picked up since this level (or its last restart) began. They
+	 * are already banked in CurrencyManager, so a restart has to take them
+	 * back, or restarting would be a free coin farm. */
+	private int coinsCollectedThisLevel;
 	/** Decides, with a low configurable chance, whether a kill drops a
 	 * coin, so currency income doesn't scale 1:1 with kills. */
 	private CoinDropManager coinDropManager;
@@ -178,16 +236,42 @@ public class GameScreen extends Screen {
 	private GlitchEffect glitch;
 	/** Screen shake when an enemy is destroyed. */
 	private ScreenShake screenShake;
+	/** Points shown when enemies are destroyed. AUTHORED BY: VFX TEAM (Effection) */
+	private PointsEffect pointsEffect;
 	/** Diamonds earned this run but not yet cashed out; lost on death,
 	 * banked into DiamondManager only when the player cashes out. */
 	private int pendingDiamonds;
+	/** Score boost popups waiting to be shown (Team CS): {due time, x, y, points, bonus ship 1/0}. */
+	private List<long[]> scoreBoostPopups;
 	/** Item system of this run (Team CS). Kept across levels by ItemSystem. */
 	private ItemSystem items;
 	/** Item slot keys (1-9) held last frame, so holding a key uses it once. */
 	private boolean[] itemSlotKeysHeld = new boolean[9];
+	/** Skin chosen in Customize; animated skins change colour each frame (GoG). */
+	private shop.Skin skin;
+	/** Whether gameplay is currently paused. */
+	private boolean paused;
+	/** Debounces the pause key so holding it doesn't toggle every frame. */
+	private Cooldown pauseKeyCooldown;
+	/** Debounces cursor moves in the pause menu. */
+	private Cooldown pauseSelectionCooldown;
+	/** Option the cursor is on in the pause menu. */
+	private PauseOption pauseSelection;
+	/** Score the level started with, restored by "Restart". */
+	private final int initialScore;
+	/** Lives the level started with (bonus life included), restored by
+	 * "Restart". */
+	private final int initialLives;
+	/** Bullets-shot count the level started with, restored by "Restart". */
+	private final int initialBulletsShot;
+	/** Ships-destroyed count the level started with, restored by
+	 * "Restart". */
+	private final int initialShipsDestroyed;
+	/** Pending diamonds the level started with, restored by "Restart". */
+	private final int initialPendingDiamonds;
 
 	/** Boss encounter; normal stages use enemyShipFormation instead. */
-	private EnemyShipBoss midBoss;
+	private Boss midBoss;
 
 	/**
 	 * Constructor, establishes the properties of the screen.
@@ -220,6 +304,14 @@ public class GameScreen extends Screen {
 		this.bulletsShot = gameState.getBulletsShot();
 		this.shipsDestroyed = gameState.getShipsDestroyed();
 		this.pendingDiamonds = gameState.getPendingDiamonds();
+
+		// Snapshot of how the level started, so "Restart" has something to
+		// come back to.
+		this.initialScore = this.score;
+		this.initialLives = this.lives;
+		this.initialBulletsShot = this.bulletsShot;
+		this.initialShipsDestroyed = this.shipsDestroyed;
+		this.initialPendingDiamonds = this.pendingDiamonds;
 	}
 
 	/**
@@ -229,16 +321,21 @@ public class GameScreen extends Screen {
 		super.initialize();
 
 		// Initialize the player in both boss and normal stages.
-		this.ship = new Ship(this.width / 2, this.height - 30);
+		this.ship = new Ship(this.width / 2, this.height - 30,
+				Core.getSelectedShipType());
 
-		// Stage 10 temporarily reuses the Stage 5 boss; a final boss is separate work.
+		// Distinct mid-boss and final boss encounters.
 		if (this.level == 5 || this.level == 10) {
-			this.midBoss = new EnemyShipBoss(this.width / 2 - 16, 60,
-					DrawManager.SpriteType.MidBoss1);
+			this.midBoss = this.level == 5
+					? new MidBoss(this.width / 2 - 16, 60, DrawManager.SpriteType.MidBoss1)
+					: new FinalBoss(this.width / 2 - 24, 60, DrawManager.SpriteType.FinalBoss1);
 		} else {
 			this.enemyShipFormation = new EnemyShipFormation(this.gameSettings);
 			this.enemyShipFormation.attach(this);
 		}
+		// Skin chosen in Customize (GoG - Currency System).
+		this.skin = PurchaseManager.getInstance().getSelectedSkin();
+		this.ship.setSkinColor(this.skin.getColor());
 		// Appears each 10-30 seconds.
 		this.enemyShipSpecialCooldown = Core.getVariableCooldown(
 				BONUS_SHIP_INTERVAL, BONUS_SHIP_VARIANCE);
@@ -255,9 +352,15 @@ public class GameScreen extends Screen {
 		GameEvents.subscribe(GameEvents.Type.PLAYER_HIT, this.damageDim);
 		this.glitch = new GlitchEffect();
 		this.screenShake = new ScreenShake();
+		this.pointsEffect = new PointsEffect(SEPARATION_LINE_HEIGHT);
+		this.scoreBoostPopups = new ArrayList<long[]>(); // Item System (Team CS)
 		this.coins = new HashSet<Coin>();
+		this.coinsCollectedThisLevel = 0;
 		this.achievementPopupQueue = new LinkedList<Achievement>();
 		this.coinDropManager = new CoinDropManager();
+		this.pauseKeyCooldown = Core.getCooldown(PAUSE_KEY_DEBOUNCE);
+		this.pauseSelectionCooldown = Core.getCooldown(PAUSE_SELECTION_DEBOUNCE);
+		this.pauseSelection = PauseOption.RESUME;
 
 		// Item System (Team CS): level 1 starts a new run, later levels keep it.
 		this.items = ItemSystem.forLevel(this.level);
@@ -313,9 +416,28 @@ public class GameScreen extends Screen {
 	 */
 	protected final void update() {
 		super.update();
-		// Item System (Team CS): item bonuses on top of the base fire rate/bullet speed.
-		this.ship.setItemBonuses(this.items.fireRateBonus(),
-				this.items.bulletSpeedBonus());
+		// Item System (Team CS): item bonuses on top of the base fire rate,
+		// bullet speed and movement speed (stacks and the boost item).
+		this.ship.setItemBonuses(
+				this.items.fireRateBonus(this.ship.getBaseFireRate()),
+				this.items.bulletSpeedBonus(),
+				this.items.movementSpeedBonus(this.ship.getBaseSpeed()));
+		// Animated skins (GoG); plain skins return the same colour.
+		this.ship.setSkinColor(this.skin.colorAt(System.currentTimeMillis()));
+
+		if (inputManager.isKeyDown(KeyEvent.VK_P)
+				&& this.pauseKeyCooldown.checkFinished()) {
+			this.paused = !this.paused;
+			this.pauseKeyCooldown.reset();
+			this.pauseSelection = PauseOption.RESUME;
+			this.logger.info(this.paused ? "Game paused" : "Game resumed");
+		}
+
+		if (this.paused) {
+			updatePauseMenu();
+			draw();
+			return;
+		}
 
 		if (this.inputDelay.checkFinished() && !this.levelFinished) {
 
@@ -382,6 +504,7 @@ public class GameScreen extends Screen {
 				&& !this.levelFinished && this.lives > 0
 				&& !this.ship.isDestroyed());
 		manageCollisions();
+		showScoreBoostPopups(); // Item System (Team CS)
 		cleanBullets();
 		updateParticles(); // AUTHORED BY: VFX TEAM (Effection)
 		updateCoins();
@@ -412,6 +535,12 @@ public class GameScreen extends Screen {
 				collectRemainingCoins();
 				showUnlockedAchievement(Core.getAchievementManager()
 						.recordLevelCompleted(this.level));
+
+				showUnlockedAchievement(Core.getAchievementManager()
+						.recordLevelCompleted(
+								this.level,
+								Core.getShipId(this.ship.getType()),
+								true));
 
 				// Last level cleared alive: the game is beaten.
 				if (this.level == Core.getNumLevels())
@@ -574,64 +703,154 @@ public class GameScreen extends Screen {
 	}
 
 	/**
+	 * Handles cursor movement and selection while the pause menu is open.
+	 */
+	private void updatePauseMenu() {
+		if (!this.pauseSelectionCooldown.checkFinished())
+			return;
+
+		if (inputManager.isKeyDown(KeyEvent.VK_UP)
+				|| inputManager.isKeyDown(KeyEvent.VK_W)) {
+			this.pauseSelection = this.pauseSelection.previous();
+			this.pauseSelectionCooldown.reset();
+		} else if (inputManager.isKeyDown(KeyEvent.VK_DOWN)
+				|| inputManager.isKeyDown(KeyEvent.VK_S)) {
+			this.pauseSelection = this.pauseSelection.next();
+			this.pauseSelectionCooldown.reset();
+		} else if (inputManager.isKeyDown(KeyEvent.VK_SPACE)) {
+			this.pauseSelectionCooldown.reset();
+			confirmPauseSelection();
+		}
+	}
+
+	/**
+	 * Carries out whichever pause menu option the cursor was on.
+	 */
+	private void confirmPauseSelection() {
+		switch (this.pauseSelection) {
+			case RESUME:
+				this.paused = false;
+				break;
+			case RESTART:
+				restartLevel();
+				break;
+			case QUIT:
+				// No dedicated "abandon" path exists in the screen flow,
+				// but ending the run the same way running out of lives
+				// does takes us straight to the existing score screen,
+				// which already offers "back to menu" / "play again".
+				this.lives = 0;
+				this.paused = false;
+				break;
+			default:
+				break;
+		}
+	}
+
+	/**
+	 * Restarts the current level: score, lives, bullets shot, ships
+	 * destroyed and pending diamonds go back to what they were when the
+	 * level began, and every on-screen element is rebuilt from scratch.
+	 */
+	private void restartLevel() {
+		this.score = this.initialScore;
+		this.lives = this.initialLives;
+		this.bulletsShot = this.initialBulletsShot;
+		this.shipsDestroyed = this.initialShipsDestroyed;
+		this.pendingDiamonds = this.initialPendingDiamonds;
+		refundCoinsCollectedThisLevel();
+		this.levelFinished = false;
+		initialize();
+		this.paused = false;
+	}
+
+	/**
 	 * Draws the elements associated with the screen.
 	 */
 	private void draw() {
 		drawManager.initDrawing(this);
 
-		// Screen shake: move game world only. AUTHORED BY: VFX TEAM (Effection)
-		this.screenShake.update();
-		drawManager.setWorldOffset(this.screenShake.getOffsetX(),
-				this.screenShake.getOffsetY());
+		if (!this.paused) {
+			// Screen shake: move game world only. AUTHORED BY: VFX TEAM (Effection)
+			this.screenShake.update();
+			drawManager.setWorldOffset(this.screenShake.getOffsetX(),
+					this.screenShake.getOffsetY());
 
-		drawManager.drawEntity(this.ship, this.ship.getPositionX(),
-				this.ship.getPositionY());
-		drawManager.drawItemShield(this.ship, this.items); // Item System (Team CS)
-		if (this.enemyShipSpecial != null)
-			drawManager.drawEntity(this.enemyShipSpecial,
-					this.enemyShipSpecial.getPositionX(),
-					this.enemyShipSpecial.getPositionY());
+			// Ship, enemies, bullets and falling coins are hidden while
+			// paused, so the pause menu isn't cluttered by the frozen
+			// battlefield behind it - only the top HUD stays visible.
+			drawManager.drawEntity(this.ship, this.ship.getPositionX(),
+					this.ship.getPositionY());
+			drawManager.drawItemShield(this.ship, this.items); // Item System (Team CS)
+			if (this.enemyShipSpecial != null)
+				drawManager.drawEntity(this.enemyShipSpecial,
+						this.enemyShipSpecial.getPositionX(),
+						this.enemyShipSpecial.getPositionY());
 
-		if (this.midBoss != null) {
-			drawManager.drawEntity(this.midBoss, this.midBoss.getPositionX(),
+if (this.midBoss != null) {
+			drawManager.drawEntity((Entity) this.midBoss, this.midBoss.getPositionX(),
 					this.midBoss.getPositionY());
 		} else {
 			this.enemyShipFormation.draw();
 		}
-		// Hit sparkles. AUTHORED BY: VFX TEAM (Effection)
-		for (Particle particle : this.particles)
-			drawManager.drawParticle(particle);
+
+		// Hit sparkles move with the game world.
+		drawManager.drawParticles(this, this.particles,
+				SEPARATION_LINE_HEIGHT);
 
 		for (Bullet bullet : this.bullets)
 			drawManager.drawEntity(bullet, bullet.getPositionX(),
 					bullet.getPositionY());
+
 		// Stop shake offset before full-screen dim.
 		drawManager.setWorldOffset(0, 0);
-		// Damage dim (under HUD, so score/lives stay bright). AUTHORED BY: VFX TEAM (Effection)
 		drawManager.drawDamageDim(this, this.damageDim);
 
-		// Coins are part of the game world, so they shake too.
-		drawManager.setWorldOffset(this.screenShake.getOffsetX(),
-				this.screenShake.getOffsetY());
-		for (Coin coin : this.coins)
-			drawManager.drawCoin(coin, coin.getPositionX(),
-					coin.getPositionY());
-		drawManager.drawItemDrops(this.items); // Item System (Team CS)
-		// HUD must stay still: remove shake offset.
-		drawManager.setWorldOffset(0, 0);
+			// Coins are part of the game world, so they shake too.
+			drawManager.setWorldOffset(this.screenShake.getOffsetX(),
+					this.screenShake.getOffsetY());
+			for (Coin coin : this.coins)
+				drawManager.drawCoin(coin, coin.getPositionX(),
+						coin.getPositionY());
+			drawManager.drawItemDrops(this.items); // Item System (Team CS)
+			// HUD must stay still: remove shake offset.
+			drawManager.setWorldOffset(0, 0);
+		}
+
+		// Points popups (above the dim, under the HUD). AUTHORED BY: VFX TEAM (Effection)
+		drawManager.drawPointsEffect(this, this.pointsEffect);
 
 		// Interface.
 		drawManager.drawScore(this, this.score);
 		drawManager.drawLives(this, this.lives);
+		drawManager.drawLevel(this, this.level);
+		// Explicit Y (36, not the 25 default): the level indicator now
+		// sits centred at y=14, and the coin icon is tall enough that at
+		// y=25 it climbs into the level text above it. Dropping it to its
+		// own row below clears both.
 		drawManager.drawCoinBalance(this, CurrencyManager.getInstance()
-				.getCoins());
+				.getCoins(), 36);
+		drawManager.drawDiamonds(this, engine.DiamondManager.getInstance()
+				.getDiamonds());
 		drawManager.drawHorizontalLine(this, SEPARATION_LINE_HEIGHT - 1);
 		drawManager.drawItemHud(this, this.items); // Item System (Team CS)
 		// Low-health glitch (covers game + HUD). AUTHORED BY: VFX TEAM (Effection)
 		this.glitch.setEnabled(this.lowHealthActive && !this.levelFinished);
 		drawManager.drawGlitch(this, this.glitch);
-		// Countdown to game start.
-		if (!this.inputDelay.checkFinished()) {
+
+		if (this.paused) {
+			String[] options = { PauseOption.RESUME.getLabel(),
+					PauseOption.RESTART.getLabel(),
+					PauseOption.QUIT.getLabel() };
+			drawManager.drawPauseMenu(this, options,
+					this.pauseSelection.ordinal());
+			drawManager.drawKeyHints(this,
+					"w+s / arrows to move, space to select");
+		}
+
+		// Countdown to game start (skipped while paused, so the pause menu
+		// stays visible instead of being painted over).
+		if (!this.paused && !this.inputDelay.checkFinished()) {
 			int countdown = (int) ((INPUT_DELAY
 					- (System.currentTimeMillis()
 							- this.gameStartTime)) / 1000);
@@ -663,6 +882,8 @@ public class GameScreen extends Screen {
 
 	/**
 	 * Scatters sparkles from the center of a destroyed ship.
+	 * Must be called BEFORE the ship is destroyed, while its position and
+	 * size are still valid.
 	 * AUTHORED BY: VFX TEAM (Effection)
 	 *
 	 * @param ship
@@ -679,13 +900,18 @@ public class GameScreen extends Screen {
 	}
 
 	/**
-	 * Moves the sparkles and removes the ones that faded away.
+	 * Moves the sparkles and removes the ones that faded away or left the
+	 * play area. Called every frame, outside the levelFinished gate, so
+	 * sparkles keep fading after a level ends instead of piling up.
+	 * Removal happens after the update loop, never during iteration.
 	 * AUTHORED BY: VFX TEAM (Effection)
 	 */
 	private void updateParticles() {
 		for (Particle particle : this.particles)
 			particle.update();
-		this.particles.removeIf(Particle::isDead);
+		this.particles.removeIf(particle -> particle.isDead()
+				|| !particle.isInside(0, SEPARATION_LINE_HEIGHT,
+						this.width, this.height));
 	}
 
 	/**
@@ -725,7 +951,7 @@ public class GameScreen extends Screen {
 				if (this.level == 5 || this.level == 10) {
 					if (this.midBoss != null
 							&& !this.midBoss.isDestroyed()
-							&& checkCollision(bullet, this.midBoss)) {
+							&& checkCollision(bullet, (Entity) this.midBoss)) {
 						this.score += this.midBoss.manageCollisionsBoss(bullet);
 						if (this.midBoss.isDestroyed()) {
 							this.shipsDestroyed++;
@@ -738,29 +964,41 @@ public class GameScreen extends Screen {
 						recyclable.add(bullet);
 					}
 				} else {
-					for (EnemyShip enemyShip : this.enemyShipFormation)
+					for (EnemyShip enemyShip : this.enemyShipFormation) {
 						if (!enemyShip.isDestroyed()
 								&& checkCollision(bullet, enemyShip)) {
-							this.score += enemyShip.getPointValue();
+							this.score += this.items.scoreFor(enemyShip.getPointValue());
 							this.shipsDestroyed++;
 							spawnSparkles(enemyShip);
 							this.enemyShipFormation.destroy(enemyShip);
 							this.screenShake.trigger();
-							this.items.onEnemyDefeated(enemyShip, false);
+							this.pointsEffect.spawn(
+									enemyShip.getPositionX() + enemyShip.getWidth() / 2,
+									enemyShip.getPositionY() + enemyShip.getHeight() / 2,
+									enemyShip.getPointValue());
+							queueScoreBoostPopup(enemyShip, false); // Item System (Team CS)
 							maybeDropCoin(enemyShip);
+							this.items.onEnemyDefeated(enemyShip, false);
 							showUnlockedAchievement(Core.getAchievementManager()
 									.recordEnemyDefeated());
 							recyclable.add(bullet);
 						}
+					}
 				}
 				if (this.enemyShipSpecial != null
 						&& !this.enemyShipSpecial.isDestroyed()
 						&& checkCollision(bullet, this.enemyShipSpecial)) {
-					this.score += this.enemyShipSpecial.getPointValue();
+					this.score += this.items.scoreFor(this.enemyShipSpecial.getPointValue()); // score boost (Team CS)
 					this.shipsDestroyed++;
 					spawnSparkles(this.enemyShipSpecial); // AUTHORED BY: VFX TEAM (Effection)
 					this.enemyShipSpecial.destroy();
 					this.screenShake.trigger();
+					// Bonus points popup. AUTHORED BY: VFX TEAM (Effection)
+					this.pointsEffect.spawnBonus(
+						this.enemyShipSpecial.getPositionX() + this.enemyShipSpecial.getWidth() / 2,
+						this.enemyShipSpecial.getPositionY() + this.enemyShipSpecial.getHeight() / 2,
+						this.enemyShipSpecial.getPointValue());
+					queueScoreBoostPopup(this.enemyShipSpecial, true); // Item System (Team CS)
 					dropCoin(this.enemyShipSpecial, BONUS_COIN_VALUE);
 					this.items.onEnemyDefeated(this.enemyShipSpecial, true);
 					showUnlockedAchievement(Core.getAchievementManager()
@@ -814,6 +1052,7 @@ public class GameScreen extends Screen {
 			if (this.lives > 0 && !this.ship.isDestroyed()
 					&& checkCollision(coin, this.ship)) {
 				CurrencyManager.getInstance().addCoins(coin.getValue());
+				this.coinsCollectedThisLevel += coin.getValue();
 				recyclable.add(coin);
 				this.logger.info("Coin collected, balance: "
 						+ CurrencyManager.getInstance().getCoins());
@@ -823,6 +1062,25 @@ public class GameScreen extends Screen {
 		}
 		this.coins.removeAll(recyclable);
 		CoinPool.recycle(recyclable);
+	}
+
+	/**
+	 * Undoes this attempt's coin income when the level is restarted, the
+	 * same way score and pending diamonds go back to their starting values,
+	 * and returns coins still falling to the pool instead of dropping them.
+	 * Never takes more than the current balance, so it can't go negative.
+	 */
+	private void refundCoinsCollectedThisLevel() {
+		CurrencyManager wallet = CurrencyManager.getInstance();
+		int refund = Math.min(this.coinsCollectedThisLevel, wallet.getCoins());
+		if (refund > 0) {
+			wallet.trySpend(refund);
+			this.logger.info("Level restarted, took back " + refund
+					+ " coins, balance: " + wallet.getCoins());
+		}
+		this.coinsCollectedThisLevel = 0;
+		CoinPool.recycle(this.coins);
+		this.coins.clear();
 	}
 
 	/**
@@ -836,6 +1094,7 @@ public class GameScreen extends Screen {
 		for (Coin coin : this.coins)
 			total += coin.getValue();
 		CurrencyManager.getInstance().addCoins(total);
+		this.coinsCollectedThisLevel += total;
 		this.logger.info("Level cleared, collected " + total
 				+ " remaining coins, balance: "
 				+ CurrencyManager.getInstance().getCoins());
@@ -855,6 +1114,48 @@ public class GameScreen extends Screen {
 			if (down && !this.itemSlotKeysHeld[slot])
 				this.items.useSlot(slot);
 			this.itemSlotKeysHeld[slot] = down;
+		}
+	}
+
+	/**
+	 * While a score boost is on, the normal points popup shows the base
+	 * points and a second popup with the extra points follows a moment
+	 * later, a little lower (Team CS). The score itself already includes
+	 * the extra points.
+	 *
+	 * @param enemy
+	 *            Enemy that was just destroyed.
+	 * @param bonusShip
+	 *            Whether it is the bonus ship (uses its own popup style).
+	 */
+	private void queueScoreBoostPopup(final EnemyShip enemy,
+			final boolean bonusShip) {
+		int extra = this.items.scoreBonus(enemy.getPointValue());
+		if (extra <= 0)
+			return;
+		this.scoreBoostPopups.add(new long[] {
+				System.currentTimeMillis() + SCORE_BOOST_POPUP_DELAY,
+				enemy.getPositionX() + enemy.getWidth() / 2,
+				enemy.getPositionY() + enemy.getHeight() / 2
+						+ SCORE_BOOST_POPUP_OFFSET_Y, extra,
+				bonusShip ? 1 : 0 });
+	}
+
+	/** Shows the queued score boost popups whose time has come (Team CS). */
+	private void showScoreBoostPopups() {
+		long now = System.currentTimeMillis();
+		Iterator<long[]> iterator = this.scoreBoostPopups.iterator();
+		while (iterator.hasNext()) {
+			long[] popup = iterator.next();
+			if (popup[0] > now)
+				continue;
+			if (popup[4] == 1)
+				this.pointsEffect.spawnBonus((int) popup[1], (int) popup[2],
+						(int) popup[3]);
+			else
+				this.pointsEffect.spawn((int) popup[1], (int) popup[2],
+						(int) popup[3]);
+			iterator.remove();
 		}
 	}
 
