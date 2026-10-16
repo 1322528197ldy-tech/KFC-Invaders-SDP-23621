@@ -62,7 +62,7 @@ public final boolean shoot(final Set<Bullet> bullets, final GameSettings gameSet
 
 Increments shotCount on each valid shooting cycle.
 
-Executes shoot3Burst(bullets) when shotCount >= targetShotsForBurst, spawning 3 vertical bullets sequentially and invoking resetBurstCounter().
+Executes shoot3Burst(bullets) when shotCount >= targetShotsForBurst, spawning 3 vertically spaced bullets in the same shooting cycle and invoking resetBurstCounter().
 
 Otherwise, fires a standard single bullet.
 

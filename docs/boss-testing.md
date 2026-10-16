@@ -28,3 +28,5 @@ Achievement conditions retain the course baseline pending Mantis coordination.
 
 Authors: Donghee's internal KFC #22/#23 and earlier KFC boss integration.
 See Boss_Final.md and Boss_Mid.md for the technical details.
+
+The optional harnesses remain in the [KFC fork](https://github.com/1322528197ldy-tech/KFC-Invaders-SDP-23621/tree/47b9f1196e12de6b7196d8d39d348023104974f4/tests/kfc); they are not included in the course repository or its CI. Compile KfcBossChecks, KfcSyncChecks and KfcBurstChecks against this branch in a temporary classes directory. KfcSyncChecks and KfcBurstChecks extend KfcBossChecks. Do not run KfcProgressionChecks on this boss tree: it intentionally tests the standalone normal-wave version of #141.
