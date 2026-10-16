@@ -323,7 +323,7 @@ Same format as the ship sprites: `FileManager.loadSprite` reads each sprite colu
 **D1 · Long Barrels**
 
 ```text
-01101100111111101111111111111111011111110001111100011111000111110111111111111111111111111111111001101100
+00000111111111101111110111111110000111110000111100001111000011110001111111111110111111011111111000000111
 ```
 
 **D2 · Twin Spike**
@@ -340,6 +340,4 @@ Same format as the ship sprites: `FileManager.loadSprite` reads each sprite colu
 
 ## Open Items
 
-- **Skin system:** The game has no skin selection yet. Choosing a skin needs a place in the menu (for example the ship select screen) and a way to store the choice; unlocking skins with currency would be an integration with the Currency System team.
-- **Colour:** Every player ship is drawn in a single colour (`BASE_COLOR` in `Ship`, green). These skins change only the shape; skin colours would need a code change.
 - **Destruction sprites:** Like the original ships, the skins use the shared `ShipDestroyed` sprite when hit.
