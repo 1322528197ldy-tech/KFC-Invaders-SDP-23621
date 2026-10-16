@@ -90,8 +90,6 @@ public final class Core {
 	private static ConsoleHandler consoleHandler;
 	/** Persistent achievement progress manager. */
 	private static AchievementManager achievementManager;
-	/** Ship type chosen on the Customize screen, used for every run. */
-	private static Ship.ShipType selectedShipType = Ship.ShipType.STANDARD;
 
 
 	/**
@@ -387,7 +385,7 @@ public final class Core {
 	 * @return Achievement ID of the selected ship.
 	 */
 	public static String getSelectedShipId() {
-		return getShipId(selectedShipType);
+		return getShipId(getSelectedShipType());
 	}
 
 	/**
@@ -414,22 +412,25 @@ public final class Core {
 	}
 
 	/**
-	 * Returns the ship type chosen on the Customize screen.
+	 * Returns the ship type chosen on the Customize screen. It is kept by
+	 * PurchaseManager (GoG), so it is saved between launches and a ship
+	 * that has not been bought falls back to the Standard ship.
 	 *
 	 * @return Selected ship type.
 	 */
 	public static Ship.ShipType getSelectedShipType() {
-		return selectedShipType;
+		return PurchaseManager.getInstance().getSelectedShip();
 	}
 
 	/**
-	 * Remembers the ship type chosen on the Customize screen.
+	 * Remembers the ship type chosen on the Customize screen. Ships that
+	 * have not been bought in the Shop are ignored (GoG).
 	 *
 	 * @param shipType Ship type to use for the next runs.
 	 */
 	public static void setSelectedShipType(final Ship.ShipType shipType) {
 		if (shipType != null)
-			selectedShipType = shipType;
+			PurchaseManager.getInstance().selectShip(shipType);
 	}
 	/** @return Number of levels in the game. */
 	public static int getNumLevels() {

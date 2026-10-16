@@ -23,6 +23,7 @@ import java.util.logging.Logger;
 import entity.Ship.ShipType;
 import item.ItemSystem;
 import shop.Currency;
+import shop.NightMarket;
 import shop.ShopCatalog;
 import shop.ShopCategory;
 import shop.ShopItem;
@@ -37,8 +38,8 @@ import shop.Skin;
  * <pre>
  * PurchaseManager shop = PurchaseManager.getInstance();
  * // Item team
- * shop.getActiveUpgradeLevel("magnet"); // level while on, 0 when off/not bought
- * shop.getActiveUpgrades();             // every upgrade that is on, with its level
+ * shop.getActiveUpgradeLevel("magnet"); // 1 while on, 0 when off/not bought
+ * shop.getActiveUpgrades();             // the upgrade that is on (at most one), as 1
  * // Skin team
  * shop.getSelectedSkin();               // CLASSIC = default look
  * // Anyone
@@ -48,9 +49,10 @@ import shop.Skin;
  * <ul>
  * <li>Ships and skins: bought once. The chosen ship and skin (one at a
  * time) are the player's loadout, used by GameScreen.</li>
- * <li>Upgrades: bought up to their max level. On as soon as they are
- * bought; the player can switch each one off and on in Customize. Any
- * number can be on at once.</li>
+ * <li>Upgrades: bought once (no levels, Item System rule). On as soon as
+ * they are bought; the player can switch each one off and on in
+ * Customize. Only one can be on at once (Item System rule): switching one
+ * on switches the others off.</li>
  * <li>Skins and upgrades can be paid with coins or diamonds.</li>
  * </ul>
  *
@@ -70,13 +72,17 @@ public final class PurchaseManager {
 		INSUFFICIENT_FUNDS,
 		/** Ship or skin that is already owned; nothing changed. */
 		ALREADY_OWNED,
-		/** Upgrade already at its max level; nothing changed. */
+		/**
+		 * Upgrade already at its max level; nothing changed. Upgrades have no
+		 * levels any more (Item System rule), so they return ALREADY_OWNED
+		 * instead and this is not used now.
+		 */
 		MAX_LEVEL,
 		/** The entry cannot be paid with that currency; nothing changed. */
 		CURRENCY_NOT_ACCEPTED,
 		/** Entry is null or not in the catalog; nothing changed. */
 		UNKNOWN_ITEM,
-		/** Limited edition that is no longer sold; nothing changed. */
+		/** Limited edition or discount that is no longer on; nothing changed. */
 		NOT_ON_SALE,
 		/** The purchase could not be saved; the price was refunded. */
 		SAVE_FAILED
@@ -139,9 +145,7 @@ public final class PurchaseManager {
 	// --- Buying ---
 
 	/**
-	 * Buys an entry (or the next level of an upgrade). Checks and pays in
-	 * one call; nothing changes unless it returns SUCCESS. Buying an
-	 * upgrade switches it on.
+	 * Buys an entry (or the next level of an upgrade) at its normal price.
 	 *
 	 * @param item
 	 *            Entry to buy.
@@ -151,6 +155,24 @@ public final class PurchaseManager {
 	 */
 	public PurchaseResult purchase(final ShopItem item,
 			final Currency currency) {
+		return purchase(item, currency, false);
+	}
+
+	/**
+	 * Buys an entry (or the next level of an upgrade). Checks and pays in
+	 * one call; nothing changes unless it returns SUCCESS. Buying an
+	 * upgrade switches it on.
+	 *
+	 * @param item
+	 *            Entry to buy.
+	 * @param currency
+	 *            Currency to pay with.
+	 * @param nightMarket
+	 *            true to buy at today's Night Market discount.
+	 * @return What happened.
+	 */
+	public PurchaseResult purchase(final ShopItem item,
+			final Currency currency, final boolean nightMarket) {
 		if (item == null || ShopCatalog.findById(item.getId()) == null
 				|| currency == null)
 			return PurchaseResult.UNKNOWN_ITEM;
@@ -159,23 +181,27 @@ public final class PurchaseManager {
 					: PurchaseResult.ALREADY_OWNED;
 		if (!item.accepts(currency))
 			return PurchaseResult.CURRENCY_NOT_ACCEPTED;
-		if (!ShopCatalog.isOnSale(item, java.time.LocalDate.now()))
+		if (!ShopCatalog.isOnSale(item, java.time.LocalDate.now())
+				|| (nightMarket && !NightMarket.isListedToday(item)))
 			return PurchaseResult.NOT_ON_SALE;
 
-		int price = getPrice(item, currency);
+		int price = getPrice(item, currency, nightMarket);
 		if (!spend(currency, price))
 			return PurchaseResult.INSUFFICIENT_FUNDS;
 
 		int before = getQuantity(item);
-		boolean wasOff = this.upgradesOff.remove(item.getId());
+		Set<String> offBefore = new LinkedHashSet<String>(this.upgradesOff);
+		this.upgradesOff.remove(item.getId());
 		this.owned.put(item.getId(), before + 1);
+		List<ShopItem> switchedOff = item.getCategory() == ShopCategory.UPGRADE
+				? switchOtherUpgradesOff(item) : Collections.<ShopItem>emptyList();
 		if (!save()) {
 			if (before == 0)
 				this.owned.remove(item.getId());
 			else
 				this.owned.put(item.getId(), before);
-			if (wasOff)
-				this.upgradesOff.add(item.getId());
+			this.upgradesOff.clear();
+			this.upgradesOff.addAll(offBefore);
 			refund(currency, price);
 			this.logger.warning("Purchase of " + item.getId()
 					+ " could not be saved, refunded.");
@@ -190,12 +216,14 @@ public final class PurchaseManager {
 		if (item.getCategory() == ShopCategory.UPGRADE) {
 			this.lastSwitchedOn = item.getId();
 			upgradeChanged(item);
+			for (ShopItem other : switchedOff)
+				upgradeChanged(other);
 		}
 		return PurchaseResult.SUCCESS;
 	}
 
 	/**
-	 * Price of the next purchase of an entry.
+	 * Normal price of the next purchase of an entry.
 	 *
 	 * @param item
 	 *            Entry.
@@ -205,9 +233,27 @@ public final class PurchaseManager {
 	 *         accepted.
 	 */
 	public int getPrice(final ShopItem item, final Currency currency) {
+		return getPrice(item, currency, false);
+	}
+
+	/**
+	 * Price of the next purchase of an entry.
+	 *
+	 * @param item
+	 *            Entry.
+	 * @param currency
+	 *            Currency to pay with.
+	 * @param nightMarket
+	 *            true for today's Night Market price.
+	 * @return Price, or 0 if it is maxed, owned, or the currency is not
+	 *         accepted.
+	 */
+	public int getPrice(final ShopItem item, final Currency currency,
+			final boolean nightMarket) {
 		if (item == null || isMaxed(item) || !item.accepts(currency))
 			return 0;
-		return item.getPrice(currency, getQuantity(item));
+		int price = item.getPrice(currency, getQuantity(item));
+		return nightMarket ? NightMarket.discounted(price) : price;
 	}
 
 	/**
@@ -339,9 +385,10 @@ public final class PurchaseManager {
 	 * @return Ship id.
 	 */
 	public static String getShipId(final ShipType type) {
-		if (type == null || type == ShipType.STANDARD)
+		if (type == null)
 			return AchievementManager.STARTER_SHIP_ID;
-		return type.name().toLowerCase();
+		// One definition of the ids, shared with Core (Mantis).
+		return Core.getShipId(type);
 	}
 
 	// --- Upgrades, read by the Item System (Team CS) ---
@@ -349,7 +396,8 @@ public final class PurchaseManager {
 	/**
 	 * @param itemId
 	 *            Item System item id, e.g. "magnet".
-	 * @return Level bought, 0 if never bought.
+	 * @return Level bought, 0 if never bought. Upgrades have no levels any
+	 *         more (Item System rule), so this is 1 once bought.
 	 */
 	public int getUpgradeLevel(final String itemId) {
 		return getQuantity(upgrade(itemId));
@@ -370,7 +418,8 @@ public final class PurchaseManager {
 	 *
 	 * @param itemId
 	 *            Item System item id.
-	 * @return Level while switched on; 0 when off or not bought.
+	 * @return Level while switched on; 0 when off or not bought. Upgrades
+	 *         have no levels any more (Item System rule), so 1 means on.
 	 */
 	public int getActiveUpgradeLevel(final String itemId) {
 		return isUpgradeOn(itemId) ? getUpgradeLevel(itemId) : 0;
@@ -378,7 +427,8 @@ public final class PurchaseManager {
 
 	/**
 	 * @return Every upgrade that is on, as Item System item id to level, in
-	 *         shop order.
+	 *         shop order. Only one can be on and upgrades have no levels any
+	 *         more (Item System rule), so this holds at most one entry, at 1.
 	 */
 	public Map<String, Integer> getActiveUpgrades() {
 		Map<String, Integer> active = new LinkedHashMap<String, Integer>();
@@ -403,21 +453,25 @@ public final class PurchaseManager {
 			return false;
 		if (isUpgradeOn(itemId) == on)
 			return true;
-		if (on)
+		Set<String> offBefore = new LinkedHashSet<String>(this.upgradesOff);
+		List<ShopItem> switchedOff = Collections.<ShopItem>emptyList();
+		if (on) {
 			this.upgradesOff.remove(item.getId());
-		else
+			switchedOff = switchOtherUpgradesOff(item);
+		} else {
 			this.upgradesOff.add(item.getId());
+		}
 		if (!save()) {
-			if (on)
-				this.upgradesOff.add(item.getId());
-			else
-				this.upgradesOff.remove(item.getId());
+			this.upgradesOff.clear();
+			this.upgradesOff.addAll(offBefore);
 			return false;
 		}
 		if (on)
 			this.lastSwitchedOn = item.getId();
 		this.logger.info("Upgrade " + itemId + (on ? " on." : " off."));
 		upgradeChanged(item);
+		for (ShopItem other : switchedOff)
+			upgradeChanged(other);
 		return true;
 	}
 
@@ -468,6 +522,23 @@ public final class PurchaseManager {
 	}
 
 	/**
+	 * Item System rule: at most one upgrade is on. Switches every other
+	 * bought upgrade off.
+	 *
+	 * @param keepOn
+	 *            Upgrade that stays on.
+	 * @return Upgrades that were on and are now off.
+	 */
+	private List<ShopItem> switchOtherUpgradesOff(final ShopItem keepOn) {
+		List<ShopItem> switchedOff = new ArrayList<ShopItem>();
+		for (ShopItem other : ShopCatalog.getByCategory(ShopCategory.UPGRADE))
+			if (!other.getId().equals(keepOn.getId()) && isOwned(other)
+					&& this.upgradesOff.add(other.getId()))
+				switchedOff.add(other);
+		return switchedOff;
+	}
+
+	/**
 	 * Tells listeners and the Item System an upgrade changed.
 	 *
 	 * @param item
@@ -515,17 +586,22 @@ public final class PurchaseManager {
 
 	/**
 	 * Gear bought before upgrades existed was saved by the Item System.
-	 * Copies it over once, as level 1 and switched on.
+	 * Copies it over once, as level 1. Only the item that was equipped there
+	 * is switched on (Item System rule: one at a time); the rest are off.
 	 *
 	 * @return true if anything was copied.
 	 */
 	private boolean migrateOldGear() {
 		boolean copied = false;
 		try {
+			String equipped = ItemSystem.equippedItem() == null ? null
+					: ItemSystem.equippedItem().itemId;
 			for (ShopItem item : ShopCatalog.getByCategory(
 					ShopCategory.UPGRADE))
 				if (!isOwned(item) && ItemSystem.isOwned(item.getRef())) {
 					this.owned.put(item.getId(), 1);
+					if (!item.getRef().equals(equipped))
+						this.upgradesOff.add(item.getId());
 					copied = true;
 				}
 		} catch (RuntimeException e) {
@@ -599,6 +675,7 @@ public final class PurchaseManager {
 				int quantity = Integer.parseInt(saved.getProperty(key).trim());
 				ShopItem item = ShopCatalog.findById(id);
 				// Entries no longer sold (e.g. old power-up items) are dropped.
+				// Old upgrade levels (up to 3) load as 1: no levels any more.
 				if (quantity > 0 && item != null)
 					this.owned.put(id, Math.min(quantity, item.getMaxLevel()));
 			} catch (NumberFormatException e) {
@@ -623,8 +700,18 @@ public final class PurchaseManager {
 		if (!Boolean.parseBoolean(saved.getProperty(MIGRATED_KEY, "false"))) {
 			if (migrateOldGear())
 				this.logger.info("Copied gear from the old save as upgrades.");
-			save();
 		}
+		// Item System rule: at most one upgrade on (older saves may have
+		// several); the first one in shop order stays on.
+		boolean oneOn = false;
+		for (ShopItem item : ShopCatalog.getByCategory(ShopCategory.UPGRADE))
+			if (isUpgradeOn(item.getRef())) {
+				if (oneOn)
+					this.upgradesOff.add(item.getId());
+				oneOn = true;
+			}
+		if (!Boolean.parseBoolean(saved.getProperty(MIGRATED_KEY, "false")))
+			save();
 		this.logger.info("Loaded shop purchases.");
 	}
 
