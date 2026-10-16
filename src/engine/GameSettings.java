@@ -16,6 +16,8 @@ public class GameSettings {
 	private int baseSpeed;
 	/** Frequency of enemy shootings, +/- 30%. */
 	private int shootingFrecuency;
+	/** Whether the whole formation moves diagonally (Team A1). */
+	private boolean diagonalMovement;
 
 	/**
 	 * Constructor.
@@ -35,6 +37,28 @@ public class GameSettings {
 		this.formationHeight = formationHeight;
 		this.baseSpeed = baseSpeed;
 		this.shootingFrecuency = shootingFrecuency;
+		this.diagonalMovement = false;
+	}
+
+	/**
+	 * Constructor that also sets how the formation moves.
+	 * 
+	 * @param formationWidth
+	 *            Width of the level's enemy formation.
+	 * @param formationHeight
+	 *            Height of the level's enemy formation.
+	 * @param baseSpeed
+	 *            Speed of the enemies.
+	 * @param shootingFrecuency
+	 *            Frecuency of enemy shootings, +/- 30%.
+	 * @param diagonalMovement
+	 *            True if the whole formation moves diagonally.
+	 */
+	public GameSettings(final int formationWidth, final int formationHeight,
+			final int baseSpeed, final int shootingFrecuency,
+			final boolean diagonalMovement) {
+		this(formationWidth, formationHeight, baseSpeed, shootingFrecuency);
+		this.diagonalMovement = diagonalMovement;
 	}
 
 	/**
@@ -63,6 +87,13 @@ public class GameSettings {
 	 */
 	public final int getShootingFrecuency() {
 		return shootingFrecuency;
+	}
+	
+	/**
+	 * @return true if the formation moves diagonally
+	 */
+	public final boolean isDiagonalMovement() {
+		return diagonalMovement;
 	}
 
 }
