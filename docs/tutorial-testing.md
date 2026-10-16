@@ -61,4 +61,5 @@ upstream PR #90; other integration feedback is outside this change.
 
 ## Automated offscreen checks (Java 17)
 
-Run in a fresh temporary classes directory so generated player profiles are isolated from real saves. The harness uses an offscreen frame adapter; it is not a human playthrough. Compile production sources first, then `tests/kfc/KfcTutorialChecks.java` against them, and run `KfcTutorialChecks <temporary-screenshot-directory>` with `res` on the classpath. Test-only Unsafe warnings are expected on Java 17.
+The optional test harness stays in the [KFC fork](https://github.com/1322528197ldy-tech/KFC-Invaders-SDP-23621/tree/47b9f1196e12de6b7196d8d39d348023104974f4/tests/kfc/KfcTutorialChecks.java), rather than adding a team-specific test directory to the course repository. It is not part of the game or the shared CI configuration.
+Compile production sources into a fresh temporary classes directory, then compile the linked harness against those classes. Run `KfcTutorialChecks <temporary-screenshot-directory>` with that classes directory and `res` on the classpath. The temporary location isolates generated saves. Java 17 test-only Unsafe warnings are expected. These checks do not replace a human playthrough.
