@@ -1,210 +1,109 @@
 package entity;
 
 import java.awt.Color;
-
+import java.util.Set;
 import engine.Cooldown;
 import engine.Core;
 import engine.DrawManager.SpriteType;
 import engine.GameSettings;
 
-public class EnemyShipBoss extends Entity {
+/** Two-hit bouncing boss used at Stage 5 and temporarily at Stage 10. */
+public final class EnemyShipBoss extends Entity {
+    private static final int DEFEAT_POINTS = 1000;
+    private static final int HIT_POINTS = 100;
+    private static final int TOP_BOUNDARY = 40;
+    private static final int PLAYER_CLEARANCE = 200;
+    private static final int MIN_SHOOTING_INTERVAL = 500;
+    private static final int INTERVAL_REDUCTION = 30;
+    private static final int BULLET_SPEED = 5;
+    private final Cooldown animationCooldown = Core.getCooldown(500);
+    private Cooldown shootCooldown;
+    private int shootingInterval;
+    private int hp = 2;
+    private boolean destroyed;
+    private int speedX;
+    private int speedY;
 
-    /** Point value of a Mid Boss. */
-    private static final int MID_BOSS_POINTS = 1000;
+    public EnemyShipBoss(final int x, final int y, final SpriteType sprite) {
+        super(x, y, 32, 20, Color.ORANGE);
+        if (sprite != SpriteType.MidBoss1 && sprite != SpriteType.MidBoss2)
+            throw new IllegalArgumentException("Unsupported boss sprite: " + sprite);
+        this.spriteType = sprite;
+    }
 
+    public int getPointValue() { return DEFEAT_POINTS; }
+    public boolean isDestroyed() { return destroyed; }
 
-    /** Cooldown between sprite changes. */
-    private Cooldown animationCooldown;
-	/** Checks if the ship has been hit by a bullet. */
-    private boolean isDestroyed;
-    /** Values of the ship, in points, when destroyed. */
-	private int pointValue;
-
-
-	/** To calculate the health points. */
-	private int hp;
-	/** The health points of the Mid Boss. */
-	private static final int MID_BOSS_HP = 2;
-	/** The health points of the Final Boss. */
-	private static final int FINAL_BOSS_HP = 2;
-
-
-	/** Point value awarded for hitting the Mid Boss. */
-	private static final int MID_BOSS_POINTS_HIT = 100;
-	/** Point value awarded for hitting the Final Boss. */
-	private static final int FINAL_BOSS_POINTS_HIT = 250;
-
-
-	private int speedX = 0;
-	private int speedY = 0;
-
-    /**
-	 * Constructor for MidBoss Ship.
-	 * 
-	 * @param positionX
-	 *            Initial position of the ship in the X axis.
-	 * @param positionY
-	 *            Initial position of the ship in the Y axis.
-	 * @param spriteType
-	 *            Sprite type, image corresponding to the ship.
-	 */
-    public EnemyShipBoss(final int positionX, final int positionY,
-			final SpriteType spriteType) {
-		super(positionX, positionY, 16 * 2, 10 * 2, Color.ORANGE);
-
-		this.spriteType = spriteType;
-		this.animationCooldown = Core.getCooldown(500);
-		this.isDestroyed = false;
-
-		switch (this.spriteType) {
-		case MidBoss_1:
-		case MidBoss_2:
-			this.pointValue = MID_BOSS_POINTS;
-			this.hp = MID_BOSS_HP;
-			break;
-		default:
-			this.pointValue = 0;
-			break;
-		}
-	}
-
-    /**
-	 * Getter for the score bonus if this ship is destroyed.
-	 * 
-	 * @return Value of the ship.
-	 */
-	public final int getPointValue() {
-		return this.pointValue;
-	}
-
-	/**
-	 * Updates attributes, mainly used for animation purposes.
-	 */
-	public final void update() {
-		// Toggle boss sprite when animation cooldown expires to create an animation effect.
-		if (this.animationCooldown.checkFinished()) {
-			this.animationCooldown.reset();
-
-			switch (this.spriteType) {
-			case MidBoss_1:
-				this.spriteType = SpriteType.MidBoss_2;
-				break;
-			case MidBoss_2:
-				this.spriteType = SpriteType.MidBoss_1;
-				break;
-			default:
-				break;
-            }
+    public void update() {
+        if (!destroyed && animationCooldown.checkFinished()) {
+            animationCooldown.reset();
+            spriteType = spriteType == SpriteType.MidBoss1
+                    ? SpriteType.MidBoss2 : SpriteType.MidBoss1;
         }
     }
 
-	/**
-	 * Checks if the ship has been destroyed.
-	 * 
-	 * @return True if the ship has been destroyed.
-	 */
-	public final boolean isDestroyed() {
-		return this.isDestroyed;
-	}
+    public void destroy() {
+        destroyed = true;
+        spriteType = SpriteType.Explosion;
+    }
 
-	/**
-	 * Destroys the ship, causing an explosion.
-	 */
-	public final void destroy() {
-		this.isDestroyed = true;
-		this.spriteType = SpriteType.Explosion;
-	}
+    public void takeDamage() {
+        if (!destroyed && --hp <= 0)
+            destroy();
+    }
 
-	/**
-	 *  Applies damage to the ship, reducing its health points. 
-	 *  If health points reach zero, the ship is destroyed.
-	 */
-	public final void takeDamage() {
-		this.hp--;
-		if (this.hp <= 0) {
-			this.destroy();
-		}
-	}
-
-	/**
-	 * Manages the collision between a bullet and the boss ship.
-	 * 
-	 * @param bullet
-	 *            The bullet that collided with the boss ship.
-	 * @return The score earned from the collision.
-	 */
-	public final int manageCollisionsBoss(final Bullet bullet) {
-        if (this.isDestroyed()) {
+    /** Award the hit before destruction changes the sprite; defeat counts once. */
+    public int manageCollisionsBoss(final Bullet bullet) {
+        if (destroyed)
             return 0;
-        }
-
-        this.takeDamage();
-
-        int scoreEarned;
-        if (this.spriteType == SpriteType.MidBoss_1 || this.spriteType == SpriteType.MidBoss_2) {
-            scoreEarned = MID_BOSS_POINTS_HIT;
-        } else {
-			scoreEarned = FINAL_BOSS_POINTS_HIT;
-		}
-
-        if (this.isDestroyed()) {
-            scoreEarned += this.getPointValue();
-        }
-
-        return scoreEarned;
+        takeDamage();
+        return HIT_POINTS + (destroyed ? DEFEAT_POINTS : 0);
     }
 
-	/**
-	 * Moves the ship the specified distance.
-	 * 
-	 * @param distanceX
-	 *            Distance to move in the X axis.
-	 * @param distanceY
-	 *            Distance to move in the Y axis.
-	 */
-	public final void move(final int distanceX, final int distanceY) {
-		this.positionX += distanceX;
-		this.positionY += distanceY;
-	}
-
-	/**
- 	* Moves the boss back and forth within the screen boundaries (top, bottom, left, right)
- 	* by applying the baseSpeed from Core, making it smoothly bounce off the edges.
- 	* 
- 	* @param screenWidth  The width of the screen (this.width in GameScreen)
- 	* @param screenHeight The height of the screen (this.height in GameScreen)
- 	* @param gameSettings The core settings for difficulty and speed
- 	*/
-    public final void moveBoss(final int screenWidth, final int screenHeight, 
-            final GameSettings gameSettings) {
-        if (this.isDestroyed()) {
+    /** Boss baseSpeed is pixels per update, unlike formation movement intervals. */
+    public void moveBoss(final int width, final int height, final GameSettings settings) {
+        if (destroyed)
             return;
+        if (speedX == 0 && speedY == 0) {
+            speedX = settings.getBaseSpeed();
+            speedY = speedX;
         }
-
-		if (this.speedX == 0 && this.speedY == 0) {
-			this.speedX = gameSettings.getBaseSpeed();
-			this.speedY = gameSettings.getBaseSpeed();
-		}
-       
-        this.move(this.speedX, this.speedY);
-
-        if (this.positionX <= 0) {
-            this.positionX = 0;
-            this.speedX = -this.speedX;
-        } else if (this.positionX >= screenWidth - this.width) {
-            this.positionX = screenWidth - this.width;
-            this.speedX = -this.speedX;
+        positionX += speedX;
+        positionY += speedY;
+        if (positionX <= 0) {
+            positionX = 0;
+            speedX = -speedX;
+        } else if (positionX >= width - this.width) {
+            positionX = width - this.width;
+            speedX = -speedX;
         }
-
-        int topBoundary = 40;
-        int bottomBoundary = screenHeight - 200 - this.height;
-
-        if (this.positionY <= topBoundary) {
-            this.positionY = topBoundary;
-            this.speedY = -this.speedY;
-        } else if (this.positionY >= bottomBoundary) {
-            this.positionY = bottomBoundary;
-            this.speedY = -this.speedY;
+        int bottom = height - PLAYER_CLEARANCE - this.height;
+        if (positionY <= TOP_BOUNDARY) {
+            positionY = TOP_BOUNDARY;
+            speedY = -speedY;
+        } else if (positionY >= bottom) {
+            positionY = bottom;
+            speedY = -speedY;
         }
-	}
+    }
+
+    public boolean shoot(final Set<Bullet> bullets, final GameSettings settings) {
+        if (destroyed)
+            return false;
+        if (shootCooldown == null) {
+            shootingInterval = Math.max(MIN_SHOOTING_INTERVAL,
+                    settings.getShootingFrecuency());
+            shootCooldown = Core.getCooldown(shootingInterval);
+            shootCooldown.reset();
+        }
+        if (!shootCooldown.checkFinished())
+            return false;
+        shootingInterval = Math.max(MIN_SHOOTING_INTERVAL,
+                shootingInterval - INTERVAL_REDUCTION);
+        shootCooldown = Core.getCooldown(shootingInterval);
+        shootCooldown.reset();
+        bullets.add(BulletPool.getBullet(positionX + this.width / 2,
+                positionY + this.height, BULLET_SPEED));
+        return true;
+    }
 }
