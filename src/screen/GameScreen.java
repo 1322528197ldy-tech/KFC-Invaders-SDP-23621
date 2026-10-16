@@ -32,7 +32,9 @@ import entity.BulletPool;
 import entity.Coin;
 import entity.CoinPool;
 import entity.EnemyShip;
-import entity.EnemyShipBoss;
+import entity.Boss;
+import entity.MidBoss;
+import entity.FinalBoss;
 import entity.EnemyShipFormation;
 import entity.Entity;
 import entity.Particle;
@@ -269,7 +271,7 @@ public class GameScreen extends Screen {
 	private final int initialPendingDiamonds;
 
 	/** Boss encounter; normal stages use enemyShipFormation instead. */
-	private EnemyShipBoss midBoss;
+	private Boss midBoss;
 
 	/**
 	 * Constructor, establishes the properties of the screen.
@@ -322,10 +324,11 @@ public class GameScreen extends Screen {
 		this.ship = new Ship(this.width / 2, this.height - 30,
 				Core.getSelectedShipType());
 
-		// Stage 10 temporarily reuses the Stage 5 boss.
+		// Distinct mid-boss and final boss encounters.
 		if (this.level == 5 || this.level == 10) {
-			this.midBoss = new EnemyShipBoss(this.width / 2 - 16, 60,
-					DrawManager.SpriteType.MidBoss1);
+			this.midBoss = this.level == 5
+					? new MidBoss(this.width / 2 - 16, 60, DrawManager.SpriteType.MidBoss1)
+					: new FinalBoss(this.width / 2 - 24, 60, DrawManager.SpriteType.FinalBoss1);
 		} else {
 			this.enemyShipFormation = new EnemyShipFormation(this.gameSettings);
 			this.enemyShipFormation.attach(this);
@@ -785,7 +788,7 @@ public class GameScreen extends Screen {
 						this.enemyShipSpecial.getPositionY());
 
 if (this.midBoss != null) {
-			drawManager.drawEntity(this.midBoss, this.midBoss.getPositionX(),
+			drawManager.drawEntity((Entity) this.midBoss, this.midBoss.getPositionX(),
 					this.midBoss.getPositionY());
 		} else {
 			this.enemyShipFormation.draw();
@@ -948,7 +951,7 @@ if (this.midBoss != null) {
 				if (this.level == 5 || this.level == 10) {
 					if (this.midBoss != null
 							&& !this.midBoss.isDestroyed()
-							&& checkCollision(bullet, this.midBoss)) {
+							&& checkCollision(bullet, (Entity) this.midBoss)) {
 						this.score += this.midBoss.manageCollisionsBoss(bullet);
 						if (this.midBoss.isDestroyed()) {
 							this.shipsDestroyed++;

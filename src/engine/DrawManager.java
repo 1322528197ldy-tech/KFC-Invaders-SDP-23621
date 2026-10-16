@@ -123,7 +123,9 @@ public final class DrawManager {
         BossKill,
 		/** Bouncing boss animation frames. */
 		MidBoss1,
-		MidBoss2
+		MidBoss2,
+		FinalBoss1,
+		FinalBoss2
 	};
 
 	/**
@@ -168,6 +170,8 @@ public final class DrawManager {
             spriteMap.put(SpriteType.BossKill, new boolean[11][11]);
 			spriteMap.put(SpriteType.MidBoss1, new boolean[16][10]);
 			spriteMap.put(SpriteType.MidBoss2, new boolean[16][10]);
+			spriteMap.put(SpriteType.FinalBoss1, new boolean[24][16]);
+			spriteMap.put(SpriteType.FinalBoss2, new boolean[24][16]);
 
 			fileManager.loadSprite(spriteMap);
 			logger.info("Finished loading the sprites.");

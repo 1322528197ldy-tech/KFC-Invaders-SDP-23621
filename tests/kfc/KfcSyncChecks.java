@@ -51,7 +51,7 @@ public class KfcSyncChecks extends KfcBossChecks {
             ok((int) get(screen, "score") == 20, "restart restores score Stage " + level);
             ok(!(boolean) get(screen, "paused"), "restart resumes Stage " + level);
             if (level != 1)
-                ok(get(screen, "midBoss") != null && !((EnemyShipBoss) get(screen, "midBoss")).isDestroyed(),
+                ok(get(screen, "midBoss") != null && !((Boss) get(screen, "midBoss")).isDestroyed(),
                         "restart recreates living boss Stage " + level);
         }
 
