@@ -71,3 +71,4 @@ Helper Methods
 resetBurstCounter(): Resets shotCount = 0 and calculates next target using random.nextInt(range) + MIN_BURST_SHOTS.
 
 shoot3Burst(Set<Bullet> bullets): Spawns 3 bullets from the boss center with Y-axis offsets (startY, startY - BULLET_GAP, startY - 2 * BULLET_GAP).
+Integration note: each burst creates three downward bullets on one X coordinate, spaced 15 pixels vertically. It is a projectile train, not an angled spread shot or a timed sequence of three separate shoot calls. Splitting and summoning remain optional ideas.

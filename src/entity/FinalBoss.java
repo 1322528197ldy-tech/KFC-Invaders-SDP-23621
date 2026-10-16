@@ -9,7 +9,7 @@ import engine.Core;
 import engine.DrawManager.SpriteType;
 import engine.GameSettings;
 
-public class FinalBoss extends Entity {
+public class FinalBoss extends Entity implements Boss {
 
     /** Point value of a Final Boss. */
     private static final int FINAL_BOSS_POINTS = 5000;
@@ -45,7 +45,9 @@ public class FinalBoss extends Entity {
 	/* Shooting rate decline per shot */
 	private static final int DECLINE_RATE = 50;
 	/* Bullet speed */
-	private static int BULLET_SPEED = 5;
+	private static final int BULLET_SPEED = 5;
+	private static final int TOP_BOUNDARY = 40;
+	private static final int PLAYER_CLEARANCE = 200;
 
 
 	/* Tracks the current number of shots fired */
@@ -80,8 +82,8 @@ public class FinalBoss extends Entity {
 		this.isDestroyed = false;
 
 		switch (this.spriteType) {
-		case FinalBoss_1:
-		case FinalBoss_2:
+		case FinalBoss1:
+		case FinalBoss2:
 			this.pointValue = FINAL_BOSS_POINTS;
 			this.hp = FINAL_BOSS_HP;
 			break;
@@ -106,15 +108,15 @@ public class FinalBoss extends Entity {
 	 */
 	public final void update() {
 		// Toggle boss sprite when animation cooldown expires to create an animation effect.
-		if (this.animationCooldown.checkFinished()) {
+		if (!this.isDestroyed && this.animationCooldown.checkFinished()) {
 			this.animationCooldown.reset();
 
 			switch (this.spriteType) {
-			case FinalBoss_1:
-				this.spriteType = SpriteType.FinalBoss_2;
+			case FinalBoss1:
+				this.spriteType = SpriteType.FinalBoss2;
 				break;
-			case FinalBoss_2:
-				this.spriteType = SpriteType.FinalBoss_1;
+			case FinalBoss2:
+				this.spriteType = SpriteType.FinalBoss1;
 				break;
 			default:
 				break;
@@ -163,7 +165,7 @@ public class FinalBoss extends Entity {
         }
 
         int scoreEarned = 0;
-        if (this.spriteType == SpriteType.FinalBoss_1 || this.spriteType == SpriteType.FinalBoss_2) {
+        if (this.spriteType == SpriteType.FinalBoss1 || this.spriteType == SpriteType.FinalBoss2) {
             scoreEarned = FINAL_BOSS_POINTS_HIT;
         } 
 
@@ -219,8 +221,8 @@ public class FinalBoss extends Entity {
             this.speedX = -this.speedX;
         }
 
-        int topBoundary = 40;
-        int bottomBoundary = screenHeight - 200 - this.height;
+        int topBoundary = TOP_BOUNDARY;
+        int bottomBoundary = screenHeight - PLAYER_CLEARANCE - this.height;
 
         if (this.positionY <= topBoundary) {
             this.positionY = topBoundary;
@@ -282,7 +284,7 @@ public class FinalBoss extends Entity {
 	}
 
 	/**
-     * Fires 3 bullets sequentially in a single attack by applying vertical Y offsets.
+     * Fires a three-projectile train in one attack, with vertical spacing.
      * 
      * @param bullets General bullet set to add the new bullets to.
      */
