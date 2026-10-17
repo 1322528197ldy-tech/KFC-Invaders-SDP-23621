@@ -920,6 +920,10 @@ public class GameScreen extends Screen {
 				for (EnemyShip enemyShip : this.enemyShipFormation)
 					if (!enemyShip.isDestroyed()
 							&& checkCollision(bullet, enemyShip)) {
+						recyclable.add(bullet);
+						// Current bullets deal one damage; surviving hits give no rewards.
+						if (!enemyShip.takeDamage(1))
+							continue;
 						this.score += this.items.scoreFor(enemyShip.getPointValue()); // score boost (Team CS)
 						this.shipsDestroyed++;
 						spawnSparkles(enemyShip); // AUTHORED BY: VFX TEAM (Effection)
@@ -934,7 +938,6 @@ public class GameScreen extends Screen {
 						this.items.onEnemyDefeated(enemyShip, false);
 						showUnlockedAchievement(Core.getAchievementManager()
 								.recordEnemyDefeated());
-						recyclable.add(bullet);
 					}
 				if (this.enemyShipSpecial != null
 						&& !this.enemyShipSpecial.isDestroyed()

@@ -165,10 +165,14 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 				else
 					spriteType = SpriteType.EnemyShipA1;
 
+				// Fill from the bottom row across columns for an early encounter.
+				int eliteOrder = (this.nShipsHigh - 1 - i) * this.nShipsWide
+						+ this.enemyShips.indexOf(column);
+				int health = eliteOrder < gameSettings.getTwoHitEnemyCount() ? 2 : 1;
 				column.add(new EnemyShip((SEPARATION_DISTANCE 
 						* this.enemyShips.indexOf(column))
 								+ positionX, (SEPARATION_DISTANCE * i)
-								+ positionY, spriteType));
+								+ positionY, spriteType, health));
 				this.shipCount++;
 			}
 		}
