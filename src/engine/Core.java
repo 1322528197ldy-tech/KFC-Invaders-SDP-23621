@@ -57,7 +57,7 @@ public final class Core {
 			new GameSettings(6, 4, 30, 1500);
 	/** Difficulty settings for level 5. */
 	private static final GameSettings SETTINGS_LEVEL_5 =
-			new GameSettings(7, 6, 20, 1000);
+			new GameSettings(5, 4, 5, 1000);
 	/** Difficulty settings for level 6. */
 	private static final GameSettings SETTINGS_LEVEL_6 =
 			new GameSettings(6, 3, 10, 1000, 1);
@@ -72,7 +72,7 @@ public final class Core {
 			new GameSettings(7, 5, 1, 300, true, 2);
 	/** Difficulty settings for level 10. */
 	private static final GameSettings SETTINGS_LEVEL_10 =
-			new GameSettings(7, 5, 1, 300);
+			new GameSettings(5, 4, 8, 500);
 
 	
 	/** Frame to draw the screen on. */
@@ -141,7 +141,7 @@ public final class Core {
 
 		int returnCode = startLevel == 1 ? 1 : 2;
 		do {
-			gameState = new GameState(startLevel, 0, MAX_LIVES, 0, 0);
+			gameState = new GameState(startLevel, 0, MAX_LIVES, 0, 0, 0);
 
 			switch (returnCode) {
 			case 1:
@@ -183,7 +183,9 @@ public final class Core {
 							gameState.getLivesRemaining(),
 							gameState.getBulletsShot(),
 							gameState.getShipsDestroyed(),
-							gameState.getPendingDiamonds());
+							gameState.getPendingDiamonds(),
+							gameState.getLevelsCompletedRun(),
+                            gameState.getCoinsCollected());
 
 					gameState = offerCashOut(gameState, width, height);
 
@@ -196,8 +198,9 @@ public final class Core {
 						+ " score screen at " + FPS + " fps, with a score of "
 						+ gameState.getScore() + ", "
 						+ gameState.getLivesRemaining() + " lives remaining, "
-						+ gameState.getBulletsShot() + " bullets shot and "
-						+ gameState.getShipsDestroyed() + " ships destroyed.");
+						+ gameState.getBulletsShot() + " bullets shot, "
+						+ gameState.getShipsDestroyed() + " ships destroyed, and "
+                        + gameState.getCoinsCollected() + " coins collected. ");
 				currentScreen = new ScoreScreen(width, height, FPS, gameState);
 				returnCode = frame.setScreen(currentScreen);
 				LOGGER.info("Closing score screen.");
@@ -293,7 +296,8 @@ public final class Core {
 		// Diamonds were banked by the screen itself.
 		return new GameState(NUM_LEVELS + 1, gameState.getScore(),
 				gameState.getLivesRemaining(), gameState.getBulletsShot(),
-				gameState.getShipsDestroyed(), 0);
+				gameState.getShipsDestroyed(), 0,
+				gameState.getLevelsCompletedRun(), gameState.getCoinsCollected());
 	}
 
 	/**
@@ -317,7 +321,8 @@ public final class Core {
 		}
 		return new GameState(gameState.getLevel(), gameState.getScore(),
 				gameState.getLivesRemaining(), gameState.getBulletsShot(),
-				gameState.getShipsDestroyed(), 0);
+				gameState.getShipsDestroyed(), 0,
+				gameState.getLevelsCompletedRun(), gameState.getCoinsCollected());
 	}
 
 	/**
