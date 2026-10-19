@@ -69,7 +69,7 @@ public final class Core {
 			new GameSettings(7, 4, 3, 500);
 	/** Difficulty settings for level 9. */
 	private static final GameSettings SETTINGS_LEVEL_9 =
-			new GameSettings(7, 5, 1, 300);
+			new GameSettings(7, 5, 1, 300, true, 2);
 	/** Difficulty settings for level 10. */
 	private static final GameSettings SETTINGS_LEVEL_10 =
 			new GameSettings(7, 5, 1, 300);
@@ -135,10 +135,13 @@ public final class Core {
 		gameSettings.add(SETTINGS_LEVEL_10);
 		
 		GameState gameState;
+		int startLevel = Integer.getInteger("game.startLevel", 1);
+		if (startLevel < 1 || startLevel > NUM_LEVELS)
+			startLevel = 1;
 
-		int returnCode = 1;
+		int returnCode = startLevel == 1 ? 1 : 2;
 		do {
-			gameState = new GameState(1, 0, MAX_LIVES, 0, 0);
+			gameState = new GameState(startLevel, 0, MAX_LIVES, 0, 0);
 
 			switch (returnCode) {
 			case 1:
@@ -151,10 +154,12 @@ public final class Core {
 				break;
 			case 2:
 				// Practice first; ESC returns to the menu without starting a run.
-				currentScreen = new TutorialScreen(width, height, FPS);
-				returnCode = frame.setScreen(currentScreen);
-				if (returnCode != 2) {
-					break;
+				if (startLevel == 1) {
+					currentScreen = new TutorialScreen(width, height, FPS);
+					returnCode = frame.setScreen(currentScreen);
+					if (returnCode != 2) {
+						break;
+					}
 				}
 				// Game & score.
 				do {

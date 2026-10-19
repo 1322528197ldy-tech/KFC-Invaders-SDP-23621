@@ -45,11 +45,11 @@ public final class TwoHitEnemyTest {
 
     public static void main(String[] args) throws Exception {
         Core.getLogger().setUseParentHandlers(false);
-        for (int level = 1; level <= 7; level++) {
+        for (int level = 1; level <= 10; level++) {
             Field field = Core.class.getDeclaredField("SETTINGS_LEVEL_" + level);
             field.setAccessible(true);
             GameSettings settings = (GameSettings) field.get(null);
-            check(settings.isDiagonalMovement() == (level == 3),
+            check(settings.isDiagonalMovement() == (level == 3 || level == 9),
                 "Diagonal stage placement " + level);
             EnemyShipFormation formation = new EnemyShipFormation(settings);
             int elites = 0;
@@ -58,7 +58,8 @@ public final class TwoHitEnemyTest {
                 if (enemy.getHealth() == 2) elites++;
                 else ordinary++;
             }
-            check(elites == (level == 6 ? 1 : 0), "Stage placement " + level);
+            check(elites == (level == 6 ? 1 : level == 9 ? 2 : 0),
+                "Stage placement " + level);
             check(ordinary + elites == settings.getFormationWidth()
                 * settings.getFormationHeight(), "Formation size " + level);
         }
