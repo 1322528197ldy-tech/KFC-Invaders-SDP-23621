@@ -8,6 +8,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import entity.Ship;
 import screen.AchievementsScreen;
 import screen.CashOutScreen;
 import screen.GameScreen;
@@ -89,8 +90,6 @@ public final class Core {
 	private static ConsoleHandler consoleHandler;
 	/** Persistent achievement progress manager. */
 	private static AchievementManager achievementManager;
-	/** Ship used for the current run. Only the starter ship exists for now. */
-	private static String selectedShipId = AchievementManager.STARTER_SHIP_ID;
 
 
 	/**
@@ -139,7 +138,7 @@ public final class Core {
 
 		int returnCode = 1;
 		do {
-			gameState = new GameState(1, 0, MAX_LIVES, 0, 0);
+			gameState = new GameState(1, 0, MAX_LIVES, 0, 0, 0);
 
 			switch (returnCode) {
 			case 1:
@@ -179,7 +178,9 @@ public final class Core {
 							gameState.getLivesRemaining(),
 							gameState.getBulletsShot(),
 							gameState.getShipsDestroyed(),
-							gameState.getPendingDiamonds());
+							gameState.getPendingDiamonds(),
+							gameState.getLevelsCompletedRun(),
+                            gameState.getCoinsCollected());
 
 					gameState = offerCashOut(gameState, width, height);
 
@@ -192,8 +193,9 @@ public final class Core {
 						+ " score screen at " + FPS + " fps, with a score of "
 						+ gameState.getScore() + ", "
 						+ gameState.getLivesRemaining() + " lives remaining, "
-						+ gameState.getBulletsShot() + " bullets shot and "
-						+ gameState.getShipsDestroyed() + " ships destroyed.");
+						+ gameState.getBulletsShot() + " bullets shot, "
+						+ gameState.getShipsDestroyed() + " ships destroyed, and "
+                        + gameState.getCoinsCollected() + " coins collected. ");
 				currentScreen = new ScoreScreen(width, height, FPS, gameState);
 				returnCode = frame.setScreen(currentScreen);
 				LOGGER.info("Closing score screen.");
@@ -289,7 +291,8 @@ public final class Core {
 		// Diamonds were banked by the screen itself.
 		return new GameState(NUM_LEVELS + 1, gameState.getScore(),
 				gameState.getLivesRemaining(), gameState.getBulletsShot(),
-				gameState.getShipsDestroyed(), 0);
+				gameState.getShipsDestroyed(), 0,
+				gameState.getLevelsCompletedRun(), gameState.getCoinsCollected());
 	}
 
 	/**
@@ -313,7 +316,8 @@ public final class Core {
 		}
 		return new GameState(gameState.getLevel(), gameState.getScore(),
 				gameState.getLivesRemaining(), gameState.getBulletsShot(),
-				gameState.getShipsDestroyed(), 0);
+				gameState.getShipsDestroyed(), 0,
+				gameState.getLevelsCompletedRun(), gameState.getCoinsCollected());
 	}
 
 	/**
@@ -365,12 +369,73 @@ public final class Core {
 	 * @return Shared achievement manager.
 	 */
 	public static AchievementManager getAchievementManager() {
-		if (achievementManager == null)
+		if (achievementManager == null) {
 			achievementManager = new AchievementManager();
+
+			java.util.Set<String> roster = new java.util.HashSet<String>();
+
+			for (Ship.ShipType type : Ship.ShipType.values()) {
+				roster.add(getShipId(type));
+			}
+
+			achievementManager.configureLevel10Ships(roster);
+		}
+
 		return achievementManager;
 	}
+	/**
+	 * Returns the achievement ID of the selected ship. The standard ship is
+	 * the starter ship; other ships use their lower-case type name.
+	 *
+	 * @return Achievement ID of the selected ship.
+	 */
 	public static String getSelectedShipId() {
-		return selectedShipId;
+		return getShipId(getSelectedShipType());
+	}
+
+	/**
+	 * Returns the stable profile ID for a ship type.
+	 *
+	 * @param type Ship type.
+	 * @return Ship ID used for achievement progress.
+	 */
+	public static String getShipId(final Ship.ShipType type) {
+		switch (type) {
+			case STANDARD:
+				return AchievementManager.STARTER_SHIP_ID;
+			case FAST_MOVE:
+				return "fast_move";
+			case TWO_WAY:
+				return "two_way";
+			case FAST_ATTACK:
+				return "fast_attack";
+			case BIG_BULLET:
+				return "big_bullet";
+			default:
+				throw new IllegalArgumentException("Unknown ship type: " + type);
+		}
+	}
+
+	/**
+	 * Returns the ship type chosen on the Customize screen. It is kept by
+	 * PurchaseManager (GoG), so it is saved between launches and a ship
+	 * that has not been bought falls back to the Standard ship.
+	 *
+	 * @return Selected ship type.
+	 */
+	public static Ship.ShipType getSelectedShipType() {
+		return PurchaseManager.getInstance().getSelectedShip();
+	}
+
+	/**
+	 * Remembers the ship type chosen on the Customize screen. Ships that
+	 * have not been bought in the Shop are ignored (GoG).
+	 *
+	 * @param shipType Ship type to use for the next runs.
+	 */
+	public static void setSelectedShipType(final Ship.ShipType shipType) {
+		if (shipType != null)
+			PurchaseManager.getInstance().selectShip(shipType);
 	}
 	/** @return Number of levels in the game. */
 	public static int getNumLevels() {

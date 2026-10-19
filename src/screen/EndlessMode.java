@@ -319,7 +319,7 @@ public final class EndlessMode extends Screen {
             particles.removeIf(Particle::isDead); fading.removeIf(EnemyShip::isFadeFinished);
             shake.update(); player.update();
             for(Entity image:images.values()) if(image instanceof EnemyShip) ((EnemyShip)image).update();
-            else if(image instanceof EnemyShipBoss) ((EnemyShipBoss)image).update();
+            else if(image instanceof MidBoss) ((MidBoss)image).update();
         }
         draw();
     }
@@ -327,7 +327,7 @@ public final class EndlessMode extends Screen {
     private Entity image(Run.Body b) {
         Entity result=images.get(b);
         if(result==null){
-            result=b.boss ? new EnemyShipBoss((int)b.x,(int)b.y,DrawManager.SpriteType.MidBoss1)
+            result=b.boss ? new MidBoss((int)b.x,(int)b.y,DrawManager.SpriteType.MidBoss1)
                     : new EnemyShip((int)b.x,(int)b.y,run.getWave()%2==0
                     ? DrawManager.SpriteType.EnemyShipB1 : DrawManager.SpriteType.EnemyShipA1);
             images.put(b,result);

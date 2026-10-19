@@ -7,8 +7,8 @@ import engine.Core;
 import engine.DrawManager.SpriteType;
 import engine.GameSettings;
 
-/** Two-hit bouncing boss used at Stage 5 and temporarily at Stage 10. */
-public final class EnemyShipBoss extends Entity {
+/** Two-hit bouncing mid-boss used at Stage 5. */
+public final class MidBoss extends Entity implements Boss {
     private static final int DEFEAT_POINTS = 1000;
     private static final int HIT_POINTS = 100;
     private static final int TOP_BOUNDARY = 40;
@@ -24,7 +24,7 @@ public final class EnemyShipBoss extends Entity {
     private int speedX;
     private int speedY;
 
-    public EnemyShipBoss(final int x, final int y, final SpriteType sprite) {
+    public MidBoss(final int x, final int y, final SpriteType sprite) {
         super(x, y, 32, 20, Color.ORANGE);
         if (sprite != SpriteType.MidBoss1 && sprite != SpriteType.MidBoss2)
             throw new IllegalArgumentException("Unsupported boss sprite: " + sprite);

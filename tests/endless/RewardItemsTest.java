@@ -28,7 +28,7 @@ public final class RewardItemsTest {
         reward(r,6);check(r.refreshRewards(),"Next draft receives new refresh");
 
         r=fresh();set(r,"lives",2);grant(r,"life");check(r.getLives()==3,"Life restored");
-        score=r.getScore();grant(r,"life");check(r.getScore()==score+500,"Full life converts to score");
+        score=r.getScore();grant(r,"life");check(r.getScore()==score+((Number)get(r,"lifeBonus")).longValue(),"Full life converts to configured score");
         grant(r,"rapid_fire");check(r.items.getModifiers().fireRateBonus>0,"Rapid fire active");
         grant(r,"bullet_speed");check(r.items.getModifiers().bulletSpeedBonus>0,"Bullet speed active");
         r.update(.01,0,true);check((Double)get(r.getShots().get(0),"vy") < -420,"Bullet speed reaches real projectiles");
