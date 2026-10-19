@@ -19,7 +19,7 @@ public final class MidBoss extends Entity implements Boss {
     private final Cooldown animationCooldown = Core.getCooldown(500);
     private Cooldown shootCooldown;
     private int shootingInterval;
-    private int hp = 2;
+    private int hp = 4;
     private boolean destroyed;
     private int speedX;
     private int speedY;
