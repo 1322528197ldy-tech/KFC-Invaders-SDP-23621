@@ -1,6 +1,7 @@
 package entity;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -155,6 +156,14 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 		for (int i = 0; i < this.nShipsWide; i++)
 			this.enemyShips.add(new ArrayList<EnemyShip>());
 
+		// Sample without replacement so every position is equally eligible.
+		List<Integer> positions = new ArrayList<Integer>();
+		for (int i = 0; i < this.nShipsWide * this.nShipsHigh; i++)
+			positions.add(i);
+		Collections.shuffle(positions);
+		Set<Integer> elitePositions = new HashSet<Integer>(
+				positions.subList(0, gameSettings.getTwoHitEnemyCount()));
+
 		for (List<EnemyShip> column : this.enemyShips) {
 			for (int i = 0; i < this.nShipsHigh; i++) {
 				if (i / (float) this.nShipsHigh < PROPORTION_C)
@@ -165,10 +174,9 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 				else
 					spriteType = SpriteType.EnemyShipA1;
 
-				// Fill from the bottom row across columns for an early encounter.
-				int eliteOrder = (this.nShipsHigh - 1 - i) * this.nShipsWide
+				int positionIndex = i * this.nShipsWide
 						+ this.enemyShips.indexOf(column);
-				int health = eliteOrder < gameSettings.getTwoHitEnemyCount() ? 2 : 1;
+				int health = elitePositions.contains(positionIndex) ? 2 : 1;
 				column.add(new EnemyShip((SEPARATION_DISTANCE 
 						* this.enemyShips.indexOf(column))
 								+ positionX, (SEPARATION_DISTANCE * i)

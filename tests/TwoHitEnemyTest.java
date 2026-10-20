@@ -58,10 +58,34 @@ public final class TwoHitEnemyTest {
                 if (enemy.getHealth() == 2) elites++;
                 else ordinary++;
             }
-            check(elites == (level == 6 ? 1 : level == 9 ? 2 : 0),
+            check(elites == (level == 6 ? 4 : level == 9 ? 7 : 0),
                 "Stage placement " + level);
             check(ordinary + elites == settings.getFormationWidth()
                 * settings.getFormationHeight(), "Formation size " + level);
+        }
+        for (int level : new int[] {6, 9}) {
+            Field field = Core.class.getDeclaredField("SETTINGS_LEVEL_" + level);
+            field.setAccessible(true);
+            GameSettings settings = (GameSettings) field.get(null);
+            Set<String> layouts = new java.util.HashSet<>();
+            boolean upperRowElite = false;
+            for (int attempt = 0; attempt < 50; attempt++) {
+                int elites = 0;
+                StringBuilder layout = new StringBuilder();
+                for (EnemyShip enemy : new EnemyShipFormation(settings)) {
+                    if (enemy.getHealth() == 2) {
+                        elites++;
+                        layout.append(enemy.getPositionX()).append(',')
+                            .append(enemy.getPositionY()).append(';');
+                        upperRowElite |= enemy.getPositionY()
+                            < 100 + 40 * (settings.getFormationHeight() - 1);
+                    }
+                }
+                check(elites == (level == 6 ? 4 : 7), "Exact random count " + level);
+                layouts.add(layout.toString());
+            }
+            check(layouts.size() > 1, "Layouts vary across starts " + level);
+            check(upperRowElite, "Selection includes upper rows " + level);
         }
         EnemyShip strongHit = new EnemyShip(0, 0, SpriteType.EnemyShipA1, 2);
         check(!strongHit.takeDamage(0), "Zero damage must not kill");
@@ -88,7 +112,7 @@ public final class TwoHitEnemyTest {
                 "Combined formation moves diagonally with spacing preserved");
         }
 
-        GameScreen screen = new GameScreen(new GameState(6, 0, 3, 0, 0),
+        GameScreen screen = new GameScreen(new GameState(6, 0, 3, 0, 0, 0),
             new GameSettings(3, 2, 10, 1000, 1), false, 448, 520, 60);
         screen.initialize();
         ((CoinDropManager) get(screen, "coinDropManager")).setDropChance(1);
@@ -101,12 +125,13 @@ public final class TwoHitEnemyTest {
         }
         check(elite != null && Color.YELLOW.equals(elite.getColor()), "Elite is yellow");
         int killsBefore = Core.getAchievementManager().getTotalEnemiesKilled();
+        boolean couldShoot = ((java.util.List<?>) get(formation, "shooters")).contains(elite);
         hit(screen, elite);
         check(elite.getHealth() == 1 && !elite.isDestroyed(), "First hit survives");
         check(Color.WHITE.equals(elite.getColor()), "First hit changes color");
         check(bullets(screen).isEmpty(), "Nonlethal bullet consumed");
         check((Integer) get(formation, "shipCount") == 6, "First hit keeps formation count");
-        check(((java.util.List<?>) get(formation, "shooters")).contains(elite),
+        check(((java.util.List<?>) get(formation, "shooters")).contains(elite) == couldShoot,
             "First hit keeps shooting eligibility");
         check(screen.getGameState().getScore() == 0, "No score for first hit");
         check(screen.getGameState().getShipsDestroyed() == 0, "No kill for first hit");
