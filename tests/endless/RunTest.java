@@ -19,6 +19,7 @@ public final class RunTest {
         countdownAndPause();
         scoringAndDifficulty();
         bossTriggersAndRewards();
+        hitFeedback();
         collisionAndDeath();
         wavesAndReset();
         persistence();
@@ -92,33 +93,64 @@ public final class RunTest {
     }
     private static void bossTriggersAndRewards() throws Exception {
         Run run = active();
-        set(run, "bossClock", 89.99);
+        set(run,"elapsed",120.0);
+        set(run,"kills",30);
         run.update(0.02, 0, false);
-        check(run.getBoss() != null, "90 seconds triggers boss mid-wave");
-        double formationX = run.getEnemies().get(0).x;
-        advance(run, 60, 0, false);
-        check(run.getEnemies().get(0).x == formationX, "Formation freezes during boss");
-        long count = run.getEnemies().stream().filter(e -> e.boss).count();
-        check(count == 1, "Only one boss active");
+        check(run.getBoss()==null && run.getNextBossWave()==5,"Time and kill counts no longer trigger a mid-wave boss");
         run = active();
-        set(run, "cycleKills", 30);
-        run.update(0.01, 0, false);
-        check(run.getBoss() != null, "30 kills triggers boss");
+        set(run,"wave",4);bodies(run,"enemies").clear();run.update(.001,0,false);
+        check(run.getWave()==5 && run.getPhase()==Phase.BOSS_INTRO,"Wave 5 begins with a boss introduction");
+        check(run.getEnemies().size()==1 && run.getBossDamage()==1,"Boss wave has only the boss and truthful damage stats");
         Body boss = run.getBoss();
+        double bossX=boss.x,playerX=run.getPlayer().x;
+        long seconds=run.getSeconds(),score=run.getScore();
+        advance(run,60,1,true);
+        check(run.getPhase()==Phase.BOSS_INTRO && boss.x==bossX && run.getPlayer().x==playerX,"Opening freezes boss and player movement");
+        check(run.getShots().isEmpty() && run.getSeconds()==seconds && run.getScore()==score,"Opening has no shots or survival points");
+        run.togglePause();int countdown=run.getCountdown();advance(run,120,1,true);
+        check(run.getCountdown()==countdown,"Pausing freezes boss introduction");
+        run.togglePause();advance(run,130,0,false);
+        check(run.getPhase()==Phase.PLAYING,"Opening automatically starts the duel after three seconds");
+        int livesBefore=run.getLives();
+        set(run,"enemyShotClock",0.0);set(run,"invulnerability",0.0);run.update(.001,0,false);
+        java.util.function.Predicate<Body> playerShot=run::isPlayerShot;
+        Body incoming=run.getShots().stream().filter(playerShot.negate()).findFirst().get();
+        incoming.x=run.getPlayer().x+4;incoming.y=run.getPlayer().y+2;run.update(.001,0,false);
+        check(livesBefore-run.getLives()==run.getBossDamage(),"Boss projectile damage matches the introduction's stated life loss");
         run.update(0.01, 0, true);
-        Body shot = run.getShots().get(0);
+        Body shot = run.getShots().stream().filter(run::isPlayerShot).findFirst().get();
         shot.x = boss.x + 20;
         shot.y = boss.y + 15;
         boss.hp = 1;
         run.update(0.001, 0, false);
         check(run.getBoss() == null && run.getBosses() == 1, "Boss defeated once");
-        check(run.getCycleKills() == 0 && run.getBossSecondsLeft() == 90, "Both triggers reset");
+        check(run.getWave()==6 && run.getNextBossWave()==10,"Boss defeat advances to wave 6; next boss is wave 10");
         check(run.getDamageUpgrades() + run.getSpeedUpgrades() + run.getProjectiles() - 1 == 0,
                 "Boss grants no automatic upgrade");
         check(run.getShots().isEmpty() && run.getPhase() == Phase.INTERMISSION, "Safe reward break");
         check(run.getKills() == 1, "Boss counts as one kill");
         advance(run, 130, 0, false);
         check(run.getBosses() == 1 && run.getBoss() == null, "Reward cannot repeat");
+    }
+    private static void hitFeedback() throws Exception {
+        Run run=active();Body target=run.getEnemies().get(0);target.hp=3;
+        set(run,"damage",1.5);
+        java.util.List<Double> hits=new java.util.ArrayList<Double>();
+        set(run,"enemyHit",(java.util.function.BiConsumer<Body,Double>)(enemy,amount)->hits.add(amount));
+        shootAt(run,target);
+        check(target.hp==1.5 && run.getKills()==0,"Nonlethal hits apply upgraded damage without awarding a kill");
+        check(hits.size()==1 && hits.get(0)==1.5,"Nonlethal hit emits its damage for visual feedback");
+        set(run,"shotClock",0.0);run.update(.001,0,true);
+        Body miss=run.getShots().stream().filter(run::isPlayerShot).findFirst().get();
+        miss.x=-20;run.update(.001,0,false);
+        check(hits.size()==1,"Missed projectiles emit no hit feedback");
+        shootAt(run,target);
+        check(hits.size()==2 && run.getKills()==1,"Lethal hit emits one feedback event and credits one kill");
+    }
+    private static void shootAt(Run run,Body target)throws Exception {
+        set(run,"shotClock",0.0);run.update(.001,0,true);
+        Body shot=run.getShots().stream().filter(run::isPlayerShot).findFirst().get();
+        shot.x=target.x+4;shot.y=target.y+4;run.update(.001,0,false);
     }
     private static void collisionAndDeath() throws Exception {
         Run run = active();

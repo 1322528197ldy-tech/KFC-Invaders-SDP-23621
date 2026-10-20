@@ -52,11 +52,46 @@ public final class RewardItemsTest {
         offers=(List<Reward>)get(r,"offers");check(offers.stream().filter(o->o.itemId!=null).allMatch(o->rItem(o.itemId)!=ActivationMode.MANUAL),"Full inventory excludes stored-item rewards");
         r=fresh();for(int i=0;i<200;i++)r.items.onEnemyDefeated(DropSource.REGULAR_ENEMY,200,120);
         check(r.items.getView().drops.size()>0&&r.items.getView().drops.size()<200,"Regular kills roll random drops");
-        r=fresh();set(r,"cycleKills",30);r.update(.001,0,false);Body boss=r.getBoss();boss.hp=1;r.update(.001,0,true);
+        r=fresh();set(r,"wave",4);clear(r);r.update(.001,0,false);
+        while(r.getPhase()==Phase.BOSS_INTRO)r.update(.1,0,false);
+        Body boss=r.getBoss();boss.hp=1;r.update(.001,0,true);
         shot=r.getShots().get(0);shot.x=boss.x+5;shot.y=boss.y+5;r.update(.001,0,false);
         check(r.getBosses()==1&&r.getDamageUpgrades()==0&&r.getProjectiles()==1,"Boss grants no automatic upgrades");
         check(!r.items.getView().drops.isEmpty(),"Boss drops a supply");
+        collisionWaveProgression();
         System.out.println("PASS: "+checks+" item / reward draft checks");
+    }
+    /** Clear fifteen waves via projectile collisions, covering boss and reward checkpoints together. */
+    static void collisionWaveProgression()throws Exception {
+        Run r=fresh();int attacks=0;
+        for(int wave=1;wave<=15;wave++) {
+            while(r.getWave()==wave) {
+                if(r.getPhase()==Phase.INTERMISSION || r.getPhase()==Phase.BOSS_INTRO){r.update(.1,0,false);continue;}
+                if(r.getPhase()!=Phase.PLAYING)throw new AssertionError("Unexpected phase before wave "+wave+" clear");
+                if(++attacks>600)throw new AssertionError("Wave progression stalled");
+                if(wave%5==0)check(r.getEnemies().size()==1 && r.getBoss()!=null,"Every fifth wave contains only its boss");
+                else if(r.getBoss()!=null)throw new AssertionError("Unexpected boss in wave "+wave);
+                set(r,"shotClock",0.0);r.update(.001,0,true);
+                Body shot=r.getShots().stream().filter(r::isPlayerShot).findFirst().orElse(null);
+                if(shot==null)continue;
+                Body target=r.getBoss()==null?r.getEnemies().get(0):r.getBoss();
+                boolean boss=target.boss;target.hp=1;
+                shot.x=target.x+2;shot.y=target.y+2;
+                r.update(.001,0,false);
+                if(boss)check(r.getWave()==wave+1,"Boss defeat clears its wave exactly once");
+            }
+            check(r.getWave()==wave+1,"Clearing formation advances exactly one wave");
+            if(wave%3==0) {
+                check(r.getPhase()==Phase.REWARD,"Actual wave "+wave+" clear opens a reward");
+                check(((List<?>)get(r,"offers")).size()==3,"Actual checkpoint has three choices");
+                check(r.refreshRewards()&&!r.refreshRewards(),"Actual checkpoint allows exactly one refresh");
+                check(r.chooseReward(0)&&!r.chooseReward(1),"Actual checkpoint grants exactly one choice");
+            } else check(r.getPhase()==((wave+1)%5==0?Phase.BOSS_INTRO:Phase.INTERMISSION),"Other waves wait or introduce the next boss without a draft");
+            if((wave+1)%5==0)check(r.getPhase()==Phase.BOSS_INTRO,"Next boss introduction survives the reward checkpoint");
+            while(r.getPhase()==Phase.INTERMISSION || r.getPhase()==Phase.BOSS_INTRO)r.update(.1,0,false);
+            check(r.getWavesUntilReward()==3-wave%3,"HUD reports next reward after wave "+wave);
+        }
+        check(r.getBosses()==3,"Waves 5, 10 and 15 each grant exactly one boss victory");
     }
     static ActivationMode rItem(String id){return Arrays.asList("shield","freeze","boost","score_boost").contains(id)?ActivationMode.MANUAL:ActivationMode.ON_PICKUP;}
 }
