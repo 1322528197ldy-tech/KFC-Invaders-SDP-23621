@@ -160,11 +160,14 @@ public class TitleScreen extends Screen {
 	 */
 	private void updateExitConfirm(final boolean confirmPressed) {
 		if (this.selectionCooldown.checkFinished()) {
-			if (inputManager.isKeyDown(KeyEvent.VK_LEFT)
-					|| inputManager.isKeyDown(KeyEvent.VK_RIGHT)
-					|| inputManager.isKeyDown(KeyEvent.VK_A)
-					|| inputManager.isKeyDown(KeyEvent.VK_D)) {
-				this.exitConfirmYes = !this.exitConfirmYes;
+			final boolean yesKeyDown = inputManager.isKeyDown(KeyEvent.VK_LEFT)
+					|| inputManager.isKeyDown(KeyEvent.VK_A);
+			final boolean noKeyDown = inputManager.isKeyDown(KeyEvent.VK_RIGHT)
+					|| inputManager.isKeyDown(KeyEvent.VK_D);
+
+			if (yesKeyDown != noKeyDown
+					&& this.exitConfirmYes != yesKeyDown) {
+				this.exitConfirmYes = yesKeyDown;
 				this.selectionCooldown.reset();
 			}
 		}
