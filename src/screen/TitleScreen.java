@@ -264,9 +264,8 @@ public class TitleScreen extends Screen {
 		this.selectionCooldown.reset();
 	}
 
-	/** Optional add-on: deleting its source removes the entry, even with old bin files. */
+	/** Optional add-on: works from compiled classes/JARs without a source checkout. */
 	private boolean optionalEndless(final String method) {
-		if (!new java.io.File("src/screen/EndlessMode.java").isFile()) return false;
 		try {
 			return Boolean.TRUE.equals(Class.forName("screen.EndlessMode")
 					.getMethod(method, Screen.class).invoke(null, this));

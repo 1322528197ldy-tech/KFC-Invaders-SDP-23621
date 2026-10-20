@@ -27,5 +27,19 @@ try {
         if ($LASTEXITCODE -ne 0) { Get-Content -LiteralPath $suiteLog -Tail 12; throw "$suite failed." }
         Get-Content -LiteralPath $suiteLog | Select-String '^(PASS:|TOTAL )' | ForEach-Object { $_.Line }
     }
+    # Reproduce a release launch: only a JAR, bundled resources and an empty cwd.
+    $packagedPath = Join-Path $verificationPath 'connected-check-packaged'
+    $noSourcePath = Join-Path $packagedPath 'empty-working-directory'
+    New-Item -ItemType Directory -Force $noSourcePath | Out-Null
+    $packagedJar = Join-Path $packagedPath 'entry-check.jar'
+    & jar --create --file $packagedJar -C $classPath . -C (Join-Path $projectPath 'res') .
+    if ($LASTEXITCODE -ne 0) { throw 'Entry-check packaging failed.' }
+    $entryLog = Join-Path $verificationPath 'engine.EntryGateChecks.log'
+    Push-Location -LiteralPath $noSourcePath
+    try {
+        & java '-Duser.language=en' "-Djava.io.tmpdir=$tempPath" -cp $packagedJar engine.EntryGateChecks (Join-Path $verificationPath 'screenshots') *> $entryLog
+        if ($LASTEXITCODE -ne 0) { Get-Content -LiteralPath $entryLog -Tail 18; throw 'Packaged entry checks failed.' }
+        Get-Content -LiteralPath $entryLog | Select-String '^PASS:' | ForEach-Object { $_.Line }
+    } finally { Pop-Location }
     Write-Host "Verified in: $verificationPath"
 } finally { Pop-Location }

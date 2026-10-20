@@ -23,13 +23,13 @@ import item.ItemSystem;
 /**
  * Removable local add-on: click the menu entry (or press E).
  * Requires the original infinity_void achievement; the bottom-right lock is a
- * tester bypass and writes only endless-test-records.properties.
+ * password-protected tester bypass and writes only endless-test-records.properties.
  * Base score = active whole seconds * 10 + defeated enemies * 100; items can add bonuses.
  * Waves 5, 10, 15, ... are boss encounters with a safe three-second introduction.
  * Boss kills drop supplies but grant no automatic upgrades. Every three cleared
  * waves offer three choices, with one optional reroll; exactly one is claimed.
  * Shared features are connected through GameplaySession and ItemSystem. QA never awards progress.
- * Delete this source and restart to remove the entry; TitleScreen has no direct
+ * Omit the compiled add-on to remove the entry; TitleScreen has no direct
  * compile dependency. Recompile after edits with javac -encoding UTF-8.
  */
 public final class EndlessMode extends Screen {
@@ -50,6 +50,7 @@ public final class EndlessMode extends Screen {
     private static Screen menuScreen;
     private static int menuIndex;
     private static boolean gateOpen, gateAvailable;
+    private static final TestPassword testPassword = new TestPassword();
     private static final int GATE_WIDTH = 400, GATE_HEIGHT = 386;
     private final Run run;
     private final Records records;
@@ -124,6 +125,7 @@ public final class EndlessMode extends Screen {
         int ordinal = ((MenuItem)menuField("selected").get(screen)).ordinal();
         menuIndex = ordinal == 0 ? 0 : ordinal + 1;
         gateOpen = false;
+        testPassword.close();
         controls.clear();
     }
 
@@ -179,12 +181,23 @@ public final class EndlessMode extends Screen {
             Point local = click == null ? null : new Point(
                     click.x - (screen.getWidth()-GATE_WIDTH)/2,
                     click.y - (screen.getHeight()-GATE_HEIGHT)/2);
+            if (testPassword.open) {
+                if (escape || inside(local,362,10,24,24) || inside(local,22,320,148,36)) {
+                    testPassword.close();
+                    controls.clear();
+                } else if (testPassword.accept(controls.takePasswordInput(),
+                        enter || inside(local,182,320,196,36))) {
+                    startEndless(screen, true);
+                }
+                return true;
+            }
             if (escape || inside(local, 362,10,24,24)
                     || inside(local,22,320,gateAvailable ? 148 : 300,36)) {
                 gateOpen = false;
                 controls.clear();
             } else if (inside(local,344,320,34,36)) {
-                startEndless(screen, true);
+                testPassword.show();
+                controls.beginPasswordInput();
             } else if (gateAvailable && (enter || inside(local,182,320,140,36))) {
                 startEndless(screen, false);
             }
@@ -207,6 +220,7 @@ public final class EndlessMode extends Screen {
             if (menuIndex == 1) {
                 gateAvailable = unlocked();
                 gateOpen = true;
+                testPassword.close();
                 controls.clear();
             } else {
                 java.lang.reflect.Method confirm = TitleScreen.class.getDeclaredMethod("confirm");
@@ -219,6 +233,7 @@ public final class EndlessMode extends Screen {
 
     private static void startEndless(Screen screen, boolean testing) throws ReflectiveOperationException {
         gateOpen = false;
+        testPassword.close();
         controls.clear();
         boolean again;
         do {
@@ -266,6 +281,11 @@ public final class EndlessMode extends Screen {
         g.setColor(inside(pointer,362,10,24,24) ? Color.GREEN : MUTED);
         g.drawRect(362,10,23,23);
         g.drawLine(369,17,378,26);g.drawLine(378,17,369,26);
+        if (testPassword.open) {
+            drawTestPassword(g,pointer);
+            g.dispose();
+            return;
+        }
         g.setFont(UI_FONT.deriveFont(24f));centerGate(g,"ENDLESS",73,Color.GREEN);
         g.setColor(gateAvailable?Color.GREEN:new Color(110,132,116));pixelLock(g,182,95,4);
         g.setFont(UI_FONT.deriveFont(14f));centerGate(g,gateAvailable?"ACCESS GRANTED":"MODE LOCKED",163,gateAvailable?Color.GREEN:Color.WHITE);
@@ -282,6 +302,44 @@ public final class EndlessMode extends Screen {
         g.setFont(UI_FONT.deriveFont(9f));g.setColor(MUTED);g.drawString("QA",352,310);
         centerGate(g,"ESC TO RETURN",374,MUTED);
         g.dispose();
+    }
+
+    private static void drawTestPassword(Graphics2D g, Point pointer) {
+        g.setFont(UI_FONT.deriveFont(22f));centerGate(g,"TEST ACCESS",83,Color.GREEN);
+        g.setFont(UI_FONT);centerGate(g,"ENTER TEST PASSWORD",137,Color.WHITE);
+        centerGate(g,"TYPE DIGITS, THEN PRESS ENTER",164,MUTED);
+        g.setColor(new Color(4,25,13));g.fillRect(90,190,220,50);
+        g.setColor(Color.GREEN);g.drawRect(90,190,220,50);
+        g.setFont(UI_FONT.deriveFont(24f));
+        centerGate(g,"*".repeat(testPassword.value.length())+"_",225,Color.WHITE);
+        g.setFont(UI_FONT.deriveFont(10f));
+        centerGate(g,testPassword.error?"INCORRECT PASSWORD. TRY AGAIN.":"BACKSPACE TO EDIT",268,
+                testPassword.error?DANGER:MUTED);
+        centerGate(g,"TEST ONLY / NO SHARED PROGRESS",295,MUTED);
+        gateButton(g,pointer,"BACK",22,148);
+        gateButton(g,pointer,"ENTER TEST",182,196);
+        centerGate(g,"ESC TO CANCEL",374,MUTED);
+    }
+
+    /** Session-only QA access. Never changes the campaign unlock achievement. */
+    private static final class TestPassword {
+        private boolean open, error;
+        private String value="";
+        void show() { open=true;error=false;value=""; }
+        void close() { open=false;error=false;value=""; }
+        boolean accept(String input, boolean submit) {
+            if (!open) return false;
+            for (char c : input.toCharArray()) {
+                if (c=='\b') { if(!value.isEmpty())value=value.substring(0,value.length()-1); }
+                else if(c==127)value="";
+                else if(c>='0' && c<='9' && value.length()<16)value+=c;
+                error=false;
+            }
+            if (!submit) return false;
+            if ("000".equals(value)) { close();return true; }
+            value="";error=true;
+            return false;
+        }
     }
 
     private static void pixelLock(Graphics g,int x,int y,int scale) {
@@ -699,7 +757,23 @@ public final class EndlessMode extends Screen {
         private final boolean[] down=new boolean[256], pressed=new boolean[256];
         private Point click, hover;
         private boolean moved;
-        @Override public synchronized void keyPressed(KeyEvent e){int k=e.getKeyCode();if(k>=0&&k<256){if(!down[k])pressed[k]=true;down[k]=true;}}
+        private boolean passwordInputActive;
+        private final StringBuilder passwordInput = new StringBuilder();
+        @Override public synchronized void keyPressed(KeyEvent e){
+            int k=e.getKeyCode();
+            if(k>=0&&k<256){
+                if(!down[k]){
+                    pressed[k]=true;
+                    if(passwordInputActive){
+                        if(k>=KeyEvent.VK_0 && k<=KeyEvent.VK_9)passwordInput.append((char)('0'+k-KeyEvent.VK_0));
+                        else if(k>=KeyEvent.VK_NUMPAD0 && k<=KeyEvent.VK_NUMPAD9)passwordInput.append((char)('0'+k-KeyEvent.VK_NUMPAD0));
+                        else if(k==KeyEvent.VK_BACK_SPACE)passwordInput.append('\b');
+                        else if(k==KeyEvent.VK_DELETE)passwordInput.append((char)127);
+                    }
+                }
+                down[k]=true;
+            }
+        }
         @Override public synchronized void keyReleased(KeyEvent e){int k=e.getKeyCode();if(k>=0&&k<256)down[k]=false;}
         @Override public void keyTyped(KeyEvent e){}
         synchronized boolean take(int k){boolean p=pressed[k];pressed[k]=false;return p;}
@@ -708,7 +782,9 @@ public final class EndlessMode extends Screen {
         synchronized Point takeHover(){Point p=moved?hover:null;moved=false;return p;}
         synchronized Point pointer(){return hover==null?null:new Point(hover);}
         synchronized void discardPresses(){java.util.Arrays.fill(pressed,false);click=null;}
-        synchronized void clear(){discardPresses();java.util.Arrays.fill(down,false);moved=false;}
+        synchronized void clear(){discardPresses();java.util.Arrays.fill(down,false);moved=false;passwordInputActive=false;passwordInput.setLength(0);}
+        synchronized void beginPasswordInput(){clear();passwordInputActive=true;}
+        synchronized String takePasswordInput(){String input=passwordInput.toString();passwordInput.setLength(0);return input;}
         @Override public synchronized void mousePressed(MouseEvent e){if(e.getButton()==MouseEvent.BUTTON1)click=e.getPoint();}
         @Override public synchronized void mouseMoved(MouseEvent e){hover=e.getPoint();moved=true;}
     }
