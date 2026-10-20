@@ -5,8 +5,9 @@ import java.awt.Color;
 import engine.DrawManager.SpriteType;
 
 /**
- * Implements a bullet that moves vertically up or down.
- * 
+ * Implements a bullet that moves vertically up or down, optionally drifting
+ * sideways (used by aimed boss attacks).
+ *
  * @author <a href="mailto:RobertoIA1987@gmail.com">Roberto Izquierdo Amo</a>
  * 
  */
@@ -17,6 +18,8 @@ public class Bullet extends Entity {
 	 * positive is down.
 	 */
 	private int speed;
+	/** Horizontal speed of the bullet, positive is right. Usually zero. */
+	private int speedX;
 
 	/**
 	 * Constructor, establishes the bullet's properties.
@@ -69,6 +72,7 @@ public class Bullet extends Entity {
 	 * Updates the bullet's position.
 	 */
 	public final void update() {
+		this.positionX += this.speedX;
 		this.positionY += this.speed;
 	}
 
@@ -89,5 +93,24 @@ public class Bullet extends Entity {
 	 */
 	public final int getSpeed() {
 		return this.speed;
+	}
+
+	/**
+	 * Setter of the horizontal speed of the bullet.
+	 *
+	 * @param speedX
+	 *            New horizontal speed of the bullet, positive is right.
+	 */
+	public final void setSpeedX(final int speedX) {
+		this.speedX = speedX;
+	}
+
+	/**
+	 * Getter for the horizontal speed of the bullet.
+	 *
+	 * @return Horizontal speed of the bullet.
+	 */
+	public final int getSpeedX() {
+		return this.speedX;
 	}
 }
