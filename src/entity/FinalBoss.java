@@ -176,6 +176,18 @@ public class FinalBoss extends Entity implements Boss {
         }
     }
 
+	/** Keeps warning, shooting and movement timers still during a pause. */
+	public final void resumeAfterPause(final long pausedMilliseconds) {
+		this.animationCooldown.delayBy(pausedMilliseconds);
+		this.rainWarningCooldown.delayBy(pausedMilliseconds);
+		this.teleportWarningCooldown.delayBy(pausedMilliseconds);
+		this.holdFireCooldown.delayBy(pausedMilliseconds);
+		if (this.shootCooldown != null)
+			this.shootCooldown.delayBy(pausedMilliseconds);
+		if (this.teleportCooldown != null)
+			this.teleportCooldown.delayBy(pausedMilliseconds);
+	}
+
 	/**
 	 * Checks if the ship has been destroyed.
 	 * 
