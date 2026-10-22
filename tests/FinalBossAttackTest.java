@@ -4,11 +4,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import engine.Core;
+import engine.Cooldown;
 import engine.GameSettings;
+import engine.GameState;
 import engine.DrawManager.SpriteType;
 import entity.Bullet;
 import entity.BulletPool;
 import entity.FinalBoss;
+import screen.GameScreen;
 
 /** Standalone checks for the Final Boss aimed shot, bullet rain and teleport. */
 public final class FinalBossAttackTest {
@@ -21,6 +24,12 @@ public final class FinalBossAttackTest {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         return field.get(target);
+    }
+
+    private static void set(Object target, String name, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(target, value);
     }
 
     private static Object call(Object target, String name, Object... args) throws Exception {
@@ -49,13 +58,50 @@ public final class FinalBossAttackTest {
 
     public static void main(String[] args) throws Exception {
         Core.getLogger().setUseParentHandlers(false);
+        mixedBulletSizesStaySeparate();
         recycledBulletsLoseSidewaysSpeed();
         aimedShotHeadsForThePlayer();
         bulletRainWarnsThenDropsOnePerLane();
         teleportWarnsThenJumpsAndHoldsFire();
+        pausePreservesBossWarningsAndGracePeriod();
         specialAttacksNeverRepeat();
         destroyClearsPendingAttacks();
         System.out.println("PASS: " + checks + " checks");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void mixedBulletSizesStaySeparate() throws Exception {
+        Field poolField = BulletPool.class.getDeclaredField("pool");
+        poolField.setAccessible(true);
+        Set<Bullet> pool = (Set<Bullet>) poolField.get(null);
+        pool.clear();
+
+        Bullet large = BulletPool.getCustomBullet(100, 100, -6, 18, 30);
+        large.setSpeedX(4);
+        Set<Bullet> used = new HashSet<Bullet>();
+        used.add(large);
+        BulletPool.recycle(used);
+
+        Bullet enemy = BulletPool.getBullet(200, 100, 5);
+        check(enemy != large && enemy.getWidth() == Bullet.DEFAULT_WIDTH
+                && enemy.getHeight() == Bullet.DEFAULT_HEIGHT,
+                "Enemy shot does not reuse a large player bullet");
+        check(enemy.getPositionX() == 200 - Bullet.DEFAULT_WIDTH / 2
+                && enemy.getSpeedX() == 0, "Normal bullet is centered and reset");
+
+        Bullet custom = BulletPool.getCustomBullet(150, 100, -6, 18, 30);
+        check(custom == large && custom.getSpeedX() == 0,
+                "Matching large bullet is reused without sideways speed");
+        used.clear();
+        used.add(enemy);
+        used.add(custom);
+        BulletPool.recycle(used);
+
+        Bullet player = BulletPool.getBullet(50, 100, -6);
+        check(player == enemy && player.getWidth() == Bullet.DEFAULT_WIDTH
+                && player.getHeight() == Bullet.DEFAULT_HEIGHT,
+                "Normal player shot keeps the normal collision size");
+        pool.clear();
     }
 
     private static void recycledBulletsLoseSidewaysSpeed() {
@@ -166,6 +212,38 @@ public final class FinalBossAttackTest {
         Thread.sleep(600);
         check(boss.shoot(bullets, SETTINGS) && !bullets.isEmpty(),
                 "Boss fires again after the grace period");
+    }
+
+    private static void pausePreservesBossWarningsAndGracePeriod() throws Exception {
+        GameScreen screen = new GameScreen(new GameState(10, 0, 3, 0, 0, 0),
+                SETTINGS, false, WIDTH, HEIGHT, 60);
+        screen.initialize();
+        FinalBoss boss = (FinalBoss) get(screen, "midBoss");
+        boss.moveBoss(WIDTH, HEIGHT, SETTINGS);
+        call(boss, "startBulletRain");
+        call(boss, "startTeleport", WIDTH, HEIGHT);
+        int startX = boss.getPositionX();
+        int startY = boss.getPositionY();
+
+        set(screen, "paused", true);
+        set(screen, "pauseStartedAt", System.currentTimeMillis());
+        Thread.sleep(900);
+        call(screen, "confirmPauseSelection");
+        check(!(Boolean) get(screen, "paused"), "Pause menu resumes gameplay");
+        Set<Bullet> bullets = new HashSet<Bullet>();
+        check(!(Boolean) call(boss, "dropPendingRain", bullets)
+                && bullets.isEmpty(), "Rain warning survives a long pause");
+        boss.moveBoss(WIDTH, HEIGHT, SETTINGS);
+        check((Boolean) get(boss, "teleporting")
+                && boss.getPositionX() == startX && boss.getPositionY() == startY,
+                "Teleport warning survives a long pause");
+
+        call(boss, "finishTeleport");
+        Cooldown holdFire = (Cooldown) get(boss, "holdFireCooldown");
+        Thread.sleep(600);
+        boss.resumeAfterPause(600);
+        check(!holdFire.checkFinished(),
+                "Post-teleport hold-fire time survives a long pause");
     }
 
     private static void specialAttacksNeverRepeat() throws Exception {

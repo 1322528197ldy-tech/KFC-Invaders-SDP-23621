@@ -12,6 +12,9 @@ import engine.DrawManager.SpriteType;
  * 
  */
 public class Bullet extends Entity {
+	/** Dimensions of an ordinary player or enemy bullet. */
+	public static final int DEFAULT_WIDTH = 6;
+	public static final int DEFAULT_HEIGHT = 10;
 
 	/**
 	 * Speed of the bullet, positive or negative depending on direction -
@@ -33,8 +36,7 @@ public class Bullet extends Entity {
 	 *            direction - positive is down.
 	 */
     public Bullet(final int positionX, final int positionY, final int speed) {
-        // Default size is 3x5 pixels, scaled by 2
-        this(positionX, positionY, speed, 3 * 2, 5 * 2);
+        this(positionX, positionY, speed, DEFAULT_WIDTH, DEFAULT_HEIGHT);
     }
 
     /**

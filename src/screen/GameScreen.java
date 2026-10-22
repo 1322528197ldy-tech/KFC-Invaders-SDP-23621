@@ -261,6 +261,8 @@ public class GameScreen extends Screen {
 	private shop.Skin skin;
 	/** Whether gameplay is currently paused. */
 	private boolean paused;
+	/** Wall-clock time when the current pause began. */
+	private long pauseStartedAt;
 	/** Debounces the pause key so holding it doesn't toggle every frame. */
 	private Cooldown pauseKeyCooldown;
 	/** Debounces cursor moves in the pause menu. */
@@ -381,6 +383,7 @@ public class GameScreen extends Screen {
 		this.pauseKeyCooldown = Core.getCooldown(PAUSE_KEY_DEBOUNCE);
 		this.pauseSelectionCooldown = Core.getCooldown(PAUSE_SELECTION_DEBOUNCE);
 		this.pauseSelection = PauseOption.RESUME;
+		this.pauseStartedAt = 0;
 
 		// Item System (Team CS): level 1 starts a new run, later levels keep it.
 		this.items = ItemSystem.forLevel(this.level);
@@ -447,7 +450,12 @@ public class GameScreen extends Screen {
 
 		if (inputManager.isKeyDown(KeyEvent.VK_P)
 				&& this.pauseKeyCooldown.checkFinished()) {
-			this.paused = !this.paused;
+			if (this.paused)
+				resumeGameplay();
+			else {
+				this.paused = true;
+				this.pauseStartedAt = System.currentTimeMillis();
+			}
 			this.pauseKeyCooldown.reset();
 			this.pauseSelection = PauseOption.RESUME;
 			this.logger.info(this.paused ? "Game paused" : "Game resumed");
@@ -765,7 +773,7 @@ public class GameScreen extends Screen {
 	private void confirmPauseSelection() {
 		switch (this.pauseSelection) {
 			case RESUME:
-				this.paused = false;
+				resumeGameplay();
 				break;
 			case RESTART:
 				restartLevel();
@@ -781,6 +789,16 @@ public class GameScreen extends Screen {
 			default:
 				break;
 		}
+	}
+
+	/** Resumes the level without consuming the boss's warning time. */
+	private void resumeGameplay() {
+		if (this.paused && this.midBoss instanceof FinalBoss) {
+			((FinalBoss) this.midBoss).resumeAfterPause(
+					System.currentTimeMillis() - this.pauseStartedAt);
+		}
+		this.paused = false;
+		this.pauseStartedAt = 0;
 	}
 
 	/**
