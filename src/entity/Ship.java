@@ -280,6 +280,11 @@ public class Ship extends Entity {
 			this.spriteType = this.idleSprite;
 	}
 
+	/** Equipped shape even while the ship is temporarily destroyed. */
+	public final SpriteType getIdleSprite() {
+		return this.idleSprite;
+	}
+
 	/**
 	 * Updates status of the ship.
 	 */
