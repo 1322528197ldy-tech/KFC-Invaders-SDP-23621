@@ -92,6 +92,7 @@ public class TitleScreen extends Screen {
 		if (!this.inputDelay.checkFinished()) {
 			return;
 		}
+		if (!this.showingExitConfirm && optionalEndless("updateEntry")) return;
 
 		if (escapePressed) {
 			if (this.showingExitConfirm) {
@@ -157,14 +158,23 @@ public class TitleScreen extends Screen {
 	/**
 	 * Handles input while the exit confirmation is open. The cursor starts on
 	 * No, so a second Space or Enter press cannot close the game by accident.
+	 * Yes sits left of No, so left and A choose Yes while right and D choose
+	 * No, the way the arrows move the cursor in the menu. Pressing towards
+	 * the answer already chosen leaves it where it is.
 	 */
 	private void updateExitConfirm(final boolean confirmPressed) {
 		if (this.selectionCooldown.checkFinished()) {
-			if (inputManager.isKeyDown(KeyEvent.VK_LEFT)
-					|| inputManager.isKeyDown(KeyEvent.VK_RIGHT)
-					|| inputManager.isKeyDown(KeyEvent.VK_A)
-					|| inputManager.isKeyDown(KeyEvent.VK_D)) {
-				this.exitConfirmYes = !this.exitConfirmYes;
+			final boolean yesKeyDown = inputManager.isKeyDown(KeyEvent.VK_LEFT)
+					|| inputManager.isKeyDown(KeyEvent.VK_A);
+			final boolean noKeyDown = inputManager.isKeyDown(KeyEvent.VK_RIGHT)
+					|| inputManager.isKeyDown(KeyEvent.VK_D);
+
+			// One side at a time, and only when it changes the answer, so
+			// both sides held cancel out and pressing the side already
+			// chosen does nothing.
+			if (yesKeyDown != noKeyDown
+					&& this.exitConfirmYes != yesKeyDown) {
+				this.exitConfirmYes = yesKeyDown;
 				this.selectionCooldown.reset();
 			}
 		}
@@ -243,7 +253,8 @@ public class TitleScreen extends Screen {
 
 		drawManager.drawStarfield(this, starfield);
 		drawManager.drawTitle(this);
-		drawManager.drawMenu(this, this.selected);
+		if (!optionalEndless("drawEntry"))
+			drawManager.drawMenu(this, this.selected);
 		drawManager.drawKeyHints(this, keyHints());
 
 		// Drawn last so it sits over the menu.
@@ -260,5 +271,15 @@ public class TitleScreen extends Screen {
 		this.showingExitConfirm = true;
 		this.exitConfirmYes = false;
 		this.selectionCooldown.reset();
+	}
+
+	/** Optional add-on: works from compiled classes/JARs without a source checkout. */
+	private boolean optionalEndless(final String method) {
+		try {
+			return Boolean.TRUE.equals(Class.forName("screen.EndlessMode")
+					.getMethod(method, Screen.class).invoke(null, this));
+		} catch (ReflectiveOperationException | LinkageError e) {
+			return false; // Original menu remains usable when the add-on is absent.
+		}
 	}
 }
