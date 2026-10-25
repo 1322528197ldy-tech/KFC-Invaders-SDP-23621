@@ -41,6 +41,7 @@ public final class GameplaySession {
         SharedAccess.Loadout loadout=SharedAccess.loadout(testing);
         GameplaySession session=new GameplaySession(loadout.ship,loadout.skin,loadout.equipment,!testing,true,random);
         session.shopEffects=new ShopEffects(loadout.effects);
+        if(loadout.shape!=null)session.ship.setShapeSprite(loadout.shape.getSprite());
         return session;
     }
 

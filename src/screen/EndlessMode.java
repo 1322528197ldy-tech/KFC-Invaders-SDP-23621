@@ -496,6 +496,8 @@ public final class EndlessMode extends Screen {
             else drawManager.drawEntity(entity,(int)b.x,(int)b.y);
         }
         images.keySet().retainAll(run.getEnemies());
+        if(run.nativeBoss!=null && run.getPhase()==Run.Phase.PLAYING)
+            SharedAccess.drawBossWarnings(run.nativeBoss,drawManager,138);
         for(EnemyShip e:fading) drawManager.drawEntity(e,e.getPositionX(),e.getPositionY());
         for(Particle p:particles) drawManager.drawParticle(p);
         for(Run.Body b:run.getShots()) {
@@ -834,6 +836,7 @@ public final class EndlessMode extends Screen {
     private final Ship ship;
     private Boss nativeBoss;
     private double bossMoveRemainder, bossHealthFloor;
+    private long bossPausedAt;
     private int bulletsFired;
     public final ItemAPI items;
     private List<Reward> offers=Collections.emptyList();
@@ -1028,10 +1031,13 @@ public final class EndlessMode extends Screen {
         Body boss = getBoss();
         if (boss != null) {
             java.util.Set<Bullet> volley=new java.util.LinkedHashSet<Bullet>();
+            nativeBoss.setTarget((int)(player.x+player.width/2),(int)(player.y+player.height/2));
             SharedAccess.bossVolley(nativeBoss,volley,bossSettings());
             for(Bullet bullet:volley) {
+                if(nativeBoss instanceof FinalBoss && bullet.getPositionY()==((Number)SharedAccess.get(FinalBoss.class,"RAIN_START_Y")).intValue())
+                    bullet.setPositionY(bullet.getPositionY()+138-((Number)SharedAccess.get(FinalBoss.class,"TOP_BOUNDARY")).intValue());
                 Body shot=new Body(bullet.getPositionX(),bullet.getPositionY(),bullet.getWidth(),bullet.getHeight(),false);
-                shot.entity=bullet;shot.vy=bullet.getSpeed()*60.0;shot.damage=boss.damage;shots.add(shot);
+                shot.entity=bullet;shot.vx=bullet.getSpeedX()*60.0;shot.vy=bullet.getSpeed()*60.0;shot.damage=boss.damage;shots.add(shot);
             }
         } else {
             Body enemy = enemies.get(random.nextInt(enemies.size()));
@@ -1164,8 +1170,11 @@ public final class EndlessMode extends Screen {
 
     public void togglePause() {
         if (phase == Phase.OVER) return;
-        if (phase == Phase.PAUSED) phase = resumePhase;
-        else { resumePhase = phase; phase = Phase.PAUSED; }
+        if (phase == Phase.PAUSED) {
+            if(nativeBoss instanceof FinalBoss && bossPausedAt>0)
+                ((FinalBoss)nativeBoss).resumeAfterPause(System.currentTimeMillis()-bossPausedAt);
+            bossPausedAt=0;phase = resumePhase;
+        } else { bossPausedAt=System.currentTimeMillis();resumePhase = phase; phase = Phase.PAUSED; }
     }
 
     public void finish(String reason) {

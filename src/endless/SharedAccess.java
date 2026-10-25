@@ -44,6 +44,7 @@ public final class SharedAccess {
     public static final class Loadout {
         public Ship.ShipType ship=Ship.ShipType.STANDARD;
         public Skin skin=Skin.CLASSIC;
+        public ShapeSkin shape;
         public ItemInfo equipment;
         public final Set<String> effects=new LinkedHashSet<String>();
     }
@@ -54,6 +55,7 @@ public final class SharedAccess {
         Loadout result=new Loadout();
         if(purchases!=null) {
             result.ship=purchases.getSelectedShip();result.skin=purchases.getSelectedSkin();
+            result.shape=purchases.getSelectedShape(result.ship);
             for(ItemInfo item:ItemSystem.equipmentItems())if(purchases.isUpgradeOn(item.itemId)){result.equipment=item;break;}
             for(ShopItem item:ShopCatalog.getByCategory(ShopCategory.EFFECT))
                 if(purchases.isEffectOn(item))result.effects.add(item.getRef());
@@ -71,6 +73,11 @@ public final class SharedAccess {
             Skin appearance=Skin.valueOf(skin);
             if(owned(saved,prefix,ShopCatalog.findByRef(ShopCategory.SHIP,candidate.name())))result.ship=candidate;
             if(owned(saved,prefix,ShopCatalog.findByRef(ShopCategory.SKIN,appearance.name())))result.skin=appearance;
+            String shapeName=saved.getProperty((String)get(PurchaseManager.class,"SHAPE_KEY")+result.ship.name());
+            if(shapeName!=null) {
+                ShapeSkin shape=ShapeSkin.valueOf(shapeName.trim());
+                if(shape.getShipType()==result.ship && owned(saved,prefix,ShopCatalog.findByRef(ShopCategory.SHAPE,shape.name())))result.shape=shape;
+            }
             Set<String> off=new HashSet<String>(Arrays.asList(saved.getProperty((String)get(PurchaseManager.class,"OFF_KEY"),"").split(",")));
             for(ShopItem entry:ShopCatalog.getByCategory(ShopCategory.EFFECT))
                 if(owned(saved,prefix,entry) && !off.contains(entry.getId()))result.effects.add(entry.getRef());
@@ -171,6 +178,13 @@ public final class SharedAccess {
         model.setPositionY(model.getPositionY()-offset);
         boss.moveBoss(width,height-offset,settings);
         model.setPositionY(model.getPositionY()+offset);
+    }
+    public static void drawBossWarnings(Boss boss,DrawManager drawing,int top) {
+        java.awt.Graphics2D original=(java.awt.Graphics2D)get(DrawManager.class,"backBufferGraphics");
+        java.awt.Graphics2D copy=(java.awt.Graphics2D)original.create();
+        copy.clipRect(0,top,10000,10000);
+        copy.translate(0,top-number(boss.getClass(),"TOP_BOUNDARY"));
+        try {drawWith(copy,()->boss.drawWarnings(drawing));}finally{copy.dispose();}
     }
     public static int coinValue(boolean bonus){return number(screen.GameScreen.class,bonus?"BONUS_COIN_VALUE":"COIN_VALUE");}
 

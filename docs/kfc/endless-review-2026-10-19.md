@@ -2,7 +2,7 @@
 
 ## Current version
 
-The owner's `d251a9c` implementation is integrated with course main `cdaee67` (including A1 and VFX changes). KFC balance PR #28 remains separate. This review does not change campaign, shared item, shop, engine or enemy sources; TitleScreen contains the optional entry hook.
+The owner's `d251a9c` implementation is integrated with course main `4a1f6b5` (including the re-applied A1 #192, VFX and music changes). KFC balance PR #28 remains separate. This review does not change campaign, shared item, shop, engine or enemy sources; TitleScreen contains the optional entry hook.
 
 ## Validation and evidence
 
@@ -31,3 +31,7 @@ java -cp bin/endless-game:res engine.Core
 Main menu: E -> small lock -> 000 for QA. Move with A/D or arrows, shoot with Space, pause with P or Escape. While paused, Q cashes out/ends the run (QA awards no shared currency); H opens Endless records. Follow the on-screen controls for other connected screens.
 
 Automated checks on Windows: `powershell -ExecutionPolicy Bypass -File tests/endless/verify-connected.ps1`. The script isolates saves and exercises packaged entry.
+
+## Final upstream sync (October 25)
+
+Integrated course main 4a1f6b5 after A1 #192. Endless now preserves aimed-bullet horizontal velocity, passes the player target, draws native warnings below its HUD, shifts rain spawn positions to its play area and preserves warning timers across pause. Purchased A1 ship looks are read for both normal and isolated QA entry. No shared campaign sources are overridden.
