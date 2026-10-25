@@ -418,6 +418,10 @@ public final class EndlessMode extends Screen {
             for(Entity image:images.values()) if(image instanceof EnemyShip) ((EnemyShip)image).update();
             else if(image instanceof Boss) ((Boss)image).update();
         }
+        boolean playing=run.getPhase()==Run.Phase.PLAYING;
+        boolean advancing=playing || run.getPhase()==Run.Phase.READY
+                || run.getPhase()==Run.Phase.INTERMISSION || run.getPhase()==Run.Phase.BOSS_INTRO;
+        systems.getShopEffects().frame(player,playing,advancing,run.getLives(),run.countdown,dt);
         draw();
     }
 
@@ -496,14 +500,18 @@ public final class EndlessMode extends Screen {
         for(Particle p:particles) drawManager.drawParticle(p);
         for(Run.Body b:run.getShots()) {
             b.entity.setPositionX((int)b.x); b.entity.setPositionY((int)b.y);
+            if(run.isPlayerShot(b))systems.getShopEffects().drawBullet(drawManager,(Bullet)b.entity);
             drawManager.drawEntity(b.entity,(int)b.x,(int)b.y);
         }
         drawHits(g);
         systems.drawWorld(drawManager,g,UI_FONT);
+        systems.getShopEffects().drawLightning(drawManager);
         drawManager.drawItemDrops(systems.getItems().nativeSystem());
         player.setPositionX((int)run.getPlayer().x); player.setPositionY((int)run.getPlayer().y);
         player.setSkinColor(systems.getSkin().colorAt(System.currentTimeMillis()));
-        drawManager.drawEntity(player,player.getPositionX(),player.getPositionY());
+        systems.getShopEffects().drawGhost(drawManager,player,player.getColor(),systems.getItems().nativeSystem());
+        if(!systems.getShopEffects().hidesShip())drawManager.drawEntity(player,player.getPositionX(),player.getPositionY());
+        systems.getShopEffects().drawWarp(drawManager,player,player.getColor());
         drawManager.drawItemShield(player,systems.getItems().nativeSystem());
         drawManager.setWorldOffset(0,0); drawManager.drawDamageDim(this,dim);
         glitch.setEnabled(run.getPhase()==Run.Phase.PLAYING && run.getLives()==1 && lowHealthTime>0);

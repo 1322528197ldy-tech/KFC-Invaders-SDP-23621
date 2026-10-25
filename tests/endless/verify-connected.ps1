@@ -16,7 +16,7 @@ try {
     & javac '-J-Duser.language=en' -encoding UTF-8 -cp "$classPath;res" -d $classPath $testSources 2> (Join-Path $verificationPath 'test-compile.log')
     if ($LASTEXITCODE -ne 0) { throw 'Test compilation failed.' }
     $suites = @('engine.ConnectedSystemsChecks', 'engine.RunTest', 'engine.RewardItemsTest',
-        'engine.EndlessUiChecks')
+        'engine.EndlessUiChecks', 'engine.ShopEffectsChecks')
     foreach ($suite in $suites) {
         $suiteLog = Join-Path $verificationPath ($suite + '.log')
         $suitePath = Join-Path $verificationPath ('connected-check-' + $suite.Replace('.', '-'))

@@ -45,6 +45,7 @@ public final class SharedAccess {
         public Ship.ShipType ship=Ship.ShipType.STANDARD;
         public Skin skin=Skin.CLASSIC;
         public ItemInfo equipment;
+        public final Set<String> effects=new LinkedHashSet<String>();
     }
 
     /** Existing manager when available; a cold QA launch reads its native save without running migrations. */
@@ -54,6 +55,8 @@ public final class SharedAccess {
         if(purchases!=null) {
             result.ship=purchases.getSelectedShip();result.skin=purchases.getSelectedSkin();
             for(ItemInfo item:ItemSystem.equipmentItems())if(purchases.isUpgradeOn(item.itemId)){result.equipment=item;break;}
+            for(ShopItem item:ShopCatalog.getByCategory(ShopCategory.EFFECT))
+                if(purchases.isEffectOn(item))result.effects.add(item.getRef());
             return result;
         }
         try {
@@ -69,6 +72,8 @@ public final class SharedAccess {
             if(owned(saved,prefix,ShopCatalog.findByRef(ShopCategory.SHIP,candidate.name())))result.ship=candidate;
             if(owned(saved,prefix,ShopCatalog.findByRef(ShopCategory.SKIN,appearance.name())))result.skin=appearance;
             Set<String> off=new HashSet<String>(Arrays.asList(saved.getProperty((String)get(PurchaseManager.class,"OFF_KEY"),"").split(",")));
+            for(ShopItem entry:ShopCatalog.getByCategory(ShopCategory.EFFECT))
+                if(owned(saved,prefix,entry) && !off.contains(entry.getId()))result.effects.add(entry.getRef());
             for(ItemInfo item:ItemSystem.equipmentItems()) {
                 ShopItem entry=ShopCatalog.findByRef(ShopCategory.UPGRADE,item.itemId);
                 if(entry!=null && owned(saved,prefix,entry) && !off.contains(entry.getId())){result.equipment=item;break;}
@@ -80,6 +85,18 @@ public final class SharedAccess {
     }
     private static boolean owned(Properties saved,String prefix,ShopItem entry) {
         return entry==null || Integer.parseInt(saved.getProperty(prefix+entry.getId(),"0"))>0;
+    }
+
+    /** Draw native effects in an isolated context without leaking their clip or paint to the HUD. */
+    static void drawWith(java.awt.Graphics2D graphics, Runnable drawing) {
+        Object previous=get(DrawManager.class,"backBufferGraphics");
+        try { set(DrawManager.class,"backBufferGraphics",graphics);drawing.run(); }
+        finally { set(DrawManager.class,"backBufferGraphics",previous); }
+    }
+    /** Adapt native visual timers to active time without changing the shared VFX classes. */
+    static void shiftVisualTime(Object target,String name,long amount) {
+        long value=((Number)get(target,name)).longValue();
+        if(value>0)set(target,name,value+amount);
     }
 
     /** Independent instance of the original item implementation, including its equipment and callbacks. */
