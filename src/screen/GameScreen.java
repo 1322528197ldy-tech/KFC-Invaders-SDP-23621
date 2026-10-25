@@ -274,6 +274,8 @@ public class GameScreen extends Screen {
 	private shop.Skin skin;
 	/** Whether gameplay is currently paused. */
 	private boolean paused;
+	/** Wall-clock time when the current pause began. */
+	private long pauseStartedAt;
 	/** Debounces the pause key so holding it doesn't toggle every frame. */
 	private Cooldown pauseKeyCooldown;
 	/** Debounces cursor moves in the pause menu. */
@@ -313,8 +315,8 @@ public class GameScreen extends Screen {
 	 *            Frames per second, frame rate at which the game is run.
 	 */
 	public GameScreen(final GameState gameState,
-			final GameSettings gameSettings, final boolean bonusLife,
-			final int width, final int height, final int fps) {
+					  final GameSettings gameSettings, final boolean bonusLife,
+					  final int width, final int height, final int fps) {
 		super(width, height, fps);
 
 		this.gameSettings = gameSettings;
@@ -364,6 +366,10 @@ public class GameScreen extends Screen {
 		// Skin chosen in Customize (GoG - Currency System).
 		this.skin = PurchaseManager.getInstance().getSelectedSkin();
 		this.ship.setSkinColor(this.skin.getColor());
+		// Ship look chosen in Customize (A1): only the sprite changes.
+		shop.ShapeSkin shape = PurchaseManager.getInstance()
+				.getSelectedShape(this.ship.getType());
+		this.ship.setShapeSprite(shape == null ? null : shape.getSprite());
 		// Appears each 10-30 seconds.
 		this.enemyShipSpecialCooldown = Core.getVariableCooldown(
 				BONUS_SHIP_INTERVAL, BONUS_SHIP_VARIANCE);
@@ -377,7 +383,7 @@ public class GameScreen extends Screen {
 		this.bullets = new HashSet<Bullet>();
 		this.cometTrailOn = PurchaseManager.getInstance().isEffectOn("comet_trail"); // AUTHORED BY: VFX TEAM (Effection)
 		this.damageDim = new DamageDimEffect(900, 0.75f,
-        new java.awt.Color(150, 0, 0));  //new update dim effect
+				new java.awt.Color(150, 0, 0));  //new update dim effect
 		GameEvents.subscribe(GameEvents.Type.PLAYER_HIT, this.damageDim);
 		this.lightningChain = new LightningChain(); // AUTHORED BY: VFX TEAM (Effection)
 		this.lightningOn = LIGHTNING_ON || PurchaseManager.getInstance().isEffectOn("lightning_chain");   // Lightning Chain, on unless switched off in Customize.
@@ -401,6 +407,7 @@ public class GameScreen extends Screen {
 		this.pauseKeyCooldown = Core.getCooldown(PAUSE_KEY_DEBOUNCE);
 		this.pauseSelectionCooldown = Core.getCooldown(PAUSE_SELECTION_DEBOUNCE);
 		this.pauseSelection = PauseOption.RESUME;
+		this.pauseStartedAt = 0;
 
 		// Item System (Team CS): level 1 starts a new run, later levels keep it.
 		this.items = ItemSystem.forLevel(this.level);
@@ -468,7 +475,12 @@ public class GameScreen extends Screen {
 
 		if (inputManager.isKeyDown(KeyEvent.VK_P)
 				&& this.pauseKeyCooldown.checkFinished()) {
-			this.paused = !this.paused;
+			if (this.paused)
+				resumeGameplay();
+			else {
+				this.paused = true;
+				this.pauseStartedAt = System.currentTimeMillis();
+			}
 			this.pauseKeyCooldown.reset();
 			// Ghost Trail starts fresh after a pause. AUTHORED BY: VFX TEAM (Effection)
 			if (this.ghostTrail != null)
@@ -537,6 +549,9 @@ public class GameScreen extends Screen {
 					this.midBoss.update();
 					this.midBoss.moveBoss(this.width, this.height, this.gameSettings);
 				}
+				this.midBoss.setTarget(
+						this.ship.getPositionX() + this.ship.getWidth() / 2,
+						this.ship.getPositionY() + this.ship.getHeight() / 2);
 				this.midBoss.shoot(this.bullets, this.gameSettings);
 			} else {
 				if (!this.items.enemiesFrozen())
@@ -787,7 +802,7 @@ public class GameScreen extends Screen {
 	private void confirmPauseSelection() {
 		switch (this.pauseSelection) {
 			case RESUME:
-				this.paused = false;
+				resumeGameplay();
 				break;
 			case RESTART:
 				restartLevel();
@@ -803,6 +818,16 @@ public class GameScreen extends Screen {
 			default:
 				break;
 		}
+	}
+
+	/** Resumes the level without consuming the boss's warning time. */
+	private void resumeGameplay() {
+		if (this.paused && this.midBoss instanceof FinalBoss) {
+			((FinalBoss) this.midBoss).resumeAfterPause(
+					System.currentTimeMillis() - this.pauseStartedAt);
+		}
+		this.paused = false;
+		this.pauseStartedAt = 0;
 	}
 
 	/**
@@ -839,41 +864,43 @@ public class GameScreen extends Screen {
 			// paused, so the pause menu isn't cluttered by the frozen
 			// battlefield behind it - only the top HUD stays visible.
 			// Warp In draws the ship itself while it beams in. AUTHORED BY: VFX TEAM (Effection)
-			if (this.warpIn == null|| !this.warpIn.update(this.ship, this.lives > 0))
-				drawManager.drawEntity(this.ship, this.ship.getPositionX(),
-						this.ship.getPositionY());
-			drawManager.drawWarpIn(this.warpIn, this.ship,
-					this.skin.colorAt(System.currentTimeMillis()),
-					SEPARATION_LINE_HEIGHT);
-					if (this.warpIn != null && this.warpIn.takeImpact())
-						this.screenShake.trigger();
+			boolean warping = this.warpIn != null
+					&& this.warpIn.update(this.ship, this.lives > 0);
 			// Ghost Trail behind the ship, gone once the level ends (game over or level clear).
-   			//  AUTHORED BY: VFX TEAM (Effection)
-			if (this.ghostTrail != null && this.levelFinished)
+			// AUTHORED BY: VFX TEAM (Effection)
+			if (this.ghostTrail != null && (this.levelFinished || warping))
 				this.ghostTrail.clear();
 			else if (this.ghostTrail != null)
 				this.ghostTrail.draw(drawManager, this.ship,
 						this.skin.colorAt(System.currentTimeMillis()),
 						engine.GhostTrail.isBoosting(this.items));
-			drawManager.drawEntity(this.ship, this.ship.getPositionX(),
-					this.ship.getPositionY());
+			if (!warping)
+				drawManager.drawEntity(this.ship, this.ship.getPositionX(),
+						this.ship.getPositionY());
+			drawManager.drawWarpIn(this.warpIn, this.ship,
+					this.skin.colorAt(System.currentTimeMillis()),
+					SEPARATION_LINE_HEIGHT);
+			if (this.warpIn != null && this.warpIn.takeImpact())
+				this.screenShake.trigger();
 			drawManager.drawItemShield(this.ship, this.items); // Item System (Team CS)
 			if (this.enemyShipSpecial != null)
 				drawManager.drawEntity(this.enemyShipSpecial,
 						this.enemyShipSpecial.getPositionX(),
 						this.enemyShipSpecial.getPositionY());
 
-if (this.midBoss != null) {
-			drawManager.drawEntity((Entity) this.midBoss, this.midBoss.getPositionX(),
-					this.midBoss.getPositionY());
-		} else {
-			this.enemyShipFormation.draw();
-		}
+			if (this.midBoss != null) {
+				if (this.midBoss.isVisible())
+					drawManager.drawEntity((Entity) this.midBoss,
+							this.midBoss.getPositionX(), this.midBoss.getPositionY());
+				this.midBoss.drawWarnings(drawManager);
+			} else {
+				this.enemyShipFormation.draw();
+			}
 
-		// Hit sparkles move with the game world.
-		drawManager.drawParticles(this, this.particles,
-				SEPARATION_LINE_HEIGHT);
-		drawManager.drawLightningChain(this.lightningChain);
+			// Hit sparkles move with the game world.
+			drawManager.drawParticles(this, this.particles,
+					SEPARATION_LINE_HEIGHT);
+			drawManager.drawLightningChain(this.lightningChain);
 
 			for (Bullet bullet : this.bullets) {
 				// Comet trail, player bullets only. AUTHORED BY: VFX TEAM (Effection)
@@ -935,7 +962,7 @@ if (this.midBoss != null) {
 		if (!this.paused && !this.inputDelay.checkFinished()) {
 			int countdown = (int) ((INPUT_DELAY
 					- (System.currentTimeMillis()
-							- this.gameStartTime)) / 1000);
+					- this.gameStartTime)) / 1000);
 			drawManager.drawCountDown(this, this.level, countdown,
 					this.bonusLife);
 			drawManager.drawHorizontalLine(this, this.height / 2 - this.height
@@ -993,7 +1020,7 @@ if (this.midBoss != null) {
 			particle.update();
 		this.particles.removeIf(particle -> particle.isDead()
 				|| !particle.isInside(0, SEPARATION_LINE_HEIGHT,
-						this.width, this.height));
+				this.width, this.height));
 	}
 
 	/**
@@ -1004,7 +1031,9 @@ if (this.midBoss != null) {
 		for (Bullet bullet : this.bullets) {
 			bullet.update();
 			if (bullet.getPositionY() < SEPARATION_LINE_HEIGHT
-					|| bullet.getPositionY() > this.height)
+					|| bullet.getPositionY() > this.height
+					|| bullet.getPositionX() + bullet.getWidth() < 0
+					|| bullet.getPositionX() > this.width)
 				recyclable.add(bullet);
 		}
 		this.bullets.removeAll(recyclable);
@@ -1050,6 +1079,10 @@ if (this.midBoss != null) {
 					for (EnemyShip enemyShip : this.enemyShipFormation) {
 						if (!enemyShip.isDestroyed()
 								&& checkCollision(bullet, enemyShip)) {
+							recyclable.add(bullet);
+							// Surviving hits consume the bullet without awarding kill rewards.
+							if (!enemyShip.takeDamage(1))
+								continue;
 							this.score += this.items.scoreFor(enemyShip.getPointValue());
 							this.shipsDestroyed++;
 							spawnSparkles(enemyShip);
@@ -1083,9 +1116,9 @@ if (this.midBoss != null) {
 					this.screenShake.trigger();
 					// Bonus points popup. AUTHORED BY: VFX TEAM (Effection)
 					this.pointsEffect.spawnBonus(
-						this.enemyShipSpecial.getPositionX() + this.enemyShipSpecial.getWidth() / 2,
-						this.enemyShipSpecial.getPositionY() + this.enemyShipSpecial.getHeight() / 2,
-						this.enemyShipSpecial.getPointValue());
+							this.enemyShipSpecial.getPositionX() + this.enemyShipSpecial.getWidth() / 2,
+							this.enemyShipSpecial.getPositionY() + this.enemyShipSpecial.getHeight() / 2,
+							this.enemyShipSpecial.getPointValue());
 					queueScoreBoostPopup(this.enemyShipSpecial, true); // Item System (Team CS)
 					dropCoin(this.enemyShipSpecial, BONUS_COIN_VALUE);
 					this.items.onEnemyDefeated(this.enemyShipSpecial, true);
@@ -1238,7 +1271,7 @@ if (this.midBoss != null) {
 	 *            Whether it is the bonus ship (uses its own popup style).
 	 */
 	private void queueScoreBoostPopup(final EnemyShip enemy,
-			final boolean bonusShip) {
+									  final boolean bonusShip) {
 		int extra = this.items.scoreBonus(enemy.getPointValue());
 		if (extra <= 0)
 			return;
