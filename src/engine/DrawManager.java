@@ -18,6 +18,7 @@ import java.util.logging.Logger;
 import screen.MenuItem;
 import screen.Screen;
 import screen.Starfield;
+import entity.Boss;
 import entity.Coin;
 import entity.DiamondDrop;
 import entity.Entity;
@@ -718,6 +719,36 @@ public final class DrawManager {
 				+ iconTextGap, positionY);
 	}
 
+/** Width of the boss health bar, as a fraction of the screen width. */
+	private static final double BOSS_BAR_WIDTH_RATIO = 0.5;
+	/** Height, in pixels, of the boss health bar. */
+	private static final int BOSS_BAR_HEIGHT = 8;
+	/** Gap between the "BOSS" label baseline and the top of the bar. */
+	private static final int BOSS_BAR_GAP = 4;
+	
+	/** Draws the current boss's remaining health as a labelled bar below the item HUD, so the player can track a Stage 5 (MidBoss) or Stage 10 (FinalBoss) encounter at a glance (Requirement 8 - Gameplay HUD). Boss may be null when the stage has no boss or it has already been defeated. */
+	public void drawBossHealthBar(final Screen screen, final Boss boss, final int positionY) {
+		if (boss == null || boss.isDestroyed())
+			return;
+		
+		int maxHp = Math.max(1, boss.getMaxHp());
+		int hp = Math.max(0, Math.min(boss.getHp(), maxHp));
+		
+		int barWidth = (int) (screen.getWidth() * BOSS_BAR_WIDTH_RATIO);
+		int barX = (screen.getWidth() - barWidth) / 2;
+		int barY = positionY + BOSS_BAR_GAP;
+		int filledWidth = barWidth * hp / maxHp;
+		
+		backBufferGraphics.setFont(fontRegular);
+		backBufferGraphics.setColor(Color.WHITE);
+		drawCenteredRegularString(screen, "BOSS", positionY);
+		
+		backBufferGraphics.setColor(Color.RED);
+		backBufferGraphics.drawRect(barX, barY, barWidth, BOSS_BAR_HEIGHT);
+		if (filledWidth > 0)
+			backBufferGraphics.fillRect(barX, barY, filledWidth, BOSS_BAR_HEIGHT);
+	}
+	
 	/**
 	 * Draws a sparkle, see-through according to its age.
 	 * AUTHORED BY: VFX TEAM (Effection)
@@ -990,7 +1021,8 @@ public final class DrawManager {
 	}
 
 	/**
-	 * Draws main menu.
+	 * Draws the main menu, one row per item, through drawMenuRow so the
+	 * main menu and every other screen share one selected-row style.
 	 *
 	 * @param screen
 	 *            Screen to draw on.
@@ -998,23 +1030,10 @@ public final class DrawManager {
 	 *            Item the cursor is on.
 	 */
 	public void drawMenu(final Screen screen, final MenuItem selected) {
-		for (MenuItem item : MenuItem.values()) {
-			int baseline = menuItemBaseline(screen, item.ordinal());
-
-			if (item == selected) {
-				String text = "> " + item.getTitle() + " <";
-				backBufferGraphics.setColor(Color.GREEN);
-				backBufferGraphics.setFont(fontSelected);
-				backBufferGraphics.drawString(text, screen.getWidth() / 2
-						- fontSelectedMetrics.stringWidth(text) / 2, baseline);
-			} else {
-				if (!item.isEnabled())
-					backBufferGraphics.setColor(Color.DARK_GRAY);
-				else
-					backBufferGraphics.setColor(Color.WHITE);
-				drawCenteredRegularString(screen, item.getTitle(), baseline);
-			}
-		}
+		for (MenuItem item : MenuItem.values())
+			drawMenuRow(screen, item.getTitle(),
+					menuItemBaseline(screen, item.ordinal()),
+					item == selected, item.isEnabled());
 	}
 
 	/**
@@ -1680,8 +1699,8 @@ public final class DrawManager {
 	}
 
 	/**
-	 * Draws a centered row of text in the menu colours: green when
-	 * selected, white otherwise.
+	 * Draws a centered row of text in the menu style, as enabled. See the
+	 * five-argument version.
 	 *
 	 * @param screen
 	 *            Screen to draw on.
@@ -1693,13 +1712,15 @@ public final class DrawManager {
 	 *            Whether the row is currently selected.
 	 */
 	public void drawMenuRow(final Screen screen, final String string,
-							final int height, final boolean selected) {
+			final int height, final boolean selected) {
 		drawMenuRow(screen, string, height, selected, true);
 	}
 
 	/**
-	 * Draws a centered row of text in the menu colours: green when
-	 * selected, dark grey when disabled, white otherwise.
+	 * Draws a centered row of text in the menu style shared by every screen,
+	 * the main menu included: the selected row is green, in the larger font
+	 * and between "> <" markers; a disabled row is dark grey; any other row
+	 * is white.
 	 *
 	 * @param screen
 	 *            Screen to draw on.
@@ -1713,8 +1734,8 @@ public final class DrawManager {
 	 *            Whether the row can be chosen.
 	 */
 	public void drawMenuRow(final Screen screen, final String string,
-							final int height, final boolean selected,
-							final boolean enabled) {
+			final int height, final boolean selected,
+			final boolean enabled) {
 		if (selected) {
 			String text = "> " + string + " <";
 			backBufferGraphics.setColor(Color.GREEN);

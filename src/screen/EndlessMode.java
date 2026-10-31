@@ -69,6 +69,7 @@ public final class EndlessMode extends Screen {
     private double lowHealthTime;
     private double rewardInputDelay;
     private boolean saved;
+    private int pauseSelection;
     private String achievementNotice="";
     private long achievementUntil;
 
@@ -382,6 +383,16 @@ public final class EndlessMode extends Screen {
             if(enter){returnCode=8; isRunning=false;}
         } else if(before==Run.Phase.PAUSED && quit) run.finish("CASHED OUT");
         else if(before==Run.Phase.PAUSED) {
+            boolean up=controls.take(KeyEvent.VK_UP) | controls.take(KeyEvent.VK_W);
+            boolean down=controls.take(KeyEvent.VK_DOWN) | controls.take(KeyEvent.VK_S);
+            if(up) pauseSelection=Math.floorMod(pauseSelection-1,3);
+            if(down) pauseSelection=(pauseSelection+1)%3;
+            boolean select=enter | controls.take(KeyEvent.VK_SPACE);
+            if(select) {
+                if(pauseSelection==0) run.togglePause();
+                else if(pauseSelection==1) { run.finish("RESTARTED");returnCode=8;isRunning=false;return; }
+                else run.finish("CASHED OUT");
+            }
             Screen menu = null;
             if(shop && !testing) menu = new ShopScreen(width,height,60);
             else if(customize && !testing) menu = new ShipSelectScreen(width,height,60);
@@ -390,10 +401,11 @@ public final class EndlessMode extends Screen {
             else if(scores) menu = new EndlessRecordsScreen(width,height,testing);
             if(menu!=null) {
                 boundFrame.setScreen(menu); controls.clear(); previousTime=System.nanoTime(); systems.resumeAudio();
+                boundFrame.requestFocusInWindow();
             }
-            if(esc || pause) run.togglePause();
+            if((esc || pause) && run.getPhase()==Run.Phase.PAUSED) run.togglePause();
         }
-        else if(esc || pause) run.togglePause();
+        else if(esc || pause) { pauseSelection=0;run.togglePause(); }
         if(before==run.getPhase()) {
             int move=(controls.down(KeyEvent.VK_RIGHT)||controls.down(KeyEvent.VK_D)?1:0)
                     -(controls.down(KeyEvent.VK_LEFT)||controls.down(KeyEvent.VK_A)?1:0);
@@ -486,6 +498,8 @@ public final class EndlessMode extends Screen {
         Graphics2D g=(Graphics2D)drawingField("backBufferGraphics");
         View view=run.items.getView();
         drawManager.setWorldOffset(shake.getOffsetX(),shake.getOffsetY());
+        java.awt.Shape worldClip=g.getClip();
+        g.clipRect(0,130,width,Math.max(0,height-130));
         Run.Body boss=run.getBoss();
         for(Run.Body b:run.getEnemies()) {
             if(boss!=null && !b.boss) continue;
@@ -515,6 +529,7 @@ public final class EndlessMode extends Screen {
         if(!systems.getShopEffects().hidesShip())drawManager.drawEntity(player,player.getPositionX(),player.getPositionY());
         systems.getShopEffects().drawWarp(drawManager,player,player.getColor());
         drawManager.drawItemShield(player,systems.getItems().nativeSystem());
+        g.setClip(worldClip);
         drawManager.setWorldOffset(0,0); drawManager.drawDamageDim(this,dim);
         glitch.setEnabled(run.getPhase()==Run.Phase.PLAYING && run.getLives()==1 && lowHealthTime>0);
         drawManager.drawGlitch(this,glitch);
@@ -536,11 +551,10 @@ public final class EndlessMode extends Screen {
             row(g,run.getNotice().isEmpty()?"SECTOR CLEAR":run.getNotice(),0);
             row(g,"NEXT UPGRADE IN "+run.getWavesUntilReward()+" WAVE(S)",1);
         } else if(phase==Run.Phase.PAUSED){
-            panel(g,"PAUSED"); row(g,"P / ESC RESUME",0); row(g,"Q CASH OUT + END RUN",1);
-            row(g,testing?"QA / NO WALLET OR ACHIEVEMENT WRITES":"B SHOP / C CUSTOMIZE / O SETTINGS",2);
-            row(g,"LOADOUT CHANGES APPLY NEXT RUN",3);
-            row(g,"G ACHIEVEMENTS / H ENDLESS RECORDS",4);
-            row(g,"DIAMONDS AT RISK: "+systems.getPendingDiamonds(),5);
+            drawManager.drawPauseMenu(this,new String[]{"RESUME","RESTART","CASH OUT / QUIT"},pauseSelection);
+            drawManager.drawKeyHints(this,"w+s / arrows to move, space / enter to select");
+            fitted(g,testing?"QA / NO NORMAL REWARDS":"B SHOP / C CUSTOMIZE / O SETTINGS",12,145,width-24,10,HUD_LABEL);
+            fitted(g,"G ACHIEVEMENTS / H RECORDS / Q CASH OUT",12,height-48,width-24,9,HUD_LABEL);
         } else if(phase==Run.Phase.OVER){
             if(deathTime<3) drawManager.drawGameOverBanner(this,"GAME OVER",Math.min(9,(int)(deathTime*5)+1));
             else {panel(g,run.getEndReason()); row(g,"SCORE "+run.getScore()+" / BEST "+records.getScore(),0);
