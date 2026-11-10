@@ -117,9 +117,10 @@ public final class ShopEffectsChecks {
         image(screenshots,"shop-comet");
 
         java.util.List<Entity> enemies=new ArrayList<>();for(Run.Body b:run.getEnemies())enemies.add(b.entity);
+        // The preceding real firing exercise may already have killed a ship in the new layout.
+        LightningChain lightning=(LightningChain)get(effects,"lightning");lightning.reset();
         session.update(0,enemies,true);Entity dead=enemies.get(0);double hp=run.getEnemies().get(1).hp;
         session.enemyDefeated(dead,false,100);
-        LightningChain lightning=(LightningChain)get(effects,"lightning");
         check(lightning.getStreak()==1 && !((java.util.List<?>)get(lightning,"strikes")).isEmpty(),"Actual defeat callback creates the native lightning chain");
         check(run.getEnemies().get(1).hp==hp,"Lightning remains cosmetic and does not damage neighboring enemies");
         Core.getDrawManager().initDrawing(game);effects.drawLightning(Core.getDrawManager());

@@ -39,6 +39,36 @@ Register your team by adding one row to the table below and submitting the chang
 - Runtime requirement inherited from the upstream project: Java 7 or later
 - Before implementing a feature, build and run the baseline game and analyze the relevant source code.
 
+## KFC: Endless enemy formations and patterns
+
+Yoonsoo's update extends the existing team Endless implementation with **five formations** (the original grid plus triangle, layered V, diamond and staggered ranks), **three movement styles** and **three ordinary-enemy firing patterns**. The original Endless mode, reward/boss flow and QA entry gate were already provided by the team.
+
+| First wave | Formation | Movement | Fire |
+| --- | --- | --- | --- |
+| 1 | Grid | Horizontal sweep | Single |
+| 2 | Triangle | Zigzag | Single |
+| 3 | Layered V | Sine wave | Aimed |
+| 4 | Diamond | Horizontal sweep | Aimed |
+| 5 | Existing boss | Existing native movement | Existing native attacks |
+| 6 | Staggered ranks | Zigzag | Aimed |
+| 7 | Grid | Sine wave | Three-shot fan |
+
+Bosses still appear every fifth wave. Ordinary enemy count remains capped at 35; only exposed enemies fire, aimed shots do not home, and incoming ordinary projectiles are capped at 18. Aimed/fan volleys use longer intervals. Pause, reward selection and the Freeze item remain connected. The HUD shows the current pattern and next boss wave.
+
+### Build and try
+
+Use **JDK 17 or later** for this integrated Endless version. In IntelliJ, run `engine.Core` with `res` as a resource directory and the repository root as the working directory. Alternatively, on Windows run `launch-game.cmd`, which compiles before starting.
+
+Select **Endless Mode** (or press **E** on the title screen). Normal play requires the existing Stage 10 achievement. For an isolated QA run, click the small **QA lock** in the bottom-right of the access panel, type `000`, and press Enter. The existing QA gate does not award campaign progress, currency or achievements. Move with arrow keys, fire with Space, and pause with P/ESC.
+
+### Review and validation
+
+Run `powershell -ExecutionPolicy Bypass -File tests/endless/verify-connected.ps1` from the repository root with JDK 17+ on PATH. It compiles the game and runs connected-system, regression/soak, item/reward, UI, shop-effect, pattern and packaged-entry checks with isolated saves.
+
+![Endless formation previews](docs/kfc/screenshots/endless-formations.png)
+
+See [implementation and review notes](docs/kfc/endless-formations-yoonsoo.md) for ownership, the wave schedule and test coverage. This uses a deterministic 15-combination cycle after opening exceptions, rather than every possible formation/movement/fire combination. Follow-up review topics are independent attack scheduling, exact diamond symmetry and running the full Endless suite in CI.
+
 ## Attribution and Licensing
 
 This course project is based on [RobertoIA/Invaders](https://github.com/RobertoIA/Invaders). The upstream repository does not currently declare an open-source license. This repository therefore does not assert a new open-source license over the upstream code or third-party assets. Any permission or licensing terms confirmed by the relevant rights holders should be documented here before redistribution beyond the permissions provided through GitHub.

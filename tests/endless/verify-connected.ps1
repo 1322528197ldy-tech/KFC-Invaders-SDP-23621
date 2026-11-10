@@ -16,7 +16,7 @@ try {
     & javac '-J-Duser.language=en' -encoding UTF-8 -cp "$classPath;res" -d $classPath $testSources 2> (Join-Path $verificationPath 'test-compile.log')
     if ($LASTEXITCODE -ne 0) { throw 'Test compilation failed.' }
     $suites = @('engine.ConnectedSystemsChecks', 'engine.RunTest', 'engine.RewardItemsTest',
-        'engine.EndlessUiChecks', 'engine.ShopEffectsChecks')
+        'engine.EndlessUiChecks', 'engine.ShopEffectsChecks', 'engine.PatternChecks')
     foreach ($suite in $suites) {
         $suiteLog = Join-Path $verificationPath ($suite + '.log')
         $suitePath = Join-Path $verificationPath ('connected-check-' + $suite.Replace('.', '-'))
@@ -32,7 +32,7 @@ try {
     $noSourcePath = Join-Path $packagedPath 'empty-working-directory'
     New-Item -ItemType Directory -Force $noSourcePath | Out-Null
     $packagedJar = Join-Path $packagedPath 'entry-check.jar'
-    & jar --create --file $packagedJar -C $classPath . -C (Join-Path $projectPath 'res') .
+    & jar "-J-Djava.io.tmpdir=$tempPath" --create --file $packagedJar -C $classPath . -C (Join-Path $projectPath 'res') .
     if ($LASTEXITCODE -ne 0) { throw 'Entry-check packaging failed.' }
     $entryLog = Join-Path $verificationPath 'engine.EntryGateChecks.log'
     Push-Location -LiteralPath $noSourcePath

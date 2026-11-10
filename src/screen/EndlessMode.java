@@ -615,8 +615,9 @@ public final class EndlessMode extends Screen {
         fitted(g,"LEFT "+run.getRemainingEnemies(),152,62,85,10,HUD_LABEL);
         fitted(g,String.format(java.util.Locale.ROOT,"DIFF %.2fX",run.getDifficulty()),width-112,62,102,10,HUD_LABEL);
         if(boss==null) {
-            fitted(g,"NEXT BOSS / WAVE "+run.getNextBossWave(),12,79,width-104,10,HUD_LABEL);
-            bar(g,width-86,72,74,7,((run.getWave()-1)%5)/4.0,Color.ORANGE);
+            fitted(g,run.getPatternLabel(),12,79,width-104,9,HUD_LABEL);
+            fitted(g,"BOSS W"+run.getNextBossWave(),width-86,69,74,8,Color.ORANGE);
+            bar(g,width-86,73,74,6,((run.getWave()-1)%5)/4.0,Color.ORANGE);
         } else {
             fitted(g,"BOSS "+(int)Math.ceil(boss.hp)+" / "+(int)boss.maxHp,12,79,150,10,Color.ORANGE);
             bar(g,166,71,width-178,10,boss.hp/boss.maxHp,Color.ORANGE);
@@ -827,7 +828,8 @@ public final class EndlessMode extends Screen {
         public final int width, height;
         public final boolean boss;
         public double hp, maxHp;
-        private double vx, vy, damage, hitFlash;
+        private double vx, vy, damage, hitFlash, patternPhase;
+        private int patternOffset;
         public Entity entity;
 
         private Body(double x, double y, int width, int height, boolean boss) {
@@ -849,6 +851,8 @@ public final class EndlessMode extends Screen {
     private final SharedAccess.Items itemSystem;
     private final Ship ship;
     private Boss nativeBoss;
+    private WavePattern wavePattern;
+    private double formationTime;
     private double bossMoveRemainder, bossHealthFloor;
     private long bossPausedAt;
     private int bulletsFired;
@@ -948,7 +952,7 @@ public final class EndlessMode extends Screen {
         enemyShotClock -= dt;
         if (enemyShotClock <= 0 && !enemies.isEmpty()) {
             fireEnemyShots();
-            enemyShotClock = nativeBoss==null ? Math.max(0.32, 1.35 / getDifficulty())
+            enemyShotClock = nativeBoss==null ? Math.max(0.32, 1.35 / getDifficulty()) * wavePattern.shotDelayMultiplier()
                     : Math.max(.25,SharedAccess.bossInterval(nativeBoss)/1000.0);
         }
         updateShots(dt);
@@ -982,15 +986,24 @@ public final class EndlessMode extends Screen {
 
     private void spawnWave() {
         direction=1;enemyShotClock=1.2;moveRemainder=0;invulnerability=1.5;
+        formationTime=0;wavePattern=null;
         nativeBoss=null;bossMoveRemainder=0;systems.beginWave(wave,wave%5==0);
         if(wave%5==0){spawnBoss();return;}
-        int count = 12 + Math.min(23, (wave - 1) * 2);
-        int columns = Math.min(7, 4 + (wave - 1) / 3);
-        double left = (width - columns * 40) / 2.0;
+        wavePattern=WavePattern.forWave(wave);
+        int count = WavePattern.enemyCount(wave);
+        List<Entity> models=new ArrayList<Entity>();
+        int maxWidth=0,maxHeight=0;
+        for(int i=0;i<count;i++) {
+            Entity model=systems.createEnemy(wave,i,0,150);
+            models.add(model);maxWidth=Math.max(maxWidth,model.getWidth());maxHeight=Math.max(maxHeight,model.getHeight());
+        }
+        List<WavePattern.Slot> slots=wavePattern.slots(count,width,height,maxWidth,maxHeight);
         for (int i = 0; i < count; i++) {
-            Entity model=systems.createEnemy(wave,i,(int)(left+(i%columns)*40),138+(i/columns)*29);
+            Entity model=models.get(i);
+            WavePattern.Slot slot=slots.get(i);
+            model.setPositionX(slot.x);model.setPositionY(slot.y);
             Body enemy = new Body(model.getPositionX(),model.getPositionY(),model.getWidth(),model.getHeight(),false);
-            enemy.entity=model;
+            enemy.entity=model;enemy.patternPhase=slot.phase;
             // Health keeps progressing after speed/density reach playable limits.
             enemy.hp = enemy.maxHp = systems.enemyHealth(model,1 + Math.floor(elapsed / 180) * 0.5);
             enemies.add(enemy);
@@ -1028,16 +1041,20 @@ public final class EndlessMode extends Screen {
         }
         moveRemainder += dt;
         double interval = Math.max(0.08, 0.50 / getDifficulty());
-        if (moveRemainder < interval) return;
-        moveRemainder -= interval;
-        boolean turn = false;
-        for (Body enemy : enemies)
-            if (enemy.x + direction * 8 < 12
-                    || enemy.x + enemy.width + direction * 8 > width - 12) turn = true;
-        if (turn) direction = -direction;
-        for (Body enemy : enemies) {
-            enemy.x += direction * 8;
-            if (turn) enemy.y += 12;
+        while (moveRemainder >= interval && !enemies.isEmpty()) {
+            moveRemainder -= interval;
+            formationTime += interval;
+            double minX=Double.POSITIVE_INFINITY,maxX=Double.NEGATIVE_INFINITY;
+            for(Body enemy:enemies){minX=Math.min(minX,enemy.x);maxX=Math.max(maxX,enemy.x+enemy.width);}
+            boolean turn = minX+direction*8<12 || maxX+direction*8>width-12;
+            if(turn)direction=-direction;
+            double dx=Math.max(12-minX,Math.min(width-12-maxX,direction*8));
+            for (Body enemy : enemies) {
+                enemy.x += dx;
+                int offset=wavePattern.verticalOffset(formationTime,enemy.patternPhase);
+                enemy.y += (turn?12:0)+offset-enemy.patternOffset;
+                enemy.patternOffset=offset;
+            }
         }
     }
 
@@ -1054,8 +1071,32 @@ public final class EndlessMode extends Screen {
                 shot.entity=bullet;shot.vx=bullet.getSpeedX()*60.0;shot.vy=bullet.getSpeed()*60.0;shot.damage=boss.damage;shots.add(shot);
             }
         } else {
-            Body enemy = enemies.get(random.nextInt(enemies.size()));
-            addEnemyShot(enemy, 0, Math.min(240, 135 * getDifficulty()));
+            // Only exposed ships fire: bullets do not emerge through another enemy.
+            List<Body> shooters=new ArrayList<Body>();
+            for(Body candidate:enemies) {
+                boolean blocked=false;
+                for(Body other:enemies)
+                    if(other.y>candidate.y && other.x<candidate.x+candidate.width
+                            && other.x+other.width>candidate.x){blocked=true;break;}
+                if(!blocked)shooters.add(candidate);
+            }
+            int incoming=0;
+            for(Body shot:shots)if(shot.vy>0)incoming++;
+            int volleySize=wavePattern.attack==WavePattern.Attack.FAN?3:1;
+            if(shooters.isEmpty() || incoming+volleySize>18)return;
+            Body enemy=shooters.get(random.nextInt(shooters.size()));
+            double speed=Math.min(240,135*getDifficulty());
+            if(wavePattern.attack==WavePattern.Attack.FAN) {
+                for(int i=-1;i<=1;i++)addEnemyShot(enemy,i*speed*.28,speed);
+            } else {
+                double vx=0;
+                if(wavePattern.attack==WavePattern.Attack.AIMED) {
+                    double distance=Math.max(60,player.y-enemy.y-enemy.height);
+                    vx=Math.max(-speed*.55,Math.min(speed*.55,
+                            (player.x+player.width/2.0-enemy.x-enemy.width/2.0)*speed/distance));
+                }
+                addEnemyShot(enemy,vx,speed);
+            }
         }
     }
 
@@ -1209,6 +1250,7 @@ public final class EndlessMode extends Screen {
     public long getScore() { return getSeconds() * 10 + kills * 100L+bonusPoints+(long)timeBonus; }
     public int getKills() { return kills; }
     public int getWave() { return wave; }
+    public String getPatternLabel() { return wavePattern==null?"BOSS ENCOUNTER":wavePattern.label(); }
     public int getWavesUntilReward() { return 3-(wave-1)%3; }
     public int getRemainingEnemies() { return enemies.size(); }
     public int getLives() { return lives; }
