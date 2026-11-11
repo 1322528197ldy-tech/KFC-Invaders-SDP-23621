@@ -5,6 +5,7 @@ import engine.*;
 import entity.*;
 import item.ItemAPI;
 import item.ItemSystem;
+import shop.ShapeSkin;
 import shop.Skin;
 import engine.soundEngine.Sound;
 import engine.soundEngine.SoundManager;
@@ -41,7 +42,8 @@ public final class GameplaySession {
         SharedAccess.Loadout loadout=SharedAccess.loadout(testing);
         GameplaySession session=new GameplaySession(loadout.ship,loadout.skin,loadout.equipment,!testing,true,random);
         session.shopEffects=new ShopEffects(loadout.effects);
-        if(loadout.shape!=null)session.ship.setShapeSprite(loadout.shape.getSprite());
+        ShapeSkin shape=loadout.shape;
+        if(shape!=null) session.ship.setShapeSprite(shape.getSprite());
         return session;
     }
 

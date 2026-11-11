@@ -69,3 +69,7 @@ Offscreen previews are written to the verification directory's `screenshots/endl
 **Description:** Endless ordinary waves now rotate between grid, triangle, layered V, diamond and staggered formations. Horizontal sweep, zigzag and sine movement combine with straight, bounded aimed and three-way fan attacks. Exposed-shooter selection, volley pacing and a projectile cap preserve dodge space. Existing bosses, reward checkpoints and Freeze/pause behavior remain connected.
 
 **Acceptance criteria:** All layouts appear in normal Endless progression; enemies spawn without overlap and stay inside lateral boundaries; aimed shots do not home; fan volleys provide dodge lanes; pause/Freeze stop pattern motion; boss/reward checkpoints still work; connected regression and pattern checks pass.
+
+## November 12 integration update
+
+Resolved the add/add conflicts against team main `428178d` (PRs #28, #30 and #33). Preserved the shared menu styling/sounds, selected ship appearance, native FinalBoss arena coordinates and pending-rain handling, alongside the formations, attack pacing and shop effects. FinalBoss warnings use native arena coordinates without applying the HUD offset twice. Added a connected regression for rain dropping between volleys. This updates the feature branch only; the team coordinator still controls merging PR #32 into main.

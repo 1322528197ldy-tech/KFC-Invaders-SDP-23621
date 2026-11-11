@@ -57,6 +57,7 @@ public class ShopScreen extends Screen {
 		EFFECTS("Effects", new Color(255, 140, 0)),
 		/** Today's discounts. */
 		NIGHT_MARKET("Night Mkt", new Color(255, 80, 255));
+		
 
 
 		/** Text on the tab. */

@@ -140,8 +140,17 @@ public final class ConnectedSystemsChecks {
                 "Native aimed horizontal bullet velocity is preserved");
         Object rain=get(r.getBoss().entity,"rainWarningCooldown");
         set(rain,"time",System.currentTimeMillis());long before=(Long)get(rain,"time");
-        r.togglePause();set(r,"bossPausedAt",System.currentTimeMillis()-2000);r.togglePause();
+        r.togglePause();set(r,"pausedAt",System.currentTimeMillis()-2000);r.togglePause();
         check((Long)get(rain,"time")-before>=1995,"Endless resume preserves the A1 boss warning timer");
+        // A queued rain must fall even between ordinary boss shooting intervals.
+        ((List<?>)get(r,"shots")).clear();
+        List<Integer> targets=(List<Integer>)get(r.getBoss().entity,"rainTargets");
+        targets.clear();targets.add(40);targets.add(360);
+        set(rain,"time",0L);set(r,"enemyShotClock",10.0);
+        r.update(.001,0,false);
+        check(targets.isEmpty() && r.getShots().size()==2,"Pending boss rain falls between volleys");
+        for(Run.Body shot:r.getShots())check(shot.y>=138 && shot.y<180,"Boss rain uses the Endless arena origin exactly once");
+
     }
     private static void progressAndEconomy(Path saves)throws Exception {
         Constructor<GameplaySession> ctor=GameplaySession.class.getDeclaredConstructor(Ship.ShipType.class,Skin.class,ItemInfo.class,boolean.class,boolean.class,Random.class);

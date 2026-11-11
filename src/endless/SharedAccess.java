@@ -73,10 +73,15 @@ public final class SharedAccess {
             Skin appearance=Skin.valueOf(skin);
             if(owned(saved,prefix,ShopCatalog.findByRef(ShopCategory.SHIP,candidate.name())))result.ship=candidate;
             if(owned(saved,prefix,ShopCatalog.findByRef(ShopCategory.SKIN,appearance.name())))result.skin=appearance;
-            String shapeName=saved.getProperty((String)get(PurchaseManager.class,"SHAPE_KEY")+result.ship.name());
+            String shapeName=saved.getProperty(get(PurchaseManager.class,"SHAPE_KEY")+result.ship.name());
             if(shapeName!=null) {
-                ShapeSkin shape=ShapeSkin.valueOf(shapeName.trim());
-                if(shape.getShipType()==result.ship && owned(saved,prefix,ShopCatalog.findByRef(ShopCategory.SHAPE,shape.name())))result.shape=shape;
+                for(ShapeSkin shape:ShapeSkin.values()) {
+                    if(shape.name().equals(shapeName.trim()) && shape.getShipType()==result.ship
+                            && owned(saved,prefix,ShopCatalog.findByRef(ShopCategory.SHAPE,shape.name()))) {
+                        result.shape=shape;
+                        break;
+                    }
+                }
             }
             Set<String> off=new HashSet<String>(Arrays.asList(saved.getProperty((String)get(PurchaseManager.class,"OFF_KEY"),"").split(",")));
             for(ShopItem entry:ShopCatalog.getByCategory(ShopCategory.EFFECT))
@@ -173,6 +178,11 @@ public final class SharedAccess {
         set(cooldown,"time",0L);boss.shoot(bullets,settings);
     }
     public static void moveBoss(Boss boss,int width,int height,int top,GameSettings settings) {
+        if (boss instanceof FinalBoss) {
+            ((FinalBoss)boss).setArenaTop(top);
+            boss.moveBoss(width,height,settings);
+            return;
+        }
         Entity model=(Entity)boss;
         int offset=top-number(boss.getClass(),"TOP_BOUNDARY");
         model.setPositionY(model.getPositionY()-offset);
@@ -183,7 +193,7 @@ public final class SharedAccess {
         java.awt.Graphics2D original=(java.awt.Graphics2D)get(DrawManager.class,"backBufferGraphics");
         java.awt.Graphics2D copy=(java.awt.Graphics2D)original.create();
         copy.clipRect(0,top,10000,10000);
-        copy.translate(0,top-number(boss.getClass(),"TOP_BOUNDARY"));
+        if (!(boss instanceof FinalBoss)) copy.translate(0,top-number(boss.getClass(),"TOP_BOUNDARY"));
         try {drawWith(copy,()->boss.drawWarnings(drawing));}finally{copy.dispose();}
     }
     public static int coinValue(boolean bonus){return number(screen.GameScreen.class,bonus?"BONUS_COIN_VALUE":"COIN_VALUE");}
@@ -203,8 +213,15 @@ public final class SharedAccess {
             Object meteor=get(nativeManager,"meteor");
             if(meteor!=null){shift(meteor,"lastUpdate",shift);shift(meteor,"burstStart",shift);}
             for(DiamondDrop drop:(List<DiamondDrop>)get(nativeManager,"drops")) {
-                shift(drop,"lastUpdate",shift);shift(drop,"createdAt",shift);shift(drop,"caughtAt",shift);
+                shiftDropTimestamp(drop,"lastUpdate",shift,now);
+                shiftDropTimestamp(drop,"createdAt",shift,now);
+                shiftDropTimestamp(drop,"caughtAt",shift,now);
             }
+        }
+        private static void shiftDropTimestamp(DiamondDrop drop,String name,long shift,long now) {
+            long value=((Number)get(drop,name)).longValue();
+            // A drop created between syncs only existed for part of that interval.
+            if(value!=0)set(drop,name,Math.min(now,value+shift));
         }
         private static void shift(Object target,String name,long shift){
             long value=((Number)get(target,name)).longValue();if(value!=0)set(target,name,value+shift);
