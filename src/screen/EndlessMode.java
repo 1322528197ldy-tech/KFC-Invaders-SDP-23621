@@ -1,6 +1,7 @@
 package screen;
 
 import engine.*;
+import engine.soundEngine.MenuSounds;
 import endless.*;
 import entity.*;
 import java.awt.*;
@@ -159,12 +160,8 @@ public final class EndlessMode extends Screen {
             MenuItem item = i == 1 ? null : items[i == 0 ? 0 : i - 1];
             String text = item == null ? "Endless Mode" : item.getTitle();
             boolean selected = i == menuIndex;
-            if (selected) text = "> " + text + " <";
-            g.setFont((Font)drawingField(selected ? "fontSelected" : "fontRegular"));
-            g.setColor(selected ? Color.GREEN : item != null && !item.isEnabled()
-                    ? Color.DARK_GRAY : Color.WHITE);
-            g.drawString(text, (screen.getWidth()-g.getFontMetrics().stringWidth(text))/2,
-                    menuBaseline(screen, i));
+            Core.getDrawManager().drawMenuRow(screen, text, menuBaseline(screen, i),
+                    selected, item == null || item.isEnabled());
         }
         if ((Boolean)menuField("showingExitConfirm").get(screen)) controls.clear();
         if (gateOpen) drawGate(screen, g);
@@ -204,6 +201,7 @@ public final class EndlessMode extends Screen {
             return true;
         }
         if (escape) return false; // Let the original menu show its exit confirmation.
+        int previousIndex = menuIndex;
         int hovered = menuAt(screen, controls.takeHover());
         if (hovered >= 0) menuIndex = hovered;
         if (controls.take(KeyEvent.VK_UP) | controls.take(KeyEvent.VK_W))
@@ -214,6 +212,7 @@ public final class EndlessMode extends Screen {
         if (clicked >= 0) menuIndex = clicked;
         boolean shortcut = controls.take(KeyEvent.VK_E);
         if (shortcut) menuIndex = 1;
+        if (menuIndex != previousIndex) MenuSounds.playMove();
         if (menuIndex != 1)
             menuField("selected").set(screen, MenuItem.values()[menuIndex == 0 ? 0 : menuIndex-1]);
         if (enter || clicked >= 0 || shortcut) {
@@ -487,10 +486,13 @@ public final class EndlessMode extends Screen {
             if(boss!=null && !b.boss) continue;
             if(b.boss && run.getPhase()==Run.Phase.BOSS_INTRO)continue;
             Entity entity=image(b);
+            if(entity instanceof Boss && !((Boss)entity).isVisible()) continue;
             if(run.getPhase()==Run.Phase.OVER) drawManager.drawEntityShrunk(entity,Math.max(0,1-deathTime/1.5));
             else if(b.hitFlash>0)drawManager.drawSprite(entity.getSpriteType(),(int)b.x,(int)b.y,b.boss?Color.WHITE:Color.CYAN);
             else drawManager.drawEntity(entity,(int)b.x,(int)b.y);
         }
+        if(boss!=null && run.getPhase()==Run.Phase.PLAYING)
+            ((Boss)boss.entity).drawWarnings(drawManager);
         images.keySet().retainAll(run.getEnemies());
         for(EnemyShip e:fading) drawManager.drawEntity(e,e.getPositionX(),e.getPositionY());
         for(Particle p:particles) drawManager.drawParticle(p);
@@ -835,6 +837,7 @@ public final class EndlessMode extends Screen {
     private long bonusPoints;
     private Phase phase = Phase.READY, resumePhase;
     private double elapsed, countdown = 3, shotClock, enemyShotClock;
+    private long pausedAt;
     private double invulnerability, moveRemainder, noticeClock;
     private int kills, bosses, wave = 1, lives = 3, projectiles = 1;
     private int direction = 1, damageUpgrades, speedUpgrades;
@@ -921,10 +924,13 @@ public final class EndlessMode extends Screen {
         ship.setPositionX((int)player.x);ship.setPositionY((int)player.y);
         if(!mods.enemyMovementBlocked)moveEnemies(dt);
         enemyShotClock -= dt;
-        if (enemyShotClock <= 0 && !enemies.isEmpty()) {
+        if (nativeBoss != null) {
+            fireBossShots(enemyShotClock <= 0);
+            if (enemyShotClock <= 0)
+                enemyShotClock = Math.max(.25,SharedAccess.bossInterval(nativeBoss)/1000.0);
+        } else if (enemyShotClock <= 0 && !enemies.isEmpty()) {
             fireEnemyShots();
-            enemyShotClock = nativeBoss==null ? Math.max(0.32, 1.35 / getDifficulty())
-                    : Math.max(.25,SharedAccess.bossInterval(nativeBoss)/1000.0);
+            enemyShotClock = Math.max(0.32, 1.35 / getDifficulty());
         }
         updateShots(dt);
         if (phase == Phase.OVER) return;
@@ -974,6 +980,7 @@ public final class EndlessMode extends Screen {
 
     private void spawnBoss() {
         nativeBoss=systems.createBoss(wave,width/2,138);
+        if (nativeBoss instanceof FinalBoss) ((FinalBoss)nativeBoss).setArenaTop(138);
         Entity model=(Entity)nativeBoss;
         Body boss = new Body(model.getPositionX(),model.getPositionY(),model.getWidth(),model.getHeight(),true);
         boss.entity=model;
@@ -1017,17 +1024,23 @@ public final class EndlessMode extends Screen {
     }
 
     private void fireEnemyShots() {
-        Body boss = getBoss();
-        if (boss != null) {
-            java.util.Set<Bullet> volley=new java.util.LinkedHashSet<Bullet>();
+        Body enemy = enemies.get(random.nextInt(enemies.size()));
+        addEnemyShot(enemy, 0, Math.min(240, 135 * getDifficulty()));
+    }
+
+    private void fireBossShots(boolean fireVolley) {
+        java.util.Set<Bullet> volley=new java.util.LinkedHashSet<Bullet>();
+        if (fireVolley) {
+            nativeBoss.setTarget((int)(player.x + player.width / 2.0),
+                    (int)(player.y + player.height / 2.0));
             SharedAccess.bossVolley(nativeBoss,volley,bossSettings());
-            for(Bullet bullet:volley) {
-                Body shot=new Body(bullet.getPositionX(),bullet.getPositionY(),bullet.getWidth(),bullet.getHeight(),false);
-                shot.entity=bullet;shot.vy=bullet.getSpeed()*60.0;shot.damage=boss.damage;shots.add(shot);
-            }
-        } else {
-            Body enemy = enemies.get(random.nextInt(enemies.size()));
-            addEnemyShot(enemy, 0, Math.min(240, 135 * getDifficulty()));
+        } else if (nativeBoss instanceof FinalBoss) {
+            ((FinalBoss)nativeBoss).dropPendingRain(volley);
+        }
+        for(Bullet bullet:volley) {
+            Body shot=new Body(bullet.getPositionX(),bullet.getPositionY(),bullet.getWidth(),bullet.getHeight(),false);
+            shot.entity=bullet;shot.vx=bullet.getSpeedX()*60.0;shot.vy=bullet.getSpeed()*60.0;
+            shot.damage=getBoss().damage;shots.add(shot);
         }
     }
 
@@ -1156,8 +1169,15 @@ public final class EndlessMode extends Screen {
 
     public void togglePause() {
         if (phase == Phase.OVER) return;
-        if (phase == Phase.PAUSED) phase = resumePhase;
-        else { resumePhase = phase; phase = Phase.PAUSED; }
+        if (phase == Phase.PAUSED) {
+            if (nativeBoss instanceof FinalBoss)
+                ((FinalBoss)nativeBoss).resumeAfterPause(System.currentTimeMillis() - pausedAt);
+            phase = resumePhase;
+        } else {
+            pausedAt = System.currentTimeMillis();
+            resumePhase = phase;
+            phase = Phase.PAUSED;
+        }
     }
 
     public void finish(String reason) {
