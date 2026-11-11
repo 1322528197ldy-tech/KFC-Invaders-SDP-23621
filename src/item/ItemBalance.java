@@ -97,7 +97,7 @@ final class ItemBalance {
         regularDropProbability = probability(settings, "drop.regular.probability", 0.15);
         specialDropProbability = probability(settings, "drop.special.probability", 1.0);
         Map<String, Double> weights = new LinkedHashMap<String, Double>();
-        weights.put("life", weight(settings, "drop.weight.life", 0.6));
+        weights.put("life", weight(settings, "drop.weight.life", 0.2));
         weights.put("shield", weight(settings, "drop.weight.shield"));
         weights.put("rapid_fire", weight(settings, "drop.weight.rapidFire"));
         weights.put("bullet_speed", weight(settings, "drop.weight.bulletSpeed"));

@@ -45,16 +45,16 @@ public final class Core {
 	
 	/** Difficulty settings for level 1. */
 	private static final GameSettings SETTINGS_LEVEL_1 =
-			new GameSettings(5, 2, 60, 2000);
+			new GameSettings(5, 3, 60, 2000);
 	/** Difficulty settings for level 2. */
 	private static final GameSettings SETTINGS_LEVEL_2 =
-			new GameSettings(5, 3, 50, 2500);
+			new GameSettings(5, 4, 50, 2500);
 	/** Difficulty settings for level 3. */
 	private static final GameSettings SETTINGS_LEVEL_3 =
 			new GameSettings(5, 4, 40, 2000, true);
 	/** Difficulty settings for level 4. */
 	private static final GameSettings SETTINGS_LEVEL_4 =
-			new GameSettings(6, 4, 30, 1500);
+			new GameSettings(6, 5, 30, 1500);
 	/** Difficulty settings for level 5. */
 	private static final GameSettings SETTINGS_LEVEL_5 =
 			new GameSettings(5, 4, 5, 1000);
@@ -63,10 +63,10 @@ public final class Core {
 			new GameSettings(6, 3, 10, 1000, Math.round(6 * 3 * 0.20f));
 	/** Difficulty settings for level 7. */
 	private static final GameSettings SETTINGS_LEVEL_7 =
-			new GameSettings(6, 4, 5, 500);
+			new GameSettings(6, 5, 5, 500);
 	/** Difficulty settings for level 8. */
 	private static final GameSettings SETTINGS_LEVEL_8 =
-			new GameSettings(7, 4, 3, 500);
+			new GameSettings(7, 5, 3, 500);
 	/** Difficulty settings for level 9. */
 	private static final GameSettings SETTINGS_LEVEL_9 =
 			new GameSettings(7, 5, 1, 300, true, Math.round(7 * 5 * 0.20f));
