@@ -100,6 +100,7 @@ public class TitleScreen extends Screen {
 		if (!this.inputDelay.checkFinished()) {
 			return;
 		}
+		if (!this.showingExitConfirm && optionalEndless("updateEntry")) return;
 
 		if (escapePressed) {
 			if (this.showingExitConfirm) {
@@ -286,7 +287,8 @@ public class TitleScreen extends Screen {
 
 		drawManager.drawStarfield(this, starfield);
 		drawManager.drawTitle(this);
-		drawManager.drawMenu(this, this.selected);
+		if (!optionalEndless("drawEntry"))
+			drawManager.drawMenu(this, this.selected);
 		drawManager.drawKeyHints(this, keyHints());
 
 		// Drawn last so it sits over the menu.

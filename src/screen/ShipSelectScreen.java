@@ -276,6 +276,12 @@ public class ShipSelectScreen extends Screen {
 				this.effectIndex = Math.floorMod(this.effectIndex + step,
 						this.availableEffects.size());
 			break;
+		default:
+			// Browsing only: effects are switched with space or a click.
+			if (!this.availableEffects.isEmpty())
+				this.effectIndex = Math.floorMod(this.effectIndex + step,
+						this.availableEffects.size());
+			break;
 		}
 	}
 
