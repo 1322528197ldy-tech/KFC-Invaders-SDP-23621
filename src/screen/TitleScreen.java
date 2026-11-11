@@ -306,4 +306,14 @@ public class TitleScreen extends Screen {
 		this.exitConfirmYes = false;
 		this.selectionCooldown.reset();
 	}
+
+	/** Optional add-on: works from compiled classes/JARs without a source checkout. */
+	private boolean optionalEndless(final String method) {
+		try {
+			return Boolean.TRUE.equals(Class.forName("screen.EndlessMode")
+					.getMethod(method, Screen.class).invoke(null, this));
+		} catch (ReflectiveOperationException | LinkageError e) {
+			return false; // Original menu remains usable when the add-on is absent.
+		}
+	}
 }

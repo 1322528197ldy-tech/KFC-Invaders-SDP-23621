@@ -50,6 +50,7 @@ public class FinalBoss extends Entity implements Boss {
 	/* Bullet speed */
 	private static final int BULLET_SPEED = 5;
 	private static final int TOP_BOUNDARY = 40;
+	private int arenaTop = TOP_BOUNDARY;
 	private static final int PLAYER_CLEARANCE = 200;
 
 
@@ -320,7 +321,7 @@ public class FinalBoss extends Entity implements Boss {
             this.speedX = -this.speedX;
         }
 
-        int topBoundary = TOP_BOUNDARY;
+        int topBoundary = this.arenaTop;
         int bottomBoundary = screenHeight - PLAYER_CLEARANCE - this.height;
 
         if (this.positionY <= topBoundary) {
@@ -463,13 +464,13 @@ public class FinalBoss extends Entity implements Boss {
 	 * @param bullets General bullet set to add the new bullets to.
 	 * @return True if the rain fell.
 	 */
-	private boolean dropPendingRain(final Set<Bullet> bullets) {
+	public final boolean dropPendingRain(final Set<Bullet> bullets) {
 		if (this.rainTargets.isEmpty()
 				|| !this.rainWarningCooldown.checkFinished()) {
 			return false;
 		}
 		for (int x : this.rainTargets) {
-			bullets.add(BulletPool.getBullet(x, RAIN_START_Y, RAIN_BULLET_SPEED));
+			bullets.add(BulletPool.getBullet(x, rainStartY(), RAIN_BULLET_SPEED));
 		}
 		this.rainTargets.clear();
 		return true;
@@ -484,7 +485,7 @@ public class FinalBoss extends Entity implements Boss {
 	 */
 	private void startTeleport(final int screenWidth, final int screenHeight) {
 		int maxX = Math.max(0, screenWidth - this.width);
-		int minY = TOP_BOUNDARY;
+		int minY = this.arenaTop;
 		int maxY = Math.max(minY, screenHeight - PLAYER_CLEARANCE - this.height);
 
 		for (int attempt = 0; attempt < 10; attempt++) {
@@ -535,6 +536,15 @@ public class FinalBoss extends Entity implements Boss {
 		this.hasTarget = true;
 	}
 
+	/** Keeps movement, teleport destinations and rain below the game HUD. */
+	public final void setArenaTop(final int top) {
+		this.arenaTop = top;
+	}
+
+	private int rainStartY() {
+		return this.arenaTop + (RAIN_START_Y - TOP_BOUNDARY);
+	}
+
 	/**
 	 * The boss flickers while it is about to teleport.
 	 *
@@ -562,7 +572,7 @@ public class FinalBoss extends Entity implements Boss {
 					this.width, this.height, WARNING_COLOR);
 		}
 		for (int x : this.rainTargets) {
-			drawManager.drawBox(x - RAIN_MARKER_SIZE / 2, RAIN_START_Y,
+			drawManager.drawBox(x - RAIN_MARKER_SIZE / 2, rainStartY(),
 					RAIN_MARKER_SIZE, RAIN_MARKER_SIZE, WARNING_COLOR);
 		}
 	}

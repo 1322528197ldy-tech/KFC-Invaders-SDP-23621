@@ -5,6 +5,7 @@ import engine.*;
 import entity.*;
 import item.ItemAPI;
 import item.ItemSystem;
+import shop.ShapeSkin;
 import shop.Skin;
 import engine.soundEngine.Sound;
 import engine.soundEngine.SoundManager;
@@ -38,7 +39,10 @@ public final class GameplaySession {
     /** Reads the same selected loadout as campaign; QA may read but never award progress. */
     public static GameplaySession open(boolean testing, Random random) {
         SharedAccess.Loadout loadout=SharedAccess.loadout(testing);
-        return new GameplaySession(loadout.ship,loadout.skin,loadout.equipment,!testing,true,random);
+        GameplaySession session=new GameplaySession(loadout.ship,loadout.skin,loadout.equipment,!testing,true,random);
+        ShapeSkin shape=loadout.shape;
+        if(shape!=null) session.ship.setShapeSprite(shape.getSprite());
+        return session;
     }
 
     /** Explicit loadout and no persistence/audio, for simulations and regression tests. */
