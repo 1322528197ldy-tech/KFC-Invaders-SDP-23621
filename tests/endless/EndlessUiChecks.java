@@ -139,6 +139,17 @@ public final class EndlessUiChecks {
         Method scoreUpdate=recordType.getDeclaredMethod("update");scoreUpdate.setAccessible(true);scoreUpdate.invoke(scores);
         image(directory,"highscores-endless");
         check(recordType.getEnclosingClass()==EndlessMode.class,"Endless record view stays inside the endless module");
+        // A new run picks up the rule selected on the entry panel.
+        for(endless.BossRule rule:new endless.BossRule[]{endless.BossRule.EVERY_90_SECONDS,endless.BossRule.EVERY_30_KILLS}) {
+            set(EndlessMode.class,null,"bossRule",rule);
+            EndlessMode ruled=ctor.newInstance(432,497,true);ruled.initialize();
+            Run ruledRun=(Run)get(EndlessMode.class,ruled,"run");
+            set(Run.class,ruledRun,"phase",Phase.PLAYING);set(Run.class,ruledRun,"kills",12);update(ruled);
+            image(directory,"hud-"+rule.name().toLowerCase(java.util.Locale.ROOT));
+            check(ruledRun.getBossStatus().equals(rule==endless.BossRule.EVERY_90_SECONDS?"BOSS 90S":"BOSS 18 KILLS"),
+                    "New runs use the selected boss rule: "+rule.label);
+        }
+        set(EndlessMode.class,null,"bossRule",endless.BossRule.EVERY_FIVE_WAVES);
         System.out.println("PASS: "+checks+" screen input / reward checks");
     }
 }

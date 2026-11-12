@@ -19,6 +19,7 @@ public final class RunTest {
         countdownAndPause();
         scoringAndDifficulty();
         bossTriggersAndRewards();
+        bossRuleOption();
         hitFeedback();
         collisionAndDeath();
         wavesAndReset();
@@ -131,6 +132,47 @@ public final class RunTest {
         check(run.getKills() == 1, "Boss counts as one kill");
         advance(run, 130, 0, false);
         check(run.getBosses() == 1 && run.getBoss() == null, "Reward cannot repeat");
+    }
+    private static Run ruled(endless.BossRule rule) {
+        Random random=new Random(42);
+        return new Run(432,497,random,endless.GameplaySession.isolated(entity.Ship.ShipType.STANDARD,shop.Skin.CLASSIC,null,random),rule);
+    }
+    /** Clears the current wave without registering kills, so each counter is tested on its own. */
+    private static void clearWave(Run run) throws Exception {
+        if(run.getPhase()==Phase.REWARD)run.chooseReward(0);
+        set(run,"phase",Phase.PLAYING);bodies(run,"enemies").clear();run.update(.001,0,false);
+    }
+    private static void bossRuleOption() throws Exception {
+        check(endless.BossRule.values().length==3,"Three boss rules: waves, seconds, kills");
+        check(fresh().getBossStatus().equals("BOSS W5"),"Five-wave bosses remain the default rule");
+
+        Run run=ruled(endless.BossRule.EVERY_30_KILLS);
+        set(run,"wave",4);clearWave(run);
+        check(run.getWave()==5 && run.getBoss()==null && run.getNextBossWave()==0,"Kill rule has no fixed wave-5 boss");
+        check(run.getPatternLabel().equals(endless.WavePattern.forWave(2).label()),"Ordinary waves keep an unbroken formation rotation");
+        set(run,"elapsed",500.0);set(run,"kills",29);
+        check(run.getNextBossWave()==0 && run.getBossStatus().equals("BOSS 1 KILLS"),"Kill rule ignores time and counts down kills");
+        set(run,"kills",30);
+        check(run.getBoss()==null && run.getNextBossWave()==6 && run.getBossProgress()==1,"Thirty kills schedule the boss for the next wave, not mid-wave");
+        clearWave(run);
+        check(run.getWave()==6 && run.getPhase()==Phase.BOSS_INTRO && run.getEnemies().size()==1,"Kill rule opens a boss-only introduction");
+        check(run.getBoss().entity instanceof entity.MidBoss,"First triggered boss is the mid-boss");
+        set(run,"bosses",1);clearWave(run);
+        check(run.getBoss()==null && run.getNextBossWave()==0 && run.getBossStatus().equals("BOSS 30 KILLS"),"Boss defeat restarts the kill counter");
+        set(run,"kills",60);clearWave(run);
+        check(run.getBoss().entity instanceof entity.FinalBoss,"Second triggered boss is the final boss");
+
+        run=ruled(endless.BossRule.EVERY_90_SECONDS);
+        set(run,"kills",500);set(run,"elapsed",30.0);
+        check(run.getNextBossWave()==0 && run.getBossStatus().equals("BOSS 60S"),"Time rule ignores kills and counts down seconds");
+        clearWave(run);
+        check(run.getBoss()==null,"No boss before ninety seconds");
+        set(run,"elapsed",90.5);
+        check(run.getBossStatus().equals("BOSS NEXT"),"Ninety seconds schedule the boss for the next wave");
+        clearWave(run);
+        check(run.getPhase()==Phase.BOSS_INTRO && run.getBoss()!=null,"Time rule opens a boss introduction");
+        set(run,"elapsed",150.0);clearWave(run);
+        check(run.getBoss()==null && run.getBossStatus().equals("BOSS 90S"),"Boss fight time does not count towards the next boss");
     }
     private static void hitFeedback() throws Exception {
         Run run=active();Body target=run.getEnemies().get(0);target.hp=3;
