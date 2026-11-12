@@ -26,7 +26,8 @@ import item.ItemSystem;
  * Requires the original infinity_void achievement; the bottom-right lock is a
  * password-protected tester bypass and writes only endless-test-records.properties.
  * Base score = active whole seconds * 10 + defeated enemies * 100; items can add bonuses.
- * Waves 5, 10, 15, ... are boss encounters with a safe three-second introduction.
+ * Boss encounters open with a safe three-second introduction. The entry panel picks when
+ * they happen (every 5 waves, 90 seconds or 30 kills); the rules live in endless.BossRule.
  * Boss kills drop supplies but grant no automatic upgrades. Every three cleared
  * waves offer three choices, with one optional reroll; exactly one is claimed.
  * Shared features are connected through GameplaySession and ItemSystem. QA never awards progress.
@@ -52,6 +53,9 @@ public final class EndlessMode extends Screen {
     private static int menuIndex;
     private static boolean gateOpen, gateAvailable;
     private static final TestPassword testPassword = new TestPassword();
+    /** Chosen on the entry panel; kept for retries and later runs in this session. */
+    private static BossRule bossRule = BossRule.EVERY_FIVE_WAVES;
+    private static final Rectangle BOSS_RULE_BOX = new Rectangle(266,224,112,58);
     private static final int GATE_WIDTH = 400, GATE_HEIGHT = 386;
     private final Run run;
     private final Records records;
@@ -81,7 +85,7 @@ public final class EndlessMode extends Screen {
         Random random = new Random();
         systems = GameplaySession.open(testing, random);
         player = systems.getShip();
-        run = new Run(width,height,random,systems);
+        run = new Run(width,height,random,systems,bossRule);
         run.defeated = this::destroyed;
         run.enemyHit = this::hit;
         run.playerHit = () -> {
@@ -193,6 +197,8 @@ public final class EndlessMode extends Screen {
                     || inside(local,22,320,gateAvailable ? 148 : 300,36)) {
                 gateOpen = false;
                 controls.clear();
+            } else if (controls.take(KeyEvent.VK_B) || (local != null && BOSS_RULE_BOX.contains(local))) {
+                bossRule = bossRule.next();
             } else if (inside(local,344,320,34,36)) {
                 testPassword.show();
                 controls.beginPasswordInput();
@@ -291,10 +297,14 @@ public final class EndlessMode extends Screen {
         g.setFont(UI_FONT.deriveFont(14f));centerGate(g,gateAvailable?"ACCESS GRANTED":"MODE LOCKED",163,gateAvailable?Color.GREEN:Color.WHITE);
         g.setFont(UI_FONT);centerGate(g,gateAvailable?"STAGE 10 COMPLETE. KEEP FIGHTING.":"CLEAR STAGE 10 TO UNLOCK.",190,MUTED);
         g.setColor(new Color(35,76,43));g.drawLine(22,210,378,210);
-        String[] labels={"SURVIVE","UPGRADE","BOSS"};String[] values={"NO LIMIT","3 WAVES","5 WAVES"};
-        for(int i=0;i<3;i++){int x=22+i*122;g.setColor(new Color(22,48,28));g.drawRect(x,224,112,58);
-            g.setFont(UI_FONT.deriveFont(10f));g.setColor(MUTED);g.drawString(labels[i],x+10,244);
-            g.setFont(UI_FONT);g.setColor(Color.WHITE);g.drawString(values[i],x+10,268);}
+        String[] labels={"SURVIVE","UPGRADE","BOSS"};String[] values={"NO LIMIT","3 WAVES",bossRule.label};
+        for(int i=0;i<3;i++){int x=22+i*122;
+            // The boss box is the one setting on this panel: click it or press B to switch rules.
+            boolean option=i==2;
+            g.setColor(option?new Color(45,103,58):new Color(22,48,28));g.drawRect(x,224,112,58);
+            g.setFont(UI_FONT.deriveFont(10f));g.setColor(MUTED);g.drawString(labels[i],x+10,option?241:244);
+            fitted(g,values[i],x+10,option?260:268,92,12,Color.WHITE);
+            if(option)fitted(g,"[B] TO CHANGE",x+10,275,92,8,MUTED);}
         gateButton(g,pointer,"BACK",22,gateAvailable?148:300);
         if(gateAvailable)gateButton(g,pointer,"START RUN",182,140);
         gateButton(g,pointer,"",344,34);
@@ -616,8 +626,8 @@ public final class EndlessMode extends Screen {
         fitted(g,String.format(java.util.Locale.ROOT,"DIFF %.2fX",run.getDifficulty()),width-112,62,102,10,HUD_LABEL);
         if(boss==null) {
             fitted(g,run.getPatternLabel(),12,79,width-104,9,HUD_LABEL);
-            fitted(g,"BOSS W"+run.getNextBossWave(),width-86,69,74,8,Color.ORANGE);
-            bar(g,width-86,73,74,6,((run.getWave()-1)%5)/4.0,Color.ORANGE);
+            fitted(g,run.getBossStatus(),width-86,69,74,8,Color.ORANGE);
+            bar(g,width-86,73,74,6,run.getBossProgress(),Color.ORANGE);
         } else {
             fitted(g,"BOSS "+(int)Math.ceil(boss.hp)+" / "+(int)boss.maxHp,12,79,150,10,Color.ORANGE);
             bar(g,166,71,width-178,10,boss.hp/boss.maxHp,Color.ORANGE);
@@ -852,6 +862,7 @@ public final class EndlessMode extends Screen {
     private final Ship ship;
     private Boss nativeBoss;
     private WavePattern wavePattern;
+    private final BossRule.Schedule bossSchedule;
     private double formationTime;
     private double bossMoveRemainder, bossHealthFloor;
     private int bulletsFired;
@@ -878,6 +889,11 @@ public final class EndlessMode extends Screen {
     }
 
     public Run(int width, int height, Random random, GameplaySession systems) {
+        this(width,height,random,systems,BossRule.EVERY_FIVE_WAVES);
+    }
+
+    public Run(int width, int height, Random random, GameplaySession systems, BossRule bossRule) {
+        bossSchedule = bossRule.schedule();
         this.width = width;
         this.height = height;
         this.random = random;
@@ -973,6 +989,7 @@ public final class EndlessMode extends Screen {
         }
         if (enemies.isEmpty()) {
             systems.waveCleared();
+            bossSchedule.waveCleared(elapsed,kills);
             wave++;
             shots.clear();
             phase = Phase.INTERMISSION;
@@ -990,10 +1007,12 @@ public final class EndlessMode extends Screen {
     private void spawnWave() {
         direction=1;enemyShotClock=1.2;moveRemainder=0;invulnerability=1.5;
         formationTime=0;wavePattern=null;
-        nativeBoss=null;bossMoveRemainder=0;systems.beginWave(wave,wave%5==0);
-        if(wave%5==0){spawnBoss();return;}
-        wavePattern=WavePattern.forWave(wave);
-        int count = WavePattern.enemyCount(wave);
+        boolean bossWave=bossSchedule.beginWave(wave,elapsed,kills);
+        nativeBoss=null;bossMoveRemainder=0;systems.beginWave(wave,bossWave);
+        if(bossWave){spawnBoss();return;}
+        int patternWave=bossSchedule.patternWave(wave);
+        wavePattern=WavePattern.forWave(patternWave);
+        int count = WavePattern.enemyCount(patternWave);
         List<Entity> models=new ArrayList<Entity>();
         int maxWidth=0,maxHeight=0;
         for(int i=0;i<count;i++) {
@@ -1014,7 +1033,7 @@ public final class EndlessMode extends Screen {
     }
 
     private void spawnBoss() {
-        nativeBoss=systems.createBoss(wave,width/2,138);
+        nativeBoss=systems.createBoss(bossSchedule.bossStage(wave,bosses),width/2,138);
         if (nativeBoss instanceof FinalBoss) ((FinalBoss)nativeBoss).setArenaTop(138);
         Entity model=(Entity)nativeBoss;
         Body boss = new Body(model.getPositionX(),model.getPositionY(),model.getWidth(),model.getHeight(),true);
@@ -1269,7 +1288,11 @@ public final class EndlessMode extends Screen {
     public int getProjectiles() { return projectiles; }
     public int getDamageUpgrades() { return damageUpgrades; }
     public int getSpeedUpgrades() { return speedUpgrades; }
-    public int getNextBossWave() { return wave%5==0?wave:(wave/5+1)*5; }
+    /** 0 while a second/kill rule has not reached its threshold yet. */
+    public int getNextBossWave() { return bossSchedule.nextBossWave(wave,elapsed,kills); }
+    /** HUD gauge towards the next boss, 0..1. */
+    public double getBossProgress() { return bossSchedule.progress(wave,elapsed,kills); }
+    public String getBossStatus() { return bossSchedule.status(wave,elapsed,kills); }
     public int getBossDamage() { Body boss=getBoss();return boss==null?0:(int)Math.ceil(boss.damage); }
     public int getCountdown() { return Math.max(1, (int) Math.ceil(countdown-0.000001)); }
     public double getDifficulty() { return 1 + Math.floor(elapsed / 30) * 0.05; }
