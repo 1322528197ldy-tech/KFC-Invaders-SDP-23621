@@ -509,8 +509,6 @@ public final class EndlessMode extends Screen {
             else if(b.hitFlash>0)drawManager.drawSprite(entity.getSpriteType(),(int)b.x,(int)b.y,b.boss?Color.WHITE:Color.CYAN);
             else drawManager.drawEntity(entity,(int)b.x,(int)b.y);
         }
-        if(boss!=null && run.getPhase()==Run.Phase.PLAYING)
-            ((Boss)boss.entity).drawWarnings(drawManager);
         images.keySet().retainAll(run.getEnemies());
         if(run.nativeBoss!=null && run.getPhase()==Run.Phase.PLAYING)
             SharedAccess.drawBossWarnings(run.nativeBoss,drawManager,138);
