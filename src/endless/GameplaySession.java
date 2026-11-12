@@ -35,11 +35,13 @@ public final class GameplaySession {
     private double activeMillis, frameRemainder;
     private int wave, width, height, coinsEarned, pendingDiamonds, bankedDiamonds, completedWaves;
     private boolean tookDamage, finished;
+    private ShopEffects shopEffects=new ShopEffects(Collections.emptySet());
 
     /** Reads the same selected loadout as campaign; QA may read but never award progress. */
     public static GameplaySession open(boolean testing, Random random) {
         SharedAccess.Loadout loadout=SharedAccess.loadout(testing);
         GameplaySession session=new GameplaySession(loadout.ship,loadout.skin,loadout.equipment,!testing,true,random);
+        session.shopEffects=new ShopEffects(loadout.effects);
         ShapeSkin shape=loadout.shape;
         if(shape!=null) session.ship.setShapeSprite(shape.getSprite());
         return session;
@@ -67,6 +69,7 @@ public final class GameplaySession {
     }
 
     public Ship getShip() { return ship; }
+    public ShopEffects getShopEffects() { return shopEffects; }
     public Skin getSkin() { return skin; }
     public SharedAccess.Items getItems() { return items; }
     public boolean isPersistent() { return persistent; }
@@ -87,6 +90,7 @@ public final class GameplaySession {
     }
 
     public void beginWave(int number, boolean boss) {
+        shopEffects.beginWave();
         wave = number; tookDamage = false; currentEnemies = Collections.emptyList();
         // Repeat the campaign's non-final meteor stages instead of inventing another spawner.
         int stage = 1 + (number - 1) % Math.max(1, Core.getNumLevels() - 1);
@@ -157,6 +161,7 @@ public final class GameplaySession {
     public void enemyDefeated(Entity enemy, boolean boss, int score) {
         if (enemy instanceof Boss) ((Boss) enemy).destroy();
         else if (enemy instanceof EnemyShip) ((EnemyShip) enemy).destroy();
+        shopEffects.enemyDefeated(enemy,currentEnemies);
         if (boss || coinDrops.rollForDrop())
             coins.add(new Coin(enemy.getPositionX() + enemy.getWidth() / 2,
                     enemy.getPositionY() + enemy.getHeight() / 2,
@@ -173,6 +178,7 @@ public final class GameplaySession {
     }
 
     public void playerHit(int lives) {
+        shopEffects.playerHit(ship,lives);
         tookDamage = true;
         GameEvents.emit(GameEvents.Type.PLAYER_HIT, lives);
         sound(Sound.PLAYER_EXPLOSION);
@@ -219,6 +225,7 @@ public final class GameplaySession {
         sound(Sound.GAME_OVER);
         if (audio) SoundManager.getInstance().stopBgm();
         emit(GameplayExtension.Event.FINISH, cashOut);
+        shopEffects.clear();
     }
 
     public void resumeAudio() { if (audio) SoundManager.getInstance().playBgm(Sound.BGM_GAME); }

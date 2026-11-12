@@ -46,6 +46,7 @@ public final class SharedAccess {
         public Skin skin=Skin.CLASSIC;
         public ShapeSkin shape;
         public ItemInfo equipment;
+        public final Set<String> effects=new LinkedHashSet<String>();
     }
 
     /** Existing manager when available; a cold QA launch reads its native save without running migrations. */
@@ -56,6 +57,8 @@ public final class SharedAccess {
             result.ship=purchases.getSelectedShip();result.skin=purchases.getSelectedSkin();
             result.shape=purchases.getSelectedShape(result.ship);
             for(ItemInfo item:ItemSystem.equipmentItems())if(purchases.isUpgradeOn(item.itemId)){result.equipment=item;break;}
+            for(ShopItem item:ShopCatalog.getByCategory(ShopCategory.EFFECT))
+                if(purchases.isEffectOn(item))result.effects.add(item.getRef());
             return result;
         }
         try {
@@ -81,6 +84,8 @@ public final class SharedAccess {
                 }
             }
             Set<String> off=new HashSet<String>(Arrays.asList(saved.getProperty((String)get(PurchaseManager.class,"OFF_KEY"),"").split(",")));
+            for(ShopItem entry:ShopCatalog.getByCategory(ShopCategory.EFFECT))
+                if(owned(saved,prefix,entry) && !off.contains(entry.getId()))result.effects.add(entry.getRef());
             for(ItemInfo item:ItemSystem.equipmentItems()) {
                 ShopItem entry=ShopCatalog.findByRef(ShopCategory.UPGRADE,item.itemId);
                 if(entry!=null && owned(saved,prefix,entry) && !off.contains(entry.getId())){result.equipment=item;break;}
@@ -92,6 +97,18 @@ public final class SharedAccess {
     }
     private static boolean owned(Properties saved,String prefix,ShopItem entry) {
         return entry==null || Integer.parseInt(saved.getProperty(prefix+entry.getId(),"0"))>0;
+    }
+
+    /** Draw native effects in an isolated context without leaking their clip or paint to the HUD. */
+    static void drawWith(java.awt.Graphics2D graphics, Runnable drawing) {
+        Object previous=get(DrawManager.class,"backBufferGraphics");
+        try { set(DrawManager.class,"backBufferGraphics",graphics);drawing.run(); }
+        finally { set(DrawManager.class,"backBufferGraphics",previous); }
+    }
+    /** Adapt native visual timers to active time without changing the shared VFX classes. */
+    static void shiftVisualTime(Object target,String name,long amount) {
+        long value=((Number)get(target,name)).longValue();
+        if(value>0)set(target,name,value+amount);
     }
 
     /** Independent instance of the original item implementation, including its equipment and callbacks. */
@@ -171,6 +188,13 @@ public final class SharedAccess {
         model.setPositionY(model.getPositionY()-offset);
         boss.moveBoss(width,height-offset,settings);
         model.setPositionY(model.getPositionY()+offset);
+    }
+    public static void drawBossWarnings(Boss boss,DrawManager drawing,int top) {
+        java.awt.Graphics2D original=(java.awt.Graphics2D)get(DrawManager.class,"backBufferGraphics");
+        java.awt.Graphics2D copy=(java.awt.Graphics2D)original.create();
+        copy.clipRect(0,top,10000,10000);
+        if (!(boss instanceof FinalBoss)) copy.translate(0,top-number(boss.getClass(),"TOP_BOUNDARY"));
+        try {drawWith(copy,()->boss.drawWarnings(drawing));}finally{copy.dispose();}
     }
     public static int coinValue(boolean bonus){return number(screen.GameScreen.class,bonus?"BONUS_COIN_VALUE":"COIN_VALUE");}
 

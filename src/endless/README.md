@@ -1,5 +1,7 @@
 # Endless-only integration
 
+Ordinary waves now rotate through five formations, three movements and three firing patterns. See [Yoonsoo's formation notes](../../docs/kfc/endless-formations-yoonsoo.md) for the schedule, balance constraints, ownership and validation.
+
 All connection code belongs to this folder and `src/screen/EndlessMode.java`. The only base-game adjustment is TitleScreen's optional Endless hook: it detects the compiled class rather than a source file, so the entry also works in release JARs and from other working directories. No source under `engine`, `entity`, `item`, or `shop` is modified. Endless has its own record view, opened with H while paused. To remove the optional mode, omit its compiled classes and rebuild; deleting a source file alone does not remove old compiled classes.
 
 `GameplaySession` connects the existing ship/skin selection, item implementation, equipment, wallets, achievements, bosses, VFX, meteor system and audio calls. It owns only the endless session's lifecycle and accounting. Definitions, prices, effect behavior, native shooting patterns and save managers remain in their original modules.

@@ -131,11 +131,26 @@ public final class ConnectedSystemsChecks {
         check(r.getBoss().entity instanceof FinalBoss && r.getBoss().width==48,"Wave 10 uses final boss's actual entity and hitbox");
         if(r.getPhase()==Run.Phase.REWARD)r.chooseReward(0);
         set(r,"phase",Run.Phase.PLAYING);set(r.getBoss().entity,"targetShotsForBurst",1);
+        java.util.Random fixed=new java.util.Random(){@Override public int nextInt(int bound){return 0;}};
+        set(r.getBoss().entity,"random",fixed);
         set(r,"enemyShotClock",0.0);r.update(.001,0,false);
         List<Run.Body> incoming=new ArrayList<Run.Body>();for(Run.Body b:r.getShots())if(!r.isPlayerShot(b))incoming.add(b);
         check(incoming.size()==3,"Final boss delegates to the teammate's native three-bullet pattern");
-        check(incoming.get(0).x==incoming.get(1).x && incoming.get(0).y-incoming.get(1).y==15,
-                "Native burst geometry is preserved rather than copied into endless");
+        check(((Double)get(incoming.get(0),"vx"))==((Bullet)incoming.get(0).entity).getSpeedX()*60.0,
+                "Native aimed horizontal bullet velocity is preserved");
+        Object rain=get(r.getBoss().entity,"rainWarningCooldown");
+        set(rain,"time",System.currentTimeMillis());long before=(Long)get(rain,"time");
+        r.togglePause();set(r,"pausedAt",System.currentTimeMillis()-2000);r.togglePause();
+        check((Long)get(rain,"time")-before>=1995,"Endless resume preserves the A1 boss warning timer");
+        // A queued rain must fall even between ordinary boss shooting intervals.
+        ((List<?>)get(r,"shots")).clear();
+        List<Integer> targets=(List<Integer>)get(r.getBoss().entity,"rainTargets");
+        targets.clear();targets.add(40);targets.add(360);
+        set(rain,"time",0L);set(r,"enemyShotClock",10.0);
+        r.update(.001,0,false);
+        check(targets.isEmpty() && r.getShots().size()==2,"Pending boss rain falls between volleys");
+        for(Run.Body shot:r.getShots())check(shot.y>=138 && shot.y<180,"Boss rain uses the Endless arena origin exactly once");
+
     }
     private static void progressAndEconomy(Path saves)throws Exception {
         Constructor<GameplaySession> ctor=GameplaySession.class.getDeclaredConstructor(Ship.ShipType.class,Skin.class,ItemInfo.class,boolean.class,boolean.class,Random.class);
