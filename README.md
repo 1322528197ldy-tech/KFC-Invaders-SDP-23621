@@ -69,6 +69,12 @@ Run `powershell -ExecutionPolicy Bypass -File tests/endless/verify-connected.ps1
 
 See [implementation and review notes](docs/kfc/endless-formations-yoonsoo.md) for ownership, the wave schedule and test coverage. This uses a deterministic 15-combination cycle after opening exceptions, rather than every possible formation/movement/fire combination. Follow-up review topics are independent attack scheduling, exact diamond symmetry and running the full Endless suite in CI.
 
+## Startup credits
+
+The opening shows Hanyang University followed by KFC Team before the existing menu.
+Space, Enter or Escape skips it. The menu credit matches the gray bottom key hints.
+See [startup behavior, screenshots and checks](docs/kfc/startup-credits.md).
+
 ## Attribution and Licensing
 
 This course project is based on [RobertoIA/Invaders](https://github.com/RobertoIA/Invaders). The upstream repository does not currently declare an open-source license. This repository therefore does not assert a new open-source license over the upstream code or third-party assets. Any permission or licensing terms confirmed by the relevant rights holders should be documented here before redistribution beyond the permissions provided through GitHub.
