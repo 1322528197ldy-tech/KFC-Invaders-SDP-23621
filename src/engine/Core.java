@@ -122,6 +122,13 @@ public final class Core {
 		int width = frame.getWidth();
 		int height = frame.getHeight();
 
+        // Show the supplied school and team credits once, before the main menu.
+        if (!Boolean.getBoolean("game.skipIntro")) {
+            LOGGER.info("Starting intro animation.");
+            frame.setScreen(new screen.StartupScreen(width, height, FPS));
+            LOGGER.info("Intro animation finished.");
+        }
+
 		gameSettings = new ArrayList<GameSettings>();
 		gameSettings.add(SETTINGS_LEVEL_1);
 		gameSettings.add(SETTINGS_LEVEL_2);

@@ -50,6 +50,8 @@ public final class DrawManager {
 	private static Graphics backBufferGraphics;
 	/** Buffer image. */
 	private static BufferedImage backBuffer;
+	/** Cached startup artwork, loaded from bundled resources. */
+	private screen.StartupAnimation startupAnimation;
 	/** Top of the item panel, right below the HUD line (Team CS). */
 	private static final int ITEM_PANEL_TOP = 43;
 	private static final int ITEM_SLOT_HEIGHT = 16;
@@ -313,6 +315,17 @@ public final class DrawManager {
 		// drawBorders(screen);
 		// drawGrid(screen);
 	}
+
+    /** Draw the school emblem first, followed by the team credit. */
+    public void drawStartup(final Screen targetScreen, final long elapsedMs) {
+        if (startupAnimation == null) {
+            startupAnimation = new screen.StartupAnimation(fontRegular,
+                    screen.StartupAnimation.loadSchoolLogo(),
+                    screen.StartupAnimation.loadLogo());
+        }
+        startupAnimation.draw((Graphics2D) backBufferGraphics,
+                targetScreen.getWidth(), targetScreen.getHeight(), elapsedMs);
+    }
 
 	/**
 	 * Draws the completed drawing on screen.
@@ -1006,6 +1019,23 @@ public final class DrawManager {
 		backBufferGraphics.drawLine(0, positionY + 1, screen.getWidth(),
 				positionY + 1);
 	}
+
+    /** Quiet team credit in the main menu's upper-left safe margin. */
+    public void drawMenuCredit(final Screen screen) {
+        Graphics2D credit = (Graphics2D) backBufferGraphics.create();
+        try {
+            String text = "DEVELOPED & ADAPTED BY KFC TEAM";
+            Font font = fontRegular.deriveFont(10f);
+            int available = Math.max(1, screen.getWidth() - 24);
+            while (credit.getFontMetrics(font).stringWidth(text) > available && font.getSize2D() > 7f)
+                font = font.deriveFont(font.getSize2D() - 0.5f);
+            credit.setFont(font);
+            credit.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
+            credit.setColor(Color.GRAY);
+            credit.drawString(text, 12, 22);
+        } finally { credit.dispose(); }
+    }
 
 	/**
 	 * Draws game title.

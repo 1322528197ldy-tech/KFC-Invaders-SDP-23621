@@ -286,6 +286,7 @@ public class TitleScreen extends Screen {
 		drawManager.initDrawing(this);
 
 		drawManager.drawStarfield(this, starfield);
+		drawManager.drawMenuCredit(this);
 		drawManager.drawTitle(this);
 		if (!optionalEndless("drawEntry"))
 			drawManager.drawMenu(this, this.selected);
