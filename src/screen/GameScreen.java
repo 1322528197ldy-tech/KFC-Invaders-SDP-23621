@@ -486,7 +486,8 @@ public class GameScreen extends Screen {
 		final boolean escapeDown = inputManager.isKeyDown(KeyEvent.VK_ESCAPE);
 		final boolean escapePressed = escapeDown && !this.escapeWasDown;
 		this.escapeWasDown = escapeDown;
-		if ((inputManager.isKeyDown(KeyEvent.VK_P) || escapePressed)
+		if (!this.levelFinished && this.lives > 0
+				&& (inputManager.isKeyDown(KeyEvent.VK_P) || escapePressed)
 				&& this.pauseKeyCooldown.checkFinished()) {
 			if (this.paused)
 				resumeGameplay();
