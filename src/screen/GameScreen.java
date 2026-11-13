@@ -284,6 +284,8 @@ public class GameScreen extends Screen {
 	private long pauseStartedAt;
 	/** Debounces the pause key so holding it doesn't toggle every frame. */
 	private Cooldown pauseKeyCooldown;
+	/** Tracks the held Escape key so each press toggles pause once. */
+	private boolean escapeWasDown;
 	/** Debounces cursor moves in the pause menu. */
 	private Cooldown pauseSelectionCooldown;
 	/** Option the cursor is on in the pause menu. */
@@ -412,6 +414,7 @@ public class GameScreen extends Screen {
 		this.achievementPopupQueue = new LinkedList<Achievement>();
 		this.coinDropManager = new CoinDropManager();
 		this.pauseKeyCooldown = Core.getCooldown(PAUSE_KEY_DEBOUNCE);
+		this.escapeWasDown = this.inputManager.isKeyDown(KeyEvent.VK_ESCAPE);
 		this.pauseSelectionCooldown = Core.getCooldown(PAUSE_SELECTION_DEBOUNCE);
 		this.pauseSelection = PauseOption.RESUME;
 		this.pauseStartedAt = 0;
@@ -480,7 +483,10 @@ public class GameScreen extends Screen {
 		// Animated skins (GoG); plain skins return the same colour.
 		this.ship.setSkinColor(this.skin.colorAt(System.currentTimeMillis()));
 
-		if (inputManager.isKeyDown(KeyEvent.VK_P)
+		final boolean escapeDown = inputManager.isKeyDown(KeyEvent.VK_ESCAPE);
+		final boolean escapePressed = escapeDown && !this.escapeWasDown;
+		this.escapeWasDown = escapeDown;
+		if ((inputManager.isKeyDown(KeyEvent.VK_P) || escapePressed)
 				&& this.pauseKeyCooldown.checkFinished()) {
 			if (this.paused)
 				resumeGameplay();
@@ -968,7 +974,7 @@ public class GameScreen extends Screen {
 			drawManager.drawPauseMenu(this, options,
 					this.pauseSelection.ordinal());
 			drawManager.drawKeyHints(this,
-					"w+s / arrows to move, space to select, P to resume");
+					"w+s / arrows to move, space to select, P / Esc to resume");
 		}
 
 		// Countdown to game start (skipped while paused, so the pause menu
@@ -984,7 +990,7 @@ public class GameScreen extends Screen {
 			drawManager.drawHorizontalLine(this, this.height / 2 + this.height
 					/ 12);
 			drawManager.drawItemHint(this, this.items); // Item System (Team CS)
-			drawManager.drawKeyHints(this, "P to pause");
+			drawManager.drawKeyHints(this, "P / Esc to pause");
 		}
 
 
