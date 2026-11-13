@@ -127,6 +127,16 @@ public final class EntryGateChecks {
         set(EndlessMode.class,null,"gateAvailable",true);
         render(screenshots,"entry-unlocked");
         check(!(Boolean)get(password().getClass(),password(),"open"),"Normal unlocked entry has no password prompt");
+        check(get(EndlessMode.class,null,"bossRule")==endless.BossRule.EVERY_FIVE_WAVES,"Five-wave bosses are the default rule");
+        tap(KeyEvent.VK_B);update();
+        check(get(EndlessMode.class,null,"bossRule")==endless.BossRule.EVERY_90_SECONDS,"B switches to the 90 second rule");
+        render(screenshots,"entry-boss-rule-seconds");
+        click(300,250);update();
+        check(get(EndlessMode.class,null,"bossRule")==endless.BossRule.EVERY_30_KILLS
+                && (Boolean)get(EndlessMode.class,null,"gateOpen"),"Clicking the boss box switches to the 30 kill rule without leaving the panel");
+        render(screenshots,"entry-boss-rule-kills");
+        tap(KeyEvent.VK_B);update();
+        check(get(EndlessMode.class,null,"bossRule")==endless.BossRule.EVERY_FIVE_WAVES,"The third switch returns to five waves");
         System.out.println("PASS: "+checks+" packaged entry / password checks");
     }
 }
