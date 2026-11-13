@@ -10,7 +10,7 @@ import javax.imageio.stream.MemoryCacheImageInputStream;
 
 /** School emblem first, then team credit; both supplied images are preserved without edits. */
 public final class StartupAnimation {
-    public static final long SCENE_DURATION_MS = 3200;
+    public static final long SCENE_DURATION_MS = 2000;
     public static final long DURATION_MS = SCENE_DURATION_MS * 2;
     public static final String SCHOOL_LOGO_RESOURCE = "branding/hanyang-university-logo.png";
     public static final String LOGO_RESOURCE = "branding/kfc-team-logo.png";
@@ -66,7 +66,7 @@ public final class StartupAnimation {
             BufferedImage current=showingSchool?schoolLogo:logo;
             double t = (showingSchool?elapsed:elapsed-SCENE_DURATION_MS) / 1000.0;
             float reveal = ease((t - 0.15) / 0.65);
-            float zoom = 0.96f + 0.04f * ease(t / 2.7);
+            float zoom = 0.96f + 0.04f * ease(t / 1.5);
             g.setComposite(AlphaComposite.SrcOver.derive(reveal));
             if (current != null) {
                 double fit = Math.min((W - 24.0) / current.getWidth(), (H - 150.0) / current.getHeight());
@@ -86,7 +86,7 @@ public final class StartupAnimation {
             }
             // Fade the school into the shared white background before revealing the team image.
             if(showingSchool) {
-                g.setComposite(AlphaComposite.SrcOver.derive(ease((t-2.75)/0.45)));
+                g.setComposite(AlphaComposite.SrcOver.derive(ease((t - 1.55) / 0.45)));
                 g.setColor(Color.WHITE);g.fillRect(0,0,W,H);
             }
             g.setComposite(AlphaComposite.SrcOver.derive(ease((elapsed / 1000.0 - 0.65) / 0.4)));
@@ -96,7 +96,7 @@ public final class StartupAnimation {
             String hint = "SPACE / ENTER / ESC TO SKIP";
             g.drawString(hint, (W - g.getFontMetrics().stringWidth(hint)) / 2, 474);
             float shade = Math.max(1 - ease(elapsed / 350.0),
-                    showingSchool?0:ease((t - 2.75) / 0.45));
+                    showingSchool?0:ease((t - 1.55) / 0.45));
             if (shade > 0) {
                 g.setTransform(targetTransform);
                 g.setComposite(AlphaComposite.SrcOver.derive(shade));
