@@ -75,6 +75,8 @@ public final class EndlessMode extends Screen {
     private double rewardInputDelay;
     private boolean saved;
     private int pauseSelection;
+    /** "Are you sure?" step in front of Restart and Cash out. */
+    private final PauseConfirm pauseConfirm = new PauseConfirm();
     private String achievementNotice="";
     private long achievementUntil;
 
@@ -390,7 +392,23 @@ public final class EndlessMode extends Screen {
         if(before==Run.Phase.OVER && deathTime>=3) {
             if(esc){systems.leave();returnCode=1; isRunning=false;}
             if(enter){returnCode=8; isRunning=false;}
-        } else if(before==Run.Phase.PAUSED && quit) run.finish("CASHED OUT");
+        } else if(before==Run.Phase.PAUSED && pauseConfirm.isOpen()) {
+            // Yes/No step in front of Restart and Cash out; see PauseConfirm.
+            boolean left=controls.take(KeyEvent.VK_LEFT) | controls.take(KeyEvent.VK_A);
+            boolean right=controls.take(KeyEvent.VK_RIGHT) | controls.take(KeyEvent.VK_D);
+            boolean select=enter | controls.take(KeyEvent.VK_SPACE);
+            // Drain the list keys so they do not move the pause menu once this closes.
+            controls.take(KeyEvent.VK_UP);controls.take(KeyEvent.VK_W);
+            controls.take(KeyEvent.VK_DOWN);controls.take(KeyEvent.VK_S);
+            if(left) pauseConfirm.selectYes();
+            if(right) pauseConfirm.selectNo();
+            if(esc || pause) pauseConfirm.close();
+            else if(select) {
+                PauseConfirm.Action confirmed=pauseConfirm.confirm();
+                if(confirmed==PauseConfirm.Action.ENDLESS_RESTART) { run.finish("RESTARTED");returnCode=8;isRunning=false;return; }
+                if(confirmed==PauseConfirm.Action.ENDLESS_QUIT) run.finish("CASHED OUT");
+            }
+        } else if(before==Run.Phase.PAUSED && quit) { pauseSelection=2;openPauseConfirm(PauseConfirm.Action.ENDLESS_QUIT); }
         else if(before==Run.Phase.PAUSED) {
             boolean up=controls.take(KeyEvent.VK_UP) | controls.take(KeyEvent.VK_W);
             boolean down=controls.take(KeyEvent.VK_DOWN) | controls.take(KeyEvent.VK_S);
@@ -399,8 +417,8 @@ public final class EndlessMode extends Screen {
             boolean select=enter | controls.take(KeyEvent.VK_SPACE);
             if(select) {
                 if(pauseSelection==0) run.togglePause();
-                else if(pauseSelection==1) { run.finish("RESTARTED");returnCode=8;isRunning=false;return; }
-                else run.finish("CASHED OUT");
+                else if(pauseSelection==1) openPauseConfirm(PauseConfirm.Action.ENDLESS_RESTART);
+                else openPauseConfirm(PauseConfirm.Action.ENDLESS_QUIT);
             }
             Screen menu = null;
             if(shop && !testing) menu = new ShopScreen(width,height,60);
@@ -412,9 +430,9 @@ public final class EndlessMode extends Screen {
                 boundFrame.setScreen(menu); controls.clear(); previousTime=System.nanoTime(); systems.resumeAudio();
                 boundFrame.requestFocusInWindow();
             }
-            if((esc || pause) && run.getPhase()==Run.Phase.PAUSED) run.togglePause();
+            if((esc || pause) && run.getPhase()==Run.Phase.PAUSED && !pauseConfirm.isOpen()) run.togglePause();
         }
-        else if(esc || pause) { pauseSelection=0;run.togglePause(); }
+        else if(esc || pause) { pauseSelection=0;pauseConfirm.close();run.togglePause(); }
         if(before==run.getPhase()) {
             int move=(controls.down(KeyEvent.VK_RIGHT)||controls.down(KeyEvent.VK_D)?1:0)
                     -(controls.down(KeyEvent.VK_LEFT)||controls.down(KeyEvent.VK_A)?1:0);
@@ -444,6 +462,13 @@ public final class EndlessMode extends Screen {
                 || run.getPhase()==Run.Phase.INTERMISSION || run.getPhase()==Run.Phase.BOSS_INTRO;
         systems.getShopEffects().frame(player,playing,advancing,run.getLives(),run.countdown,dt);
         draw();
+    }
+
+    /** Opens the Yes/No step; movement keys held during play must not pre-select Yes. */
+    private void openPauseConfirm(PauseConfirm.Action action) {
+        controls.take(KeyEvent.VK_LEFT);controls.take(KeyEvent.VK_A);
+        controls.take(KeyEvent.VK_RIGHT);controls.take(KeyEvent.VK_D);
+        pauseConfirm.open(action);
     }
 
     private Entity image(Run.Body b) {
@@ -560,6 +585,8 @@ public final class EndlessMode extends Screen {
             panel(g,"WAVE "+run.getWave()+" IN "+run.getCountdown());
             row(g,run.getNotice().isEmpty()?"SECTOR CLEAR":run.getNotice(),0);
             row(g,"NEXT UPGRADE IN "+run.getWavesUntilReward()+" WAVE(S)",1);
+        } else if(phase==Run.Phase.PAUSED && pauseConfirm.isOpen()){
+            pauseConfirm.draw(drawManager,this);
         } else if(phase==Run.Phase.PAUSED){
             drawManager.drawPauseMenu(this,new String[]{"RESUME","RESTART","CASH OUT / QUIT"},pauseSelection);
             drawManager.drawKeyHints(this,"w+s / arrows to move, space / enter to select");
