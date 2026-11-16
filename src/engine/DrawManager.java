@@ -1006,6 +1006,59 @@ public final class DrawManager {
 	}
 
 	/**
+	 * Draws a Yes/No confirmation box over the frozen game, same look as
+	 * the pause menu: a question, a few lines explaining what Yes does,
+	 * then the two answers. What to ask and when is decided by
+	 * {@link screen.PauseConfirm}; this only paints it.
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param title
+	 *            Question shown at the top.
+	 * @param lines
+	 *            Explanation, one entry per line.
+	 * @param yesSelected
+	 *            Whether the cursor is on Yes.
+	 */
+	public void drawConfirmDialog(final Screen screen, final String title,
+								  final String[] lines, final boolean yesSelected) {
+		String yesString = yesSelected ? "> Yes <" : "Yes";
+		String noString = yesSelected ? "No" : "> No <";
+
+		int spacing = menuItemSpacing();
+		int boxWidth = screen.getWidth() - 40;
+		int boxHeight = spacing * (lines.length + 6);
+		int boxX = (screen.getWidth() - boxWidth) / 2;
+		int boxY = (screen.getHeight() - boxHeight) / 2;
+		int textWidth = boxWidth - 20;
+
+		backBufferGraphics.setColor(Color.BLACK);
+		backBufferGraphics.fillRect(boxX, boxY, boxWidth, boxHeight);
+		backBufferGraphics.setColor(Color.GREEN);
+		backBufferGraphics.drawRect(boxX, boxY, boxWidth, boxHeight);
+
+		// Big green question, then the explanation: the first line in
+		// white says what happens, the rest in gray add the detail.
+		drawCenteredBigString(screen, title, boxY + spacing * 2);
+		for (int i = 0; i < lines.length; i++) {
+			backBufferGraphics.setColor(i == 0 ? Color.WHITE : Color.GRAY);
+			drawFittedCenteredString(screen, lines[i],
+					boxY + spacing * (2 * i + 7) / 2, textWidth);
+		}
+
+		int answerY = boxY + spacing * (lines.length + 5);
+		int yesX = screen.getWidth() / 2 - boxWidth / 4
+				- fontRegularMetrics.stringWidth(yesString) / 2;
+		int noX = screen.getWidth() / 2 + boxWidth / 4
+				- fontRegularMetrics.stringWidth(noString) / 2;
+		backBufferGraphics.setFont(fontRegular);
+		backBufferGraphics.setColor(yesSelected ? Color.GREEN : Color.WHITE);
+		backBufferGraphics.drawString(yesString, yesX, answerY);
+		backBufferGraphics.setColor(yesSelected ? Color.WHITE : Color.GREEN);
+		backBufferGraphics.drawString(noString, noX, answerY);
+	}
+
+	/**
 	 * Draws a centered string on regular font in the current colour,
 	 * shrinking the font if the string is wider than the space it has.
 	 */
