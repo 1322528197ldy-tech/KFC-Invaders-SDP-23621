@@ -1006,6 +1006,25 @@ public final class DrawManager {
 	}
 
 	/**
+	 * Draws a centered string on regular font in the current colour,
+	 * shrinking the font if the string is wider than the space it has.
+	 */
+	private void drawFittedCenteredString(final Screen screen,
+										  final String string, final int height, final int maxWidth) {
+		Font font = fontRegular;
+		FontMetrics metrics = fontRegularMetrics;
+		int width = metrics.stringWidth(string);
+		if (width > maxWidth) {
+			font = fontRegular.deriveFont(
+					fontRegular.getSize2D() * maxWidth / width);
+			metrics = backBufferGraphics.getFontMetrics(font);
+		}
+		backBufferGraphics.setFont(font);
+		backBufferGraphics.drawString(string,
+				(screen.getWidth() - metrics.stringWidth(string)) / 2, height);
+	}
+
+	/**
 	 * Draws a thick line from side to side of the screen.
 	 *
 	 * @param screen
