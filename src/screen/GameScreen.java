@@ -290,6 +290,8 @@ public class GameScreen extends Screen {
 	private Cooldown pauseSelectionCooldown;
 	/** Option the cursor is on in the pause menu. */
 	private PauseOption pauseSelection;
+	/** "Are you sure?" step in front of Restart and Quit. */
+	private final PauseConfirm pauseConfirm = new PauseConfirm();
 	/** Tracks the held Space key so each press answers the menu once. */
 	private boolean pauseSpaceWasDown;
 	/** Score the level started with, restored by "Restart". */
@@ -491,6 +493,14 @@ public class GameScreen extends Screen {
 		if (!this.levelFinished && this.lives > 0
 				&& (inputManager.isKeyDown(KeyEvent.VK_P) || escapePressed)
 				&& this.pauseKeyCooldown.checkFinished()) {
+			if (this.paused && this.pauseConfirm.isOpen()) {
+				// P / Esc on the confirmation only backs out to the pause
+				// menu; it takes a second press to resume.
+				this.pauseConfirm.close();
+				this.pauseKeyCooldown.reset();
+				draw();
+				return;
+			}
 			if (this.paused)
 				resumeGameplay();
 			else {
@@ -806,6 +816,12 @@ public class GameScreen extends Screen {
 		final boolean spaceDown = inputManager.isKeyDown(KeyEvent.VK_SPACE);
 		final boolean spacePressed = spaceDown && !this.pauseSpaceWasDown;
 		this.pauseSpaceWasDown = spaceDown;
+
+		if (this.pauseConfirm.isOpen()) {
+			updatePauseConfirm(spacePressed);
+			return;
+		}
+
 		if (spacePressed) {
 			this.pauseSelectionCooldown.reset();
 			confirmPauseSelection();
@@ -827,7 +843,30 @@ public class GameScreen extends Screen {
 	}
 
 	/**
-	 * Carries out whichever pause menu option the cursor was on.
+	 * Handles the Yes/No confirmation in front of Restart and Quit.
+	 *
+	 * @param spacePressed
+	 *            Whether Space was pressed this frame.
+	 */
+	private void updatePauseConfirm(final boolean spacePressed) {
+		if (inputManager.isKeyDown(KeyEvent.VK_LEFT)
+				|| inputManager.isKeyDown(KeyEvent.VK_A))
+			this.pauseConfirm.selectYes();
+		else if (inputManager.isKeyDown(KeyEvent.VK_RIGHT)
+				|| inputManager.isKeyDown(KeyEvent.VK_D))
+			this.pauseConfirm.selectNo();
+
+		if (!spacePressed)
+			return;
+		PauseConfirm.Action confirmed = this.pauseConfirm.confirm();
+		if (confirmed != null)
+			carryOutConfirmed(confirmed);
+	}
+
+	/**
+	 * Carries out whichever pause menu option the cursor was on. Resume
+	 * happens straight away; Restart and Quit first ask for confirmation
+	 * (see {@link PauseConfirm}).
 	 */
 	private void confirmPauseSelection() {
 		switch (this.pauseSelection) {
@@ -835,9 +874,28 @@ public class GameScreen extends Screen {
 				resumeGameplay();
 				break;
 			case RESTART:
-				restartLevel();
+				this.pauseConfirm.open(PauseConfirm.Action.NORMAL_RESTART);
 				break;
 			case QUIT:
+				this.pauseConfirm.open(PauseConfirm.Action.NORMAL_QUIT);
+				break;
+			default:
+				break;
+		}
+	}
+
+	/**
+	 * Carries out an action the player answered Yes to.
+	 *
+	 * @param action
+	 *            Confirmed action.
+	 */
+	private void carryOutConfirmed(final PauseConfirm.Action action) {
+		switch (action) {
+			case NORMAL_RESTART:
+				restartLevel();
+				break;
+			case NORMAL_QUIT:
 				// No dedicated "abandon" path exists in the screen flow,
 				// but ending the run the same way running out of lives
 				// does takes us straight to the existing score screen,
@@ -980,7 +1038,9 @@ public class GameScreen extends Screen {
 		this.glitch.setEnabled(this.lowHealthActive && !this.levelFinished);
 		drawManager.drawGlitch(this, this.glitch);
 
-		if (this.paused) {
+		if (this.paused && this.pauseConfirm.isOpen()) {
+			this.pauseConfirm.draw(drawManager, this);
+		} else if (this.paused) {
 			String[] options = { PauseOption.RESUME.getLabel(),
 					PauseOption.RESTART.getLabel(),
 					PauseOption.QUIT.getLabel() };
