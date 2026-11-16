@@ -290,6 +290,8 @@ public class GameScreen extends Screen {
 	private Cooldown pauseSelectionCooldown;
 	/** Option the cursor is on in the pause menu. */
 	private PauseOption pauseSelection;
+	/** Tracks the held Space key so each press answers the menu once. */
+	private boolean pauseSpaceWasDown;
 	/** Score the level started with, restored by "Restart". */
 	private final int initialScore;
 	/** Lives the level started with (bonus life included), restored by
@@ -494,6 +496,8 @@ public class GameScreen extends Screen {
 			else {
 				this.paused = true;
 				this.pauseStartedAt = System.currentTimeMillis();
+				// A fire key still held from gameplay must not pick an option.
+				this.pauseSpaceWasDown = inputManager.isKeyDown(KeyEvent.VK_SPACE);
 			}
 			this.pauseKeyCooldown.reset();
 			// Ghost Trail starts fresh after a pause. AUTHORED BY: VFX TEAM (Effection)
@@ -797,6 +801,17 @@ public class GameScreen extends Screen {
 	 * Handles cursor movement and selection while the pause menu is open.
 	 */
 	private void updatePauseMenu() {
+		// Space answers once per press, so holding it cannot select
+		// "Restart" and then answer its confirmation in the same hold.
+		final boolean spaceDown = inputManager.isKeyDown(KeyEvent.VK_SPACE);
+		final boolean spacePressed = spaceDown && !this.pauseSpaceWasDown;
+		this.pauseSpaceWasDown = spaceDown;
+		if (spacePressed) {
+			this.pauseSelectionCooldown.reset();
+			confirmPauseSelection();
+			return;
+		}
+
 		if (!this.pauseSelectionCooldown.checkFinished())
 			return;
 
@@ -808,9 +823,6 @@ public class GameScreen extends Screen {
 				|| inputManager.isKeyDown(KeyEvent.VK_S)) {
 			this.pauseSelection = this.pauseSelection.next();
 			this.pauseSelectionCooldown.reset();
-		} else if (inputManager.isKeyDown(KeyEvent.VK_SPACE)) {
-			this.pauseSelectionCooldown.reset();
-			confirmPauseSelection();
 		}
 	}
 
