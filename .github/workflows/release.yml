@@ -23,7 +23,7 @@ concurrency:
 jobs:
   jar:
     # Only in our fork. Upstream would otherwise publish its own releases.
-    if: github.repository == 'eoieiie/Invaders-SDP-23621'
+    if: github.repository == '1322528197ldy-tech/KFC-Invaders-SDP-23621'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
