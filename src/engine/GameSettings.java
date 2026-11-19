@@ -8,6 +8,15 @@ package engine;
  */
 public class GameSettings {
 
+	public enum MovementPattern {
+		CLASSIC,
+		DIAGONAL,
+		DIAGONAL_PATROL,
+		DIAMOND_PATROL,
+		ELLIPSE_PATROL,
+		RECTANGLE_PATROL
+	}
+
 	/** Width of the level's enemy formation. */
 	private int formationWidth;
 	/** Height of the level's enemy formation. */
@@ -18,8 +27,8 @@ public class GameSettings {
 	private int shootingFrecuency;
 	/** Number of two-hit enemies in this stage's formation. */
 	private int twoHitEnemyCount;
-	/** Whether the whole formation moves diagonally (Team A1). */
-	private boolean diagonalMovement;
+	/** Movement pattern used by the entire formation. */
+	private final MovementPattern movementPattern;
 
 	/**
 	 * Constructor.
@@ -50,6 +59,15 @@ public class GameSettings {
 	public GameSettings(final int formationWidth, final int formationHeight,
 			final int baseSpeed, final int shootingFrecuency,
 			final boolean diagonalMovement, final int twoHitEnemyCount) {
+		this(formationWidth, formationHeight, baseSpeed, shootingFrecuency,
+				diagonalMovement ? MovementPattern.DIAGONAL : MovementPattern.CLASSIC,
+				twoHitEnemyCount);
+	}
+
+	/** Creates settings with an explicit formation movement pattern. */
+	public GameSettings(final int formationWidth, final int formationHeight,
+			final int baseSpeed, final int shootingFrecuency,
+			final MovementPattern movementPattern, final int twoHitEnemyCount) {
 		if (twoHitEnemyCount < 0
 				|| (twoHitEnemyCount > 0
 						&& twoHitEnemyCount >= formationWidth * formationHeight))
@@ -60,7 +78,7 @@ public class GameSettings {
 		this.formationHeight = formationHeight;
 		this.baseSpeed = baseSpeed;
 		this.shootingFrecuency = shootingFrecuency;
-		this.diagonalMovement = diagonalMovement;
+		this.movementPattern = movementPattern;
 	}
 
 	/**
@@ -121,7 +139,11 @@ public class GameSettings {
 	 * @return true if the formation moves diagonally
 	 */
 	public final boolean isDiagonalMovement() {
-		return diagonalMovement;
+		return this.movementPattern == MovementPattern.DIAGONAL;
+	}
+
+	public final MovementPattern getMovementPattern() {
+		return this.movementPattern;
 	}
 
 }

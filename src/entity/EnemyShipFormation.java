@@ -14,6 +14,7 @@ import engine.Core;
 import engine.DrawManager;
 import engine.DrawManager.SpriteType;
 import engine.GameSettings;
+import engine.GameSettings.MovementPattern;
 
 /**
  * Groups enemy ships into a formation that moves together.
@@ -53,6 +54,20 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 	private static final int DIAGONAL_RANGE = 40;
 	/** How far the diagonal formation sinks each time it touches a side. */
 	private static final int DIAGONAL_DESCENT = 12;
+	private static final int DIAGONAL_PATROL_DISTANCE = 120;
+	private static final int DIAGONAL_PATROL_INTERVAL = 10;
+	/** Twelve-second loops at the campaign's 60 updates per second. */
+	private static final int PATROL_CYCLE_FRAMES = 720;
+	private static final int PATROL_WIDTH = 160;
+	private static final int PATROL_HEIGHT = 120;
+	private static final int PATROL_TOP_MARGIN = 40;
+	/** Relative waypoints; the final point closes each route. */
+	private static final double[][] DIAMOND_PATH = {
+		{0, 0}, {0.5, -0.5}, {1, 0}, {0.5, 0.5}, {0, 0}
+	};
+	private static final double[][] RECTANGLE_PATH = {
+		{0, 0}, {1, 0}, {1, 1}, {0, 1}, {0, 0}
+	};
 
 	/** DrawManager instance. */
 	private DrawManager drawManager;
@@ -99,8 +114,14 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 	private List<EnemyShip> shooters;
 	/** Number of not destroyed ships. */
 	private int shipCount;
-	/** True if the whole formation moves diagonally (Team A1). */
-	private boolean diagonalMovement;
+	private final MovementPattern movementPattern;
+	/** Diagonal travel from the spawn position, independent of which ships remain. */
+	private int diagonalPatrolOffset;
+	private int diagonalPatrolStep = Y_SPEED;
+	/** Loop progress and applied offsets stay independent of surviving rows/columns. */
+	private int patrolFrame;
+	private int patrolOffsetX;
+	private int patrolOffsetY;
 	/** Horizontal step of the diagonal movement: positive is right. */
 	private int diagonalStepX;
 	/** Vertical step of the diagonal zig-zag: positive is down. */
@@ -132,7 +153,7 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 		this.enemyShips = new ArrayList<List<EnemyShip>>();
 		this.currentDirection = Direction.RIGHT;
 		this.movementInterval = 0;
-		this.diagonalMovement = gameSettings.isDiagonalMovement();
+		this.movementPattern = gameSettings.getMovementPattern();
 		this.diagonalStepX = X_SPEED;
 		this.diagonalStepY = Y_SPEED;
 		this.diagonalOffset = 0;
@@ -228,18 +249,33 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 		}
 		
 		cleanUp();
+		switch (this.movementPattern) {
+		case DIAMOND_PATROL:
+		case ELLIPSE_PATROL:
+		case RECTANGLE_PATROL:
+			advancePatrol();
+			return;
+		default:
+			break;
+		}
 
 		int movementX = 0;
 		int movementY = 0;
 		double remainingProportion = (double) this.shipCount
 				/ (this.nShipsHigh * this.nShipsWide);
-		this.movementSpeed = (int) (Math.pow(remainingProportion, 2)
-				* this.baseSpeed);
-		this.movementSpeed += MINIMUM_SPEED;
+		this.movementSpeed = this.movementPattern == MovementPattern.DIAGONAL_PATROL
+				? DIAGONAL_PATROL_INTERVAL
+				: (int) (Math.pow(remainingProportion, 2) * this.baseSpeed)
+						+ MINIMUM_SPEED;
 		
 		movementInterval++;
 		if (movementInterval >= this.movementSpeed) {
 			movementInterval = 0;
+			if (this.movementPattern == MovementPattern.DIAGONAL_PATROL) {
+				int step = nextDiagonalPatrolStep();
+				moveFormation(step, step);
+				return;
+			}
 
 			boolean isAtBottom = positionY
 					+ this.height > screen.getHeight() - BOTTOM_MARGIN;
@@ -248,7 +284,7 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 			boolean isAtLeftSide = positionX <= SIDE_MARGIN;
 			boolean isAtHorizontalAltitude = positionY % DESCENT_DISTANCE == 0;
 
-			if (this.diagonalMovement) {
+			if (this.movementPattern == MovementPattern.DIAGONAL) {
 				advanceDiagonal(isAtLeftSide, isAtRightSide, isAtBottom);
 			} else if (currentDirection == Direction.DOWN) {
 				if (isAtHorizontalAltitude)
@@ -281,7 +317,7 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 					}
 			}
 
-			if (this.diagonalMovement) {
+			if (this.movementPattern == MovementPattern.DIAGONAL) {
 				movementX = this.diagonalStepX;
 				movementY = this.nextDiagonalStepY(isAtBottom);
 			} 
@@ -292,31 +328,83 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 			else
 				movementY = Y_SPEED;
 
-			positionX += movementX;
-			positionY += movementY;
-
-			// Cleans explosions.
-			List<EnemyShip> destroyed;
-			for (List<EnemyShip> column : this.enemyShips) {
-				destroyed = new ArrayList<EnemyShip>();
-				for (EnemyShip ship : column) {
-					if (ship != null && ship.isFadeFinished()) {
-						destroyed.add(ship);
-						this.logger.info("Removed enemy "
-								+ column.indexOf(ship) + " from column "
-								+ this.enemyShips.indexOf(column));
-					}
-				}
-				column.removeAll(destroyed);
-			}
-
-			for (List<EnemyShip> column : this.enemyShips)
-				for (EnemyShip enemyShip : column) {
-					enemyShip.move(movementX, movementY);
-					enemyShip.update();
-				}
+			moveFormation(movementX, movementY);
 		}
 	}
+
+	private void moveFormation(final int movementX, final int movementY) {
+		positionX += movementX;
+		positionY += movementY;
+
+		// Cleans explosions.
+		List<EnemyShip> destroyed;
+		for (List<EnemyShip> column : this.enemyShips) {
+			destroyed = new ArrayList<EnemyShip>();
+			for (EnemyShip ship : column) {
+				if (ship != null && ship.isFadeFinished()) {
+					destroyed.add(ship);
+					this.logger.info("Removed enemy "
+							+ column.indexOf(ship) + " from column "
+							+ this.enemyShips.indexOf(column));
+				}
+			}
+			column.removeAll(destroyed);
+		}
+
+		for (List<EnemyShip> column : this.enemyShips)
+			for (EnemyShip enemyShip : column) {
+				enemyShip.move(movementX, movementY);
+				enemyShip.update();
+			}
+	}
+
+	private void advancePatrol() {
+		this.patrolFrame = (this.patrolFrame + 1) % PATROL_CYCLE_FRAMES;
+		double phase = (double) this.patrolFrame / PATROL_CYCLE_FRAMES;
+		int initialWidth = (this.nShipsWide - 1) * SEPARATION_DISTANCE + this.shipWidth;
+		int initialHeight = (this.nShipsHigh - 1) * SEPARATION_DISTANCE + this.shipHeight;
+		int travelX = Math.min(PATROL_WIDTH, Math.max(0,
+				this.screen.getWidth() - SIDE_MARGIN - INIT_POS_X - initialWidth));
+		int availableDown = Math.max(0,
+				this.screen.getHeight() - BOTTOM_MARGIN - INIT_POS_Y - initialHeight);
+		int travelY = Math.min(PATROL_HEIGHT, availableDown);
+		if (this.movementPattern != MovementPattern.RECTANGLE_PATROL)
+			travelY = Math.min(PATROL_HEIGHT,
+					2 * Math.min(INIT_POS_Y - PATROL_TOP_MARGIN, availableDown));
+
+		int nextX;
+		int nextY;
+		if (this.movementPattern == MovementPattern.ELLIPSE_PATROL) {
+			double angle = phase * Math.PI * 2;
+			nextX = (int) Math.round(travelX * 0.5 * (1 - Math.cos(angle)));
+			nextY = (int) Math.round(travelY * 0.5 * Math.sin(angle));
+		} else {
+			double[][] path = this.movementPattern == MovementPattern.DIAMOND_PATROL
+					? DIAMOND_PATH : RECTANGLE_PATH;
+			double progress = phase * 4;
+			int segment = (int) progress;
+			double fraction = progress - segment;
+			double[] start = path[segment];
+			double[] end = path[segment + 1];
+			nextX = (int) Math.round(travelX * (start[0] + (end[0] - start[0]) * fraction));
+			nextY = (int) Math.round(travelY * (start[1] + (end[1] - start[1]) * fraction));
+		}
+
+		moveFormation(nextX - this.patrolOffsetX, nextY - this.patrolOffsetY);
+		this.patrolOffsetX = nextX;
+		this.patrolOffsetY = nextY;
+	}
+
+	private int nextDiagonalPatrolStep() {
+		int nextOffset = Math.max(0, Math.min(DIAGONAL_PATROL_DISTANCE,
+				this.diagonalPatrolOffset + this.diagonalPatrolStep));
+		int stepY = nextOffset - this.diagonalPatrolOffset;
+		this.diagonalPatrolOffset = nextOffset;
+		if (nextOffset == 0 || nextOffset == DIAGONAL_PATROL_DISTANCE)
+			this.diagonalPatrolStep = -this.diagonalPatrolStep;
+		return stepY;
+	}
+
 	/**
 	 * Diagonal movement (Team A1): the whole formation keeps its spacing and
 	 * moves sideways and up and down at the same time. Touching a side
