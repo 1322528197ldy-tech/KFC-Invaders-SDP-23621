@@ -36,8 +36,9 @@ done
 - Original stage settings, enemy counts, and spawn grids for stages 1-4.
 - Three full 720-update loops for stages 2-4, plus stage 1's diagonal return trips.
 - Route waypoints/geometry, bounds, and formation spacing at 448x520 and 432x497.
-- Removing the left column, top row, and right column during the first loop, then
-  comparing survivors with an untouched control formation through later loops.
+- Removing edge enemies during patrol. Stages 2 and 4 extend their horizontal
+  turns to the walls using the outermost surviving enemies, without a position
+  jump. Other stages retain their original routes through edge removal.
 - Shooting after edge removal and cleanup.
 - The actual `GameScreen` pause-key path and Freeze item: positions and route
   progress stop, then continue at the next phase after resume/expiry.
