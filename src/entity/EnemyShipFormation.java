@@ -122,6 +122,11 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 	private int patrolFrame;
 	private int patrolOffsetX;
 	private int patrolOffsetY;
+	private int wallPatrolLeg;
+	private int wallPatrolRemaining;
+	private int wallPatrolTargetX;
+	private double wallPatrolX;
+	private double wallPatrolY;
 	/** Horizontal step of the diagonal movement: positive is right. */
 	private int diagonalStepX;
 	/** Vertical step of the diagonal zig-zag: positive is down. */
@@ -251,8 +256,10 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 		cleanUp();
 		switch (this.movementPattern) {
 		case DIAMOND_PATROL:
-		case ELLIPSE_PATROL:
 		case RECTANGLE_PATROL:
+			advanceWallPatrol();
+			return;
+		case ELLIPSE_PATROL:
 			advancePatrol();
 			return;
 		default:
@@ -358,6 +365,64 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 			}
 	}
 
+	/** Re-target the current leg from its current position when an outside column dies. */
+	private void advanceWallPatrol() {
+		boolean diamond = this.movementPattern == MovementPattern.DIAMOND_PATROL;
+		int left = Integer.MAX_VALUE;
+		int right = Integer.MIN_VALUE;
+		for (List<EnemyShip> column : this.enemyShips) {
+			for (EnemyShip ship : column) {
+				if (!ship.isDestroyed()) {
+					left = Math.min(left, ship.getPositionX());
+					right = Math.max(right, ship.getPositionX() + ship.getWidth());
+				}
+			}
+		}
+		if (left == Integer.MAX_VALUE) {
+			moveFormation(0, 0);
+			return;
+		}
+
+		int leftWall = this.patrolOffsetX + SIDE_MARGIN - left;
+		int rightWall = this.patrolOffsetX + this.screen.getWidth() - SIDE_MARGIN - right;
+		double[][] path = diamond ? DIAMOND_PATH : RECTANGLE_PATH;
+		double[] end = path[this.wallPatrolLeg + 1];
+		// A rectangle's vertical sides keep their horizontal position until the next horizontal leg.
+		boolean vertical = !diamond && this.wallPatrolLeg % 2 != 0;
+		int targetX = vertical ? this.patrolOffsetX
+				: leftWall + (int) Math.round((rightWall - leftWall) * end[0]);
+		// Keep the top/bottom vertex for the current leg. A trailing column loss can
+		// shift the midpoint behind the formation, but wall endpoints stay live.
+		boolean headingToDiamondVertex = diamond && this.wallPatrolLeg % 2 == 0;
+		if (headingToDiamondVertex && this.wallPatrolRemaining > 0)
+			targetX = this.wallPatrolTargetX;
+		int initialHeight = (this.nShipsHigh - 1) * SEPARATION_DISTANCE + this.shipHeight;
+		int availableDown = Math.max(0,
+				this.screen.getHeight() - BOTTOM_MARGIN - INIT_POS_Y - initialHeight);
+		int travelY = diamond
+				? Math.min(PATROL_HEIGHT, 2 * Math.min(INIT_POS_Y - PATROL_TOP_MARGIN, availableDown))
+				: Math.min(PATROL_HEIGHT, availableDown);
+		int targetY = (int) Math.round(travelY * end[1]);
+
+		if (this.wallPatrolRemaining == 0) {
+			this.wallPatrolRemaining = PATROL_CYCLE_FRAMES / 4;
+		} else if (targetX != this.wallPatrolTargetX) {
+			// Extend a moving leg as the wall gets farther away to avoid a late, sudden jump.
+			this.wallPatrolRemaining += Math.abs(targetX - this.wallPatrolTargetX);
+		}
+		this.wallPatrolTargetX = targetX;
+		this.wallPatrolX += (targetX - this.wallPatrolX) / this.wallPatrolRemaining;
+		this.wallPatrolY += (targetY - this.wallPatrolY) / this.wallPatrolRemaining;
+		int nextX = (int) Math.round(this.wallPatrolX);
+		int nextY = (int) Math.round(this.wallPatrolY);
+		moveFormation(nextX - this.patrolOffsetX, nextY - this.patrolOffsetY);
+		this.patrolOffsetX = nextX;
+		this.patrolOffsetY = nextY;
+		this.patrolFrame = (this.patrolFrame + 1) % PATROL_CYCLE_FRAMES;
+		if (--this.wallPatrolRemaining == 0)
+			this.wallPatrolLeg = (this.wallPatrolLeg + 1) % (path.length - 1);
+	}
+
 	private void advancePatrol() {
 		this.patrolFrame = (this.patrolFrame + 1) % PATROL_CYCLE_FRAMES;
 		double phase = (double) this.patrolFrame / PATROL_CYCLE_FRAMES;
@@ -367,28 +432,11 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 				this.screen.getWidth() - SIDE_MARGIN - INIT_POS_X - initialWidth));
 		int availableDown = Math.max(0,
 				this.screen.getHeight() - BOTTOM_MARGIN - INIT_POS_Y - initialHeight);
-		int travelY = Math.min(PATROL_HEIGHT, availableDown);
-		if (this.movementPattern != MovementPattern.RECTANGLE_PATROL)
-			travelY = Math.min(PATROL_HEIGHT,
-					2 * Math.min(INIT_POS_Y - PATROL_TOP_MARGIN, availableDown));
-
-		int nextX;
-		int nextY;
-		if (this.movementPattern == MovementPattern.ELLIPSE_PATROL) {
-			double angle = phase * Math.PI * 2;
-			nextX = (int) Math.round(travelX * 0.5 * (1 - Math.cos(angle)));
-			nextY = (int) Math.round(travelY * 0.5 * Math.sin(angle));
-		} else {
-			double[][] path = this.movementPattern == MovementPattern.DIAMOND_PATROL
-					? DIAMOND_PATH : RECTANGLE_PATH;
-			double progress = phase * 4;
-			int segment = (int) progress;
-			double fraction = progress - segment;
-			double[] start = path[segment];
-			double[] end = path[segment + 1];
-			nextX = (int) Math.round(travelX * (start[0] + (end[0] - start[0]) * fraction));
-			nextY = (int) Math.round(travelY * (start[1] + (end[1] - start[1]) * fraction));
-		}
+		int travelY = Math.min(PATROL_HEIGHT,
+				2 * Math.min(INIT_POS_Y - PATROL_TOP_MARGIN, availableDown));
+		double angle = phase * Math.PI * 2;
+		int nextX = (int) Math.round(travelX * 0.5 * (1 - Math.cos(angle)));
+		int nextY = (int) Math.round(travelY * 0.5 * Math.sin(angle));
 
 		moveFormation(nextX - this.patrolOffsetX, nextY - this.patrolOffsetY);
 		this.patrolOffsetX = nextX;

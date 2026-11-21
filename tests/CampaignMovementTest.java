@@ -138,7 +138,7 @@ public final class CampaignMovementTest {
         formation.removeDestroyed();
     }
 
-    private static void checkShape(int stage, int frame, Position offset) {
+    private static void checkShape(int stage, int frame, Position offset, int width) {
         if (stage == 1) {
             check(offset.x() == offset.y() && offset.x() >= 0 && offset.x() <= 120,
                     "Stage 1 follows its diagonal segment");
@@ -150,24 +150,30 @@ public final class CampaignMovementTest {
         }
         if (frame % 720 == 0)
             check(offset.equals(new Position(0, 0)), "Stage " + stage + " closes the 720-update loop");
+        int travelX = switch (stage) {
+            case 2 -> width - 224;
+            case 4 -> width - 264;
+            default -> 160;
+        };
         if (stage == 2) {
-            double diamond = Math.abs((offset.x() - 80) / 80.0) + Math.abs(offset.y() / 60.0);
+            double halfWidth = travelX / 2.0;
+            double diamond = Math.abs((offset.x() - halfWidth) / halfWidth) + Math.abs(offset.y() / 60.0);
             check(Math.abs(diamond - 1) < 0.02, "Stage 2 follows the diamond edges");
         } else if (stage == 3) {
             double ellipse = Math.pow((offset.x() - 80) / 80.0, 2)
                     + Math.pow(offset.y() / 60.0, 2);
             check(Math.abs(ellipse - 1) < 0.03, "Stage 3 follows the ellipse");
         } else {
-            check(offset.x() == 0 || offset.x() == 160 || offset.y() == 0 || offset.y() == 120,
+            check(offset.x() == 0 || offset.x() == travelX || offset.y() == 0 || offset.y() == 120,
                     "Stage 4 follows the rectangle edges");
         }
         if (frame <= 720 && frame % 180 == 0) {
             Position[] quarters = switch (stage) {
-                case 2 -> new Position[] {new Position(80, -60), new Position(160, 0),
-                        new Position(80, 60), new Position(0, 0)};
+                case 2 -> new Position[] {new Position(travelX / 2, -60), new Position(travelX, 0),
+                        new Position(travelX / 2, 60), new Position(0, 0)};
                 case 3 -> new Position[] {new Position(80, 60), new Position(160, 0),
                         new Position(80, -60), new Position(0, 0)};
-                default -> new Position[] {new Position(160, 0), new Position(160, 120),
+                default -> new Position[] {new Position(travelX, 0), new Position(travelX, 120),
                         new Position(0, 120), new Position(0, 0)};
             };
             check(offset.equals(quarters[frame / 180 - 1]), "Stage " + stage + " quarter-loop waypoint");
@@ -187,29 +193,85 @@ public final class CampaignMovementTest {
                 check(original.containsValue(new Position(20 + column * 40, 100 + row * 40)),
                         "Stage " + stage + " keeps its original spawn grid");
 
+        boolean wallPatrol = stage == 2 || stage == 4;
+        boolean reachedNewLeft = false;
+        boolean reachedNewRight = false;
         Position previous = new Position(0, 0);
+        Position previousReduced = previous;
         for (int frame = 1; frame <= 2160; frame++) {
             reference.update();
             reduced.update();
             Position offset = displacement(reference, original, width, height);
-            check(offset.equals(displacement(reduced, surviving, width, height)),
-                    "Removing edges does not change the route at stage " + stage + ", frame " + frame);
+            Position reducedOffset = displacement(reduced, surviving, width, height);
+            if (!wallPatrol)
+                check(offset.equals(reducedOffset), "Fixed patrol stays on course after edge removal");
+            check(Math.abs(reducedOffset.x() - previousReduced.x()) <= 4
+                            && Math.abs(reducedOffset.y() - previousReduced.y()) <= 4,
+                    "No jump after edge removal at stage " + stage + ", frame " + frame);
+            reachedNewLeft |= reducedOffset.x() == -40;
+            reachedNewRight |= reducedOffset.x() == width - (stage == 2 ? 224 : 264) + 40;
             check(Math.abs(offset.x() - previous.x()) <= 4 && Math.abs(offset.y() - previous.y()) <= 4,
                     "No movement jump at stage " + stage + ", frame " + frame);
-            checkShape(stage, frame, offset);
-            if (frame == 225 || frame == 405 || frame == 585) {
-                removeEdge(reduced, surviving, stage, frame);
-                check(offset.equals(displacement(reduced, surviving, width, height)),
+            checkShape(stage, frame, offset, width);
+            // For wall patrols, remove the right column just before the old turning point.
+            int rightRemovalFrame = stage == 2 ? 359 : 179;
+            if (frame == 225 || frame == 405 || frame == (wallPatrol ? rightRemovalFrame : 585)) {
+                removeEdge(reduced, surviving, stage, frame == rightRemovalFrame ? 585 : frame);
+                check(reducedOffset.equals(displacement(reduced, surviving, width, height)),
                         "Removing a whole edge does not move survivors immediately");
             }
             previous = offset;
+            previousReduced = reducedOffset;
         }
+        if (wallPatrol)
+            check(reachedNewLeft && reachedNewRight,
+                    "Survivors reach both newly available walls at stage " + stage);
         Cooldown shooting = (Cooldown) get(reduced, "shootingCooldown");
         field(Cooldown.class, "time").setLong(shooting, 0);
         Set<Bullet> bullets = new HashSet<>();
         reduced.shoot(bullets);
         check(bullets.size() == 1 && bullets.iterator().next().getSpeed() > 0,
                 "Survivors can still shoot after route and edge cleanup");
+    }
+
+    private static void diamondKeepsDirectionAfterColumnRemoval(int width, int height,
+            boolean movingRight, boolean approachingVertex, boolean clearLeft, boolean clearRight) throws Exception {
+        EnemyShipFormation patrol = formation(2, width, height);
+        Map<EnemyShip, Position> survivors = positions(patrol);
+        int steps = movingRight ? 179 : 539;
+        if (!approachingVertex)
+            steps += 180;
+        for (int frame = 0; frame < steps; frame++)
+            patrol.update();
+
+        // Destroy the selected columns together and let the normal update handle their explosions.
+        for (EnemyShip enemy : List.copyOf(survivors.keySet())) {
+            int x = survivors.get(enemy).x();
+            if ((clearLeft && x == 20) || (clearRight && x == 180)) {
+                patrol.destroy(enemy);
+                survivors.remove(enemy);
+            }
+        }
+        EnemyShip tracked = survivors.keySet().iterator().next();
+        Position start = survivors.get(tracked);
+        Position previous = new Position(tracked.getPositionX() - start.x(), tracked.getPositionY() - start.y());
+        int wallOffset = movingRight ? width - 224 + (clearRight ? 40 : 0) : (clearLeft ? -40 : 0);
+        boolean reachedVertex = false;
+        for (int frame = 0; frame < 400; frame++) {
+            patrol.update();
+            Position current = new Position(tracked.getPositionX() - start.x(), tracked.getPositionY() - start.y());
+            check(movingRight ? current.x() >= previous.x() : current.x() <= previous.x(),
+                    "Clearing outer columns must not reverse the diamond before the wall");
+            check(Math.abs(current.x() - previous.x()) <= 4 && Math.abs(current.y() - previous.y()) <= 4,
+                    "The diamond stays continuous after clearing the trailing column");
+            reachedVertex |= current.y() == (movingRight ? -60 : 60);
+            if (current.x() == wallOffset && current.y() == 0) {
+                check(!approachingVertex || reachedVertex, "The diamond still passes through the vertical vertex");
+                return;
+            }
+            previous = current;
+        }
+        throw new AssertionError("The diamond did not continue to the wall");
     }
 
     private static void togglePause(GameScreen game) throws Exception {
@@ -330,6 +392,21 @@ public final class CampaignMovementTest {
             check(settings(stage).getMovementPattern() == expected[stage - 1], "Campaign pattern placement");
             routeAndRemoval(stage, WIDTH, HEIGHT);
             routeAndRemoval(stage, 432, 497);
+            if (stage == 2) {
+                for (boolean movingRight : new boolean[] {true, false}) {
+                    for (boolean approachingVertex : new boolean[] {true, false}) {
+                        // Clear the left edge, right edge, or both at the same time.
+                        for (int edges = 1; edges <= 3; edges++) {
+                            boolean clearLeft = (edges & 1) != 0;
+                            boolean clearRight = (edges & 2) != 0;
+                            diamondKeepsDirectionAfterColumnRemoval(WIDTH, HEIGHT, movingRight,
+                                    approachingVertex, clearLeft, clearRight);
+                            diamondKeepsDirectionAfterColumnRemoval(432, 497, movingRight,
+                                    approachingVertex, clearLeft, clearRight);
+                        }
+                    }
+                }
+            }
             System.out.println("PASS: stage " + stage + " full routes, bounds, spacing, edge cleanup and shooting");
             screenLifecycle(stage);
             System.out.println("PASS: stage " + stage + " pause/freeze/resume, collisions, clear, next stage and restart");
