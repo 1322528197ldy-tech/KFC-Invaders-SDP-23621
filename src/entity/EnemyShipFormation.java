@@ -391,6 +391,11 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 		boolean vertical = !diamond && this.wallPatrolLeg % 2 != 0;
 		int targetX = vertical ? this.patrolOffsetX
 				: leftWall + (int) Math.round((rightWall - leftWall) * end[0]);
+		// Keep the top/bottom vertex for the current leg. A trailing column loss can
+		// shift the midpoint behind the formation, but wall endpoints stay live.
+		boolean headingToDiamondVertex = diamond && this.wallPatrolLeg % 2 == 0;
+		if (headingToDiamondVertex && this.wallPatrolRemaining > 0)
+			targetX = this.wallPatrolTargetX;
 		int initialHeight = (this.nShipsHigh - 1) * SEPARATION_DISTANCE + this.shipHeight;
 		int availableDown = Math.max(0,
 				this.screen.getHeight() - BOTTOM_MARGIN - INIT_POS_Y - initialHeight);

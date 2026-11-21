@@ -234,6 +234,46 @@ public final class CampaignMovementTest {
                 "Survivors can still shoot after route and edge cleanup");
     }
 
+    private static void diamondKeepsDirectionAfterColumnRemoval(int width, int height,
+            boolean movingRight, boolean approachingVertex, boolean clearLeft, boolean clearRight) throws Exception {
+        EnemyShipFormation patrol = formation(2, width, height);
+        Map<EnemyShip, Position> survivors = positions(patrol);
+        int steps = movingRight ? 179 : 539;
+        if (!approachingVertex)
+            steps += 180;
+        for (int frame = 0; frame < steps; frame++)
+            patrol.update();
+
+        // Destroy the selected columns together and let the normal update handle their explosions.
+        for (EnemyShip enemy : List.copyOf(survivors.keySet())) {
+            int x = survivors.get(enemy).x();
+            if ((clearLeft && x == 20) || (clearRight && x == 180)) {
+                patrol.destroy(enemy);
+                survivors.remove(enemy);
+            }
+        }
+        EnemyShip tracked = survivors.keySet().iterator().next();
+        Position start = survivors.get(tracked);
+        Position previous = new Position(tracked.getPositionX() - start.x(), tracked.getPositionY() - start.y());
+        int wallOffset = movingRight ? width - 224 + (clearRight ? 40 : 0) : (clearLeft ? -40 : 0);
+        boolean reachedVertex = false;
+        for (int frame = 0; frame < 400; frame++) {
+            patrol.update();
+            Position current = new Position(tracked.getPositionX() - start.x(), tracked.getPositionY() - start.y());
+            check(movingRight ? current.x() >= previous.x() : current.x() <= previous.x(),
+                    "Clearing outer columns must not reverse the diamond before the wall");
+            check(Math.abs(current.x() - previous.x()) <= 4 && Math.abs(current.y() - previous.y()) <= 4,
+                    "The diamond stays continuous after clearing the trailing column");
+            reachedVertex |= current.y() == (movingRight ? -60 : 60);
+            if (current.x() == wallOffset && current.y() == 0) {
+                check(!approachingVertex || reachedVertex, "The diamond still passes through the vertical vertex");
+                return;
+            }
+            previous = current;
+        }
+        throw new AssertionError("The diamond did not continue to the wall");
+    }
+
     private static void togglePause(GameScreen game) throws Exception {
         field(Cooldown.class, "time").setLong(get(game, "pauseKeyCooldown"), 0);
         Core.getInputManager().keyPressed(new KeyEvent(INPUT, KeyEvent.KEY_PRESSED,
@@ -352,6 +392,21 @@ public final class CampaignMovementTest {
             check(settings(stage).getMovementPattern() == expected[stage - 1], "Campaign pattern placement");
             routeAndRemoval(stage, WIDTH, HEIGHT);
             routeAndRemoval(stage, 432, 497);
+            if (stage == 2) {
+                for (boolean movingRight : new boolean[] {true, false}) {
+                    for (boolean approachingVertex : new boolean[] {true, false}) {
+                        // Clear the left edge, right edge, or both at the same time.
+                        for (int edges = 1; edges <= 3; edges++) {
+                            boolean clearLeft = (edges & 1) != 0;
+                            boolean clearRight = (edges & 2) != 0;
+                            diamondKeepsDirectionAfterColumnRemoval(WIDTH, HEIGHT, movingRight,
+                                    approachingVertex, clearLeft, clearRight);
+                            diamondKeepsDirectionAfterColumnRemoval(432, 497, movingRight,
+                                    approachingVertex, clearLeft, clearRight);
+                        }
+                    }
+                }
+            }
             System.out.println("PASS: stage " + stage + " full routes, bounds, spacing, edge cleanup and shooting");
             screenLifecycle(stage);
             System.out.println("PASS: stage " + stage + " pause/freeze/resume, collisions, clear, next stage and restart");
