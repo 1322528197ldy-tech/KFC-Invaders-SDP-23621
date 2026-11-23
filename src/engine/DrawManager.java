@@ -1245,12 +1245,17 @@ public final class DrawManager {
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param hints
-	 *            Keys to show, already worded for the current state.
+	 *            Lines of keyboard hints, in top-to-bottom order.
 	 */
-	public void drawKeyHints(final Screen screen, final String hints) {
+	public void drawKeyHints(final Screen screen, final String... hints) {
 		backBufferGraphics.setColor(Color.GRAY);
-		drawFittedCenteredString(screen, hints,
-				screen.getHeight() - fontRegularMetrics.getHeight() * 2, screen.getWidth() - 20);
+		int lineHeight = fontRegularMetrics.getHeight();
+		int lineSpacing = lineHeight + 6;
+		int baseline = screen.getHeight() - lineHeight * 2 - (hints.length - 1) * lineSpacing;
+		for (String hint : hints) {
+			drawCenteredRegularString(screen, hint, baseline);
+			baseline += lineSpacing;
+		}
 	}
 
 	/**

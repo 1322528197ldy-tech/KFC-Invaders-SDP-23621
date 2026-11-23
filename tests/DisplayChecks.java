@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Locale;
 import javax.imageio.ImageIO;
+import screen.CashOutScreen;
 import screen.EndlessMode;
 import screen.GameScreen;
 import screen.Screen;
@@ -112,6 +113,46 @@ public final class DisplayChecks {
                 label, raster.width, raster.height, average, p95);
     }
 
+    private static void cashOutHints(Path screenshots, String size) throws Exception {
+        var previousLanguage = I18n.language();
+        try {
+            for (var language : I18n.Language.values()) {
+                I18n.setLanguage(language);
+                for (int nextLevel : new int[] {2, Core.getNumLevels()}) {
+                    var screen = new CashOutScreen(WIDTH, HEIGHT, 60,
+                            new GameState(nextLevel, 0, 3, 0, 0, 1, 0));
+                    method(CashOutScreen.class, "draw").invoke(screen);
+                    var image = (BufferedImage) field(DrawManager.class, "backBuffer").get(null);
+                    String name = "cash-out-" + size + "-" + language.name().toLowerCase(Locale.ROOT)
+                            + "-level-" + nextLevel;
+                    ImageIO.write(image, "png", screenshots.resolve(name + ".png").toFile());
+                    check(hintRows(image) == 2, name + " should have two separate hint lines");
+                }
+            }
+        } finally {
+            I18n.setLanguage(previousLanguage);
+        }
+    }
+
+    private static int hintRows(BufferedImage image) {
+        // Count ink bands in the footer, ignoring gaps within a single glyph line.
+        int firstRow = image.getHeight() * (HEIGHT - 100) / HEIGHT;
+        int minGap = (int) Math.ceil(4.0 * image.getHeight() / HEIGHT);
+        int lastInk = firstRow - minGap - 1;
+        int bands = 0;
+        for (int y = firstRow; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if ((image.getRGB(x, y) & 0x00ffffff) != 0) {
+                    if (y - lastInk > minGap)
+                        bands++;
+                    lastInk = y;
+                    break;
+                }
+            }
+        }
+        return bands;
+    }
+
     private static void nativeWindow(Path screenshots) throws Exception {
         Frame[] window = new Frame[1];
         EventQueue.invokeAndWait(() -> {
@@ -182,8 +223,10 @@ public final class DisplayChecks {
             resize(frame, new Dimension((int) Math.round(WIDTH / transform.getScaleX())
                     + chrome.left + chrome.right, (int) Math.round(HEIGHT / transform.getScaleY())
                     + chrome.top + chrome.bottom));
+            cashOutHints(screenshots, "standard");
             measure(game, draw, frame, "Campaign standard");
             resize(frame, originalWindow);
+            cashOutHints(screenshots, "hd");
             measure(game, draw, frame, "Campaign HD");
             ImageIO.write((BufferedImage) field(DrawManager.class, "backBuffer").get(null),
                     "png", screenshots.resolve("campaign-hd-chinese.png").toFile());
