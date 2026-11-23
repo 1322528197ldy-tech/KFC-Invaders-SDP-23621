@@ -49,11 +49,15 @@ public final class TwoHitEnemyTest {
             Field field = Core.class.getDeclaredField("SETTINGS_LEVEL_" + level);
             field.setAccessible(true);
             GameSettings settings = (GameSettings) field.get(null);
-            check(settings.isDiagonalMovement() == (level == 9),
+            check(!settings.isDiagonalMovement(),
                 "Diagonal stage placement " + level);
             if (level == 3) {
                 check(settings.getMovementPattern() == GameSettings.MovementPattern.ELLIPSE_PATROL,
                     "Stage 3 uses the campaign ellipse patrol");
+            }
+            if (level == 9) {
+                check(settings.getMovementPattern() == GameSettings.MovementPattern.MIXED_PATROL,
+                    "Stage 9 cycles through the three patrol patterns");
             }
             EnemyShipFormation formation = new EnemyShipFormation(settings);
             int elites = 0;

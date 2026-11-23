@@ -180,6 +180,21 @@ public final class CampaignMovementTest {
         }
     }
 
+    private static Map<Integer, Position> checkpoints(int stage) {
+        return switch (stage) {
+            case 6 -> Map.of(120, new Position(184, 30), 240, new Position(0, 90),
+                    360, new Position(184, 120), 480, new Position(0, 90), 600, new Position(184, 30));
+            case 7 -> Map.of(75, new Position(27, 60), 150, new Position(92, 0),
+                    225, new Position(157, -60), 300, new Position(184, 0), 450, new Position(92, 0));
+            case 8 -> Map.of(90, new Position(72, 30), 180, new Position(144, 0),
+                    270, new Position(144, 120), 360, new Position(72, 90), 450, new Position(0, 120));
+            case 9 -> Map.of(120, new Position(72, -60), 240, new Position(144, 0),
+                    360, new Position(72, 60), 560, new Position(144, 30), 720, new Position(144, 120),
+                    1020, new Position(21, 60), 1080, new Position(72, 0), 1200, new Position(144, 0));
+            default -> throw new IllegalArgumentException("Unexpected stage " + stage);
+        };
+    }
+
     private static void routeAndRemoval(int stage, int width, int height) throws Exception {
         EnemyShipFormation reference = formation(stage, width, height);
         EnemyShipFormation reduced = formation(stage, width, height);
@@ -193,12 +208,19 @@ public final class CampaignMovementTest {
                 check(original.containsValue(new Position(20 + column * 40, 100 + row * 40)),
                         "Stage " + stage + " keeps its original spawn grid");
 
-        boolean wallPatrol = stage == 2 || stage == 4;
+        boolean wallPatrol = stage == 2 || stage == 4 || stage >= 6;
         boolean reachedNewLeft = false;
         boolean reachedNewRight = false;
         Position previous = new Position(0, 0);
         Position previousReduced = previous;
-        for (int frame = 1; frame <= 2160; frame++) {
+        int cycle = switch (stage) {
+            case 1, 7 -> 600;
+            case 8 -> 540;
+            case 9 -> 1440; // Three successive 480-update routes.
+            default -> 720;
+        };
+        Map<Integer, Position> landmarks = stage >= 6 ? checkpoints(stage) : Map.of();
+        for (int frame = 1; frame <= cycle * 3; frame++) {
             reference.update();
             reduced.update();
             Position offset = displacement(reference, original, width, height);
@@ -209,12 +231,27 @@ public final class CampaignMovementTest {
                             && Math.abs(reducedOffset.y() - previousReduced.y()) <= 4,
                     "No jump after edge removal at stage " + stage + ", frame " + frame);
             reachedNewLeft |= reducedOffset.x() == -40;
-            reachedNewRight |= reducedOffset.x() == width - (stage == 2 ? 224 : 264) + 40;
+            int fullSpan = width - 64 - 40 * (settings.getFormationWidth() - 1);
+            reachedNewRight |= reducedOffset.x() == fullSpan + 40;
             check(Math.abs(offset.x() - previous.x()) <= 4 && Math.abs(offset.y() - previous.y()) <= 4,
                     "No movement jump at stage " + stage + ", frame " + frame);
-            checkShape(stage, frame, offset, width);
+            if (stage <= 4) {
+                checkShape(stage, frame, offset, width);
+            } else {
+                int phase = frame % cycle;
+                if (phase == 0 || stage == 9 && phase % 480 == 0)
+                    check(offset.equals(new Position(0, 0)), "Route closes at stage " + stage + ", frame " + frame);
+                if (width == WIDTH && landmarks.containsKey(phase))
+                    check(offset.equals(landmarks.get(phase)), "Wrong route at stage " + stage + ", frame " + frame);
+            }
             // For wall patrols, remove the right column just before the old turning point.
-            int rightRemovalFrame = stage == 2 ? 359 : 179;
+            int rightRemovalFrame = switch (stage) {
+                case 2 -> 359;
+                case 4, 8 -> 179;
+                case 6 -> 119;
+                case 7 -> 299;
+                default -> 239;
+            };
             if (frame == 225 || frame == 405 || frame == (wallPatrol ? rightRemovalFrame : 585)) {
                 removeEdge(reduced, surviving, stage, frame == rightRemovalFrame ? 585 : frame);
                 check(reducedOffset.equals(displacement(reduced, surviving, width, height)),
@@ -274,6 +311,66 @@ public final class CampaignMovementTest {
         throw new AssertionError("The diamond did not continue to the wall");
     }
 
+    private static void latePatrolReachesWallBeforeReversing(int stage, int width, int height,
+            int clearFrame, boolean movingRight, boolean clearLeft, boolean clearRight) throws Exception {
+        EnemyShipFormation patrol = formation(stage, width, height);
+        Map<EnemyShip, Position> survivors = positions(patrol);
+        for (int frame = 1; frame < clearFrame; frame++)
+            patrol.update();
+
+        int rightStart = 20 + 40 * (settings(stage).getFormationWidth() - 1);
+        for (EnemyShip enemy : List.copyOf(survivors.keySet())) {
+            int x = survivors.get(enemy).x();
+            if ((clearLeft && x == 20) || (clearRight && x == rightStart)) {
+                patrol.destroy(enemy);
+                survivors.remove(enemy);
+            }
+        }
+        EnemyShip tracked = survivors.keySet().iterator().next();
+        int start = survivors.get(tracked).x();
+        int previousX = tracked.getPositionX() - start;
+        int wall = movingRight ? width - rightStart - 44 + (clearRight ? 40 : 0)
+                : (clearLeft ? -40 : 0);
+        boolean reachedWall = false;
+        for (int frame = 0; frame < 360; frame++) {
+            patrol.update();
+            int x = tracked.getPositionX() - start;
+            int delta = x - previousX;
+            check(Math.abs(delta) <= 4, "Clearing columns must not jump in stage " + stage);
+            reachedWall |= x == wall;
+            if (movingRight ? delta < 0 : delta > 0) {
+                check(reachedWall, "Stage " + stage + " reversed before reaching the wall at frame " + clearFrame);
+                return;
+            }
+            previousX = x;
+        }
+        throw new AssertionError("Stage " + stage + " did not turn at the wall at frame " + clearFrame);
+    }
+
+    private static void latePatrolWallTurns(int stage) throws Exception {
+        int[] turns = switch (stage) {
+            case 6 -> new int[] {120, 240};
+            case 7 -> new int[] {300, 600};
+            case 8 -> new int[] {180, 450};
+            case 9 -> new int[] {240, 480, 560, 640, 1200, 1440};
+            default -> throw new IllegalArgumentException("Expected stage 6–9");
+        };
+        for (int i = 0; i < turns.length; i++) {
+            for (int edges = 1; edges <= 3; edges++) {
+                boolean movingRight = i % 2 == 0;
+                boolean clearLeft = (edges & 1) != 0;
+                boolean clearRight = (edges & 2) != 0;
+                latePatrolReachesWallBeforeReversing(stage, WIDTH, HEIGHT, turns[i], movingRight, clearLeft, clearRight);
+                latePatrolReachesWallBeforeReversing(stage, 432, 497, turns[i], movingRight, clearLeft, clearRight);
+            }
+        }
+        if (stage == 9) {
+            // Repeat stage 2's reported case on the first (diamond) route of stage 9.
+            latePatrolReachesWallBeforeReversing(stage, WIDTH, HEIGHT, 120, true, true, false);
+            latePatrolReachesWallBeforeReversing(stage, 432, 497, 120, true, true, false);
+        }
+    }
+
     private static void togglePause(GameScreen game) throws Exception {
         field(Cooldown.class, "time").setLong(get(game, "pauseKeyCooldown"), 0);
         Core.getInputManager().keyPressed(new KeyEvent(INPUT, KeyEvent.KEY_PRESSED,
@@ -304,7 +401,9 @@ public final class CampaignMovementTest {
         Map<EnemyShip, Position> starts = positions(actual);
         Map<EnemyShip, Position> referenceStarts = positions(reference);
         field(Cooldown.class, "time").setLong(field(Screen.class, "inputDelay").get(game), 0);
-        for (int frame = 0; frame < 179; frame++) {
+        // Freeze stage 9 one active update before the second route change.
+        int warmup = stage == 9 ? 957 : 179;
+        for (int frame = 0; frame < warmup; frame++) {
             actual.update();
             reference.update();
         }
@@ -349,7 +448,8 @@ public final class CampaignMovementTest {
         Set<Bullet> bullets = (Set<Bullet>) get(game, "bullets");
         bullets.clear();
         for (EnemyShip enemy : actual)
-            bullets.add(new Bullet(enemy.getPositionX(), enemy.getPositionY(), -4));
+            for (int hit = 0; hit < enemy.getHealth(); hit++)
+                bullets.add(new Bullet(enemy.getPositionX(), enemy.getPositionY(), -4));
         call(game, "update");
         check(actual.isEmpty(), "Player bullets clear the moving formation");
         check((Boolean) get(game, "levelFinished"), "Clearing the formation finishes the level");
@@ -359,8 +459,9 @@ public final class CampaignMovementTest {
         GameScreen next = new GameScreen(new GameState(stage + 1,
                 game.getGameState().getScore(), 3, 0, 0, 0), settings(stage + 1), false, WIDTH, HEIGHT, 60);
         next.initialize();
-        if (stage == 4) {
-            check(get(next, "midBoss") instanceof MidBoss, "Stage 4 still leads to the stage 5 boss");
+        if (stage == 4 || stage == 9) {
+            Class<?> bossType = stage == 4 ? MidBoss.class : entity.FinalBoss.class;
+            check(bossType.isInstance(get(next, "midBoss")), "Expected boss after stage " + stage);
             check(get(next, "enemyShipFormation") == null, "Boss stage does not spawn an ordinary formation");
         } else {
             EnemyShipFormation nextFormation = (EnemyShipFormation) get(next, "enemyShipFormation");
@@ -386,12 +487,16 @@ public final class CampaignMovementTest {
         SoundManager.getInstance().setMuted(true);
         Unsafe unsafe = (Unsafe) field(Unsafe.class, "theUnsafe").get(null);
         Core.getDrawManager().setFrame((engine.Frame) unsafe.allocateInstance(Offscreen.class));
-        MovementPattern[] expected = {MovementPattern.DIAGONAL_PATROL, MovementPattern.DIAMOND_PATROL,
-                MovementPattern.ELLIPSE_PATROL, MovementPattern.RECTANGLE_PATROL};
-        for (int stage = 1; stage <= 4; stage++) {
-            check(settings(stage).getMovementPattern() == expected[stage - 1], "Campaign pattern placement");
+        Map<Integer, MovementPattern> expected = Map.of(
+                1, MovementPattern.DIAGONAL_PATROL, 2, MovementPattern.DIAMOND_PATROL,
+                3, MovementPattern.ELLIPSE_PATROL, 4, MovementPattern.RECTANGLE_PATROL,
+                6, MovementPattern.SERPENTINE_PATROL, 7, MovementPattern.FIGURE_EIGHT_PATROL,
+                8, MovementPattern.SIX_POINT_PATROL, 9, MovementPattern.MIXED_PATROL);
+        for (int stage : List.of(1, 2, 3, 4, 6, 7, 8, 9)) {
+            check(settings(stage).getMovementPattern() == expected.get(stage), "Campaign pattern placement");
             routeAndRemoval(stage, WIDTH, HEIGHT);
             routeAndRemoval(stage, 432, 497);
+            if (stage >= 6) latePatrolWallTurns(stage);
             if (stage == 2) {
                 for (boolean movingRight : new boolean[] {true, false}) {
                     for (boolean approachingVertex : new boolean[] {true, false}) {

@@ -68,6 +68,13 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 	private static final double[][] RECTANGLE_PATH = {
 		{0, 0}, {1, 0}, {1, 1}, {0, 1}, {0, 0}
 	};
+	private static final double[][] SIX_POINT_PATH = {
+		{0, 0}, {0.5, 0.25}, {1, 0}, {1, 1}, {0.5, 0.75}, {0, 1}, {0, 0}
+	};
+	private static final MovementPattern[] MIXED_PATROL_PATTERNS = {
+		MovementPattern.DIAMOND_PATROL, MovementPattern.SERPENTINE_PATROL,
+		MovementPattern.FIGURE_EIGHT_PATROL
+	};
 
 	/** DrawManager instance. */
 	private DrawManager drawManager;
@@ -260,6 +267,10 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 			advanceWallPatrol();
 			return;
 		case ELLIPSE_PATROL:
+		case SERPENTINE_PATROL:
+		case FIGURE_EIGHT_PATROL:
+		case SIX_POINT_PATROL:
+		case MIXED_PATROL:
 			advancePatrol();
 			return;
 		default:
@@ -423,24 +434,105 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 			this.wallPatrolLeg = (this.wallPatrolLeg + 1) % (path.length - 1);
 	}
 
+	private record PatrolPoint(double x, double y) {}
+
+	private PatrolPoint patrolPoint(MovementPattern pattern, double phase) {
+		double angle = phase * Math.PI * 2;
+		return switch (pattern) {
+			case ELLIPSE_PATROL -> new PatrolPoint(0.5 * (1 - Math.cos(angle)), 0.5 * Math.sin(angle));
+			case SERPENTINE_PATROL -> new PatrolPoint(0.5 * (1 - Math.cos(3 * angle)), 0.5 * (1 - Math.cos(angle)));
+			case FIGURE_EIGHT_PATROL -> new PatrolPoint(0.5 * (1 - Math.cos(angle)), 0.5 * Math.sin(2 * angle));
+			case DIAMOND_PATROL, SIX_POINT_PATROL -> {
+				double[][] path = pattern == MovementPattern.DIAMOND_PATROL ? DIAMOND_PATH : SIX_POINT_PATH;
+				double progress = phase * (path.length - 1);
+				int segment = (int) progress;
+				double fraction = progress - segment;
+				double[] start = path[segment];
+				double[] end = path[segment + 1];
+				yield new PatrolPoint(start[0] + (end[0] - start[0]) * fraction,
+						start[1] + (end[1] - start[1]) * fraction);
+			}
+			default -> throw new IllegalArgumentException("Expected a campaign patrol pattern: " + pattern);
+		};
+	}
+
+	private PatrolPoint patrolPointAt(int frame, int cycleFrames) {
+		MovementPattern pattern = this.movementPattern == MovementPattern.MIXED_PATROL
+				? MIXED_PATROL_PATTERNS[frame / cycleFrames] : this.movementPattern;
+		return patrolPoint(pattern, (double) (frame % cycleFrames) / cycleFrames);
+	}
+
 	private void advancePatrol() {
-		this.patrolFrame = (this.patrolFrame + 1) % PATROL_CYCLE_FRAMES;
-		double phase = (double) this.patrolFrame / PATROL_CYCLE_FRAMES;
-		int initialWidth = (this.nShipsWide - 1) * SEPARATION_DISTANCE + this.shipWidth;
+		int cycleFrames = switch (this.movementPattern) {
+			case FIGURE_EIGHT_PATROL -> 600;
+			case SIX_POINT_PATROL -> 540;
+			case MIXED_PATROL -> 480;
+			default -> PATROL_CYCLE_FRAMES;
+		};
+		int patternCount = this.movementPattern == MovementPattern.MIXED_PATROL
+				? MIXED_PATROL_PATTERNS.length : 1;
+		int nextFrame = (this.patrolFrame + 1) % (cycleFrames * patternCount);
+		MovementPattern activePattern = this.movementPattern == MovementPattern.MIXED_PATROL
+				? MIXED_PATROL_PATTERNS[nextFrame / cycleFrames] : this.movementPattern;
+		PatrolPoint next = patrolPointAt(nextFrame, cycleFrames);
 		int initialHeight = (this.nShipsHigh - 1) * SEPARATION_DISTANCE + this.shipHeight;
-		int travelX = Math.min(PATROL_WIDTH, Math.max(0,
-				this.screen.getWidth() - SIDE_MARGIN - INIT_POS_X - initialWidth));
 		int availableDown = Math.max(0,
 				this.screen.getHeight() - BOTTOM_MARGIN - INIT_POS_Y - initialHeight);
-		int travelY = Math.min(PATROL_HEIGHT,
-				2 * Math.min(INIT_POS_Y - PATROL_TOP_MARGIN, availableDown));
-		double angle = phase * Math.PI * 2;
-		int nextX = (int) Math.round(travelX * 0.5 * (1 - Math.cos(angle)));
-		int nextY = (int) Math.round(travelY * 0.5 * Math.sin(angle));
+		int travelY = switch (activePattern) {
+			case DIAMOND_PATROL, ELLIPSE_PATROL, FIGURE_EIGHT_PATROL ->
+				Math.min(PATROL_HEIGHT, 2 * Math.min(INIT_POS_Y - PATROL_TOP_MARGIN, availableDown));
+			default -> Math.min(PATROL_HEIGHT, availableDown);
+		};
+		int nextY = (int) Math.round(travelY * next.y());
+		int nextX;
+		if (activePattern == MovementPattern.ELLIPSE_PATROL) {
+			int initialWidth = (this.nShipsWide - 1) * SEPARATION_DISTANCE + this.shipWidth;
+			int travelX = Math.min(PATROL_WIDTH, Math.max(0,
+					this.screen.getWidth() - SIDE_MARGIN - INIT_POS_X - initialWidth));
+			nextX = (int) Math.round(travelX * next.x());
+		} else {
+			int left = Integer.MAX_VALUE;
+			int right = Integer.MIN_VALUE;
+			for (List<EnemyShip> column : this.enemyShips) {
+				for (EnemyShip ship : column) {
+					if (!ship.isDestroyed()) {
+						left = Math.min(left, ship.getPositionX());
+						right = Math.max(right, ship.getPositionX() + ship.getWidth());
+					}
+				}
+			}
+			if (left == Integer.MAX_VALUE) {
+				moveFormation(0, 0);
+				return;
+			}
+
+			int leftWall = this.patrolOffsetX + SIDE_MARGIN - left;
+			int rightWall = this.patrolOffsetX + this.screen.getWidth() - SIDE_MARGIN - right;
+			int target = leftWall + (int) Math.round((rightWall - leftWall) * next.x());
+			int direction = Double.compare(next.x(), patrolPointAt(this.patrolFrame, cycleFrames).x());
+			// A shrinking formation can move the target behind us. Keep the current
+			// horizontal direction and limit catch-up movement to a few pixels per update.
+			int delta = target - this.patrolOffsetX;
+			int step = switch (direction) {
+				case 1 -> Math.max(0, Math.min(4, delta));
+				case -1 -> Math.min(0, Math.max(-4, delta));
+				default -> 0;
+			};
+			nextX = this.patrolOffsetX + step;
+			boolean atTurn = (direction > 0 && next.x() == 1) || (direction < 0 && next.x() == 0);
+			if (atTurn && nextX != target) {
+				// A late column loss can extend the leg. Reach the wall before advancing
+				// the route phase or switching to the next stage 9 pattern.
+				moveFormation(step, 0);
+				this.patrolOffsetX = nextX;
+				return;
+			}
+		}
 
 		moveFormation(nextX - this.patrolOffsetX, nextY - this.patrolOffsetY);
 		this.patrolOffsetX = nextX;
 		this.patrolOffsetY = nextY;
+		this.patrolFrame = nextFrame;
 	}
 
 	private int nextDiagonalPatrolStep() {

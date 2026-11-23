@@ -60,16 +60,18 @@ public final class Core {
 			new GameSettings(5, 4, 5, 1000);
 	/** Difficulty settings for level 6. */
 	private static final GameSettings SETTINGS_LEVEL_6 =
-			new GameSettings(6, 3, 10, 1000, Math.round(6 * 3 * 0.20f));
+			new GameSettings(6, 3, 10, 1000, GameSettings.MovementPattern.SERPENTINE_PATROL,
+					Math.round(6 * 3 * 0.20f));
 	/** Difficulty settings for level 7. */
 	private static final GameSettings SETTINGS_LEVEL_7 =
-			new GameSettings(6, 5, 5, 500);
+			new GameSettings(6, 5, 5, 500, GameSettings.MovementPattern.FIGURE_EIGHT_PATROL, 0);
 	/** Difficulty settings for level 8. */
 	private static final GameSettings SETTINGS_LEVEL_8 =
-			new GameSettings(7, 5, 3, 500);
+			new GameSettings(7, 5, 3, 500, GameSettings.MovementPattern.SIX_POINT_PATROL, 0);
 	/** Difficulty settings for level 9. */
 	private static final GameSettings SETTINGS_LEVEL_9 =
-			new GameSettings(7, 5, 1, 300, true, Math.round(7 * 5 * 0.20f));
+			new GameSettings(7, 5, 1, 300, GameSettings.MovementPattern.MIXED_PATROL,
+					Math.round(7 * 5 * 0.20f));
 	/** Difficulty settings for level 10. */
 	private static final GameSettings SETTINGS_LEVEL_10 =
 			new GameSettings(5, 4, 8, 500);
