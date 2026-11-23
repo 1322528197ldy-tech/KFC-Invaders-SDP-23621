@@ -41,6 +41,8 @@ Register your team by adding one row to the table below and submitting the chang
 
 ## KFC: Endless enemy formations and patterns
 
+For the second-half IC-PBL handover, see the [project evidence index](docs/kfc/project-evidence/README.md): Git workflow rationale, Jira follow-up plan, risks, explicit test scenarios and verified execution results. Proposed tasks and unperformed human tests are identified separately from completed work.
+
 Yoonsoo's update extends the existing team Endless implementation with **five formations** (the original grid plus triangle, layered V, diamond and staggered ranks), **three movement styles** and **three ordinary-enemy firing patterns**. The original Endless mode, reward/boss flow and QA entry gate were already provided by the team.
 
 | First wave | Formation | Movement | Fire |

@@ -1,0 +1,8 @@
+PASS: 67 connected gameplay checks
+PASS: 63 endless regression checks
+PASS: 110 item / reward draft checks
+PASS: 21 screen input / reward checks
+PASS: 29 shared shop effect checks
+PASS: 9029352 endless formation / pattern checks
+PASS: 27 packaged entry / password checks
+Verified in: bin/connected-check-69e1fee8 (repository-relative path)
