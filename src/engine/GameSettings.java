@@ -14,7 +14,11 @@ public class GameSettings {
 		DIAGONAL_PATROL,
 		DIAMOND_PATROL,
 		ELLIPSE_PATROL,
-		RECTANGLE_PATROL
+		RECTANGLE_PATROL,
+		SERPENTINE_PATROL,
+		FIGURE_EIGHT_PATROL,
+		SIX_POINT_PATROL,
+		MIXED_PATROL
 	}
 
 	/** Width of the level's enemy formation. */
