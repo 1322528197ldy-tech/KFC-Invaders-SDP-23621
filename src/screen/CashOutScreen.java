@@ -5,6 +5,7 @@ import java.awt.event.KeyEvent;
 import engine.Core;
 import engine.DiamondManager;
 import engine.GameState;
+import engine.I18n;
 
 /**
  * Shown right after a level is cleared, when there is a next level to play
@@ -120,8 +121,7 @@ public class CashOutScreen extends Screen {
 	private void draw() {
 		this.drawManager.initDrawing(this);
 
-		this.drawManager.drawScreenTitle(this, "Level " + this.clearedLevel
-				+ " clear!");
+		this.drawManager.drawScreenTitle(this, I18n.format("Level %d clear!", this.clearedLevel));
 
 		this.drawManager.drawDiamondBalance(this, this.pendingDiamonds,
 				this.height / 3);
@@ -136,8 +136,8 @@ public class CashOutScreen extends Screen {
 		drawRiskPreview(this.height / 2 + 60);
 
 		this.drawManager.drawKeyHints(this, "esc cash out and end run");
-		this.drawManager.drawCenteredRegularString(this, "space risk it on level "
-				+ this.nextLevel, this.height - 45);
+		this.drawManager.drawCenteredRegularString(this,
+				I18n.format("space risk it on level %d", this.nextLevel), this.height - 45);
 
 		this.drawManager.completeDrawing(this);
 	}
@@ -163,13 +163,12 @@ public class CashOutScreen extends Screen {
 	 *            Y position of the first line.
 	 */
 	private void drawRiskPreview(final int positionY) {
-		this.drawManager.drawCenteredRegularString(this, "Clear level "
-				+ this.nextLevel + " for +" + this.nextLevel + " diamonds",
+		this.drawManager.drawCenteredRegularString(this,
+				I18n.format("Clear level %d for +%d diamonds", this.nextLevel, this.nextLevel),
 				positionY);
 		String outcome = this.nextLevel >= Core.getNumLevels()
-				? "Final level: " + diamondsIfNextLevelCleared()
-						+ " banked automatically"
-				: "Then " + diamondsIfNextLevelCleared() + " at risk";
+				? I18n.format("Final level: %d banked automatically", diamondsIfNextLevelCleared())
+				: I18n.format("Then %d at risk", diamondsIfNextLevelCleared());
 		this.drawManager.drawCenteredRegularString(this, outcome,
 				positionY + 20);
 	}

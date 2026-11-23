@@ -58,6 +58,7 @@ public class AchievementManager {
 
 	/** Persistent player profile. */
 	private PlayerProfile playerProfile;
+	private final boolean testing;
 	/** Normal achievements, shown on page 1 of the achievements screen. */
 	private List<Achievement> normalAchievements;
 	/** Tier achievements, shown on page 2 of the achievements screen. */
@@ -65,8 +66,13 @@ public class AchievementManager {
 
 	/** Creates the manager and loads the saved player profile. */
 	public AchievementManager() {
+		this(false);
+	}
+
+	AchievementManager(boolean testing) {
+		this.testing = testing;
 		try {
-			this.playerProfile = Core.getFileManager().loadPlayerProfile();
+			this.playerProfile = testing ? new PlayerProfile() : Core.getFileManager().loadPlayerProfile();
 		} catch (IOException | NumberFormatException e) {
 			Core.getLogger().warning("Couldn't load player profile.");
 			this.playerProfile = new PlayerProfile();
@@ -93,6 +99,11 @@ public class AchievementManager {
 		addAccuracyAchievements();
         addRunCoinAchievements();
 		addItemUseAchievements();
+		if (testing)
+			for (Achievement achievement : getAchievements()) {
+				achievement.unlock();
+				this.playerProfile.unlockAchievement(achievement.getId());
+			}
 	}
 
 	/** Adds the First Flight achievement. */
@@ -514,8 +525,7 @@ public class AchievementManager {
                 || achievement.getRequirement() == Requirement.RUNCOINS
                 || achievement.getRequiredEnemyKills() <= 0)
 			return achievement.getDescription();
-		return "Unlock: defeat " + achievement.getRequiredEnemyKills()
-				+ " enemies.";
+		return I18n.format("Unlock: defeat %d enemies.", achievement.getRequiredEnemyKills());
 	}
 
 	/** @return Unlocked status or progress for the appropriate condition. */
@@ -601,6 +611,8 @@ public class AchievementManager {
 
 	/** Saves the player profile, retaining progress after restarting. */
 	private void saveProfile() {
+		if (testing)
+			return;
 		try {
 			Core.getFileManager().savePlayerProfile(this.playerProfile);
 		} catch (IOException e) {

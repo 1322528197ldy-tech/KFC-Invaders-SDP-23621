@@ -17,6 +17,8 @@ public final class DiamondManager {
 
 	/** Singleton instance. */
 	private static DiamondManager instance;
+	private static DiamondManager testInstance;
+	private final boolean testing;
 
 	/** Current diamond balance, persisted to disk. Never negative. */
 	private int diamonds;
@@ -24,8 +26,9 @@ public final class DiamondManager {
 	/**
 	 * Private constructor, loads whatever balance was last saved.
 	 */
-	private DiamondManager() {
-		this.diamonds = Math.max(0, FileManager.getInstance().loadDiamonds());
+	private DiamondManager(boolean testing) {
+		this.testing = testing;
+		this.diamonds = testing ? 0 : Math.max(0, FileManager.getInstance().loadDiamonds());
 	}
 
 	/**
@@ -34,8 +37,13 @@ public final class DiamondManager {
 	 * @return shared instance of DiamondManager.
 	 */
 	public static DiamondManager getInstance() {
+		if (TesterMode.isEnabled()) {
+			if (testInstance == null)
+				testInstance = new DiamondManager(true);
+			return testInstance;
+		}
 		if (instance == null)
-			instance = new DiamondManager();
+			instance = new DiamondManager(false);
 		return instance;
 	}
 
@@ -107,6 +115,7 @@ public final class DiamondManager {
 	 * Writes the current balance to disk.
 	 */
 	private void save() {
-		FileManager.getInstance().saveDiamonds(this.diamonds);
+		if (!testing)
+			FileManager.getInstance().saveDiamonds(this.diamonds);
 	}
 }

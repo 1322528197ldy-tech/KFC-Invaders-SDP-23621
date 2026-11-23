@@ -9,6 +9,7 @@ import engine.AchievementManager;
 import engine.Cooldown;
 import engine.Core;
 import engine.DrawManager;
+import engine.I18n;
 
 /**
  * Implements the achievements screen, split into pages.
@@ -206,7 +207,7 @@ public class AchievementsScreen extends Screen {
 		this.drawManager.drawScreenTitle(
 				this, MenuItem.ACHIEVEMENTS.getTitle());
 
-		String pageLabel = "< " + PAGE_NAMES[this.currentPage] + "  "
+		String pageLabel = "< " + I18n.text(PAGE_NAMES[this.currentPage]) + "  "
 				+ (this.currentPage + 1) + "/" + this.pages.size() + " >";
 		this.drawManager.drawMenuRow(this, pageLabel, PAGE_LABEL_Y, false);
 
@@ -280,7 +281,7 @@ public class AchievementsScreen extends Screen {
 				TEXT_X, positionY + 8, nameColor);
 
 		this.drawManager.drawRegularString(
-				manager.getRequirementText(achievement),
+				I18n.numberedText(manager.getRequirementText(achievement)),
 				TEXT_X, positionY + 24, MUTED);
 
 		this.drawManager.drawRegularString(

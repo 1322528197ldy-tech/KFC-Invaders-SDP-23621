@@ -1,5 +1,6 @@
 package screen;
 
+import engine.I18n;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -78,10 +79,9 @@ public final class StartupAnimation {
                 transform.scale(fit * zoom, fit * zoom);
                 g.drawImage(current, transform, null);
             } else {
-                g.setFont(font.deriveFont(32f));
+                g.setFont(I18n.font(font.deriveFont(showingSchool ? 24f : 32f)));
                 g.setColor(new Color(30, 31, 34));
-                String text = showingSchool?"HANYANG UNIVERSITY":"KFC TEAM";
-                if(showingSchool)g.setFont(font.deriveFont(24f));
+                String text = I18n.text(showingSchool ? "HANYANG UNIVERSITY" : "KFC TEAM");
                 g.drawString(text, (W - g.getFontMetrics().stringWidth(text)) / 2, H / 2);
             }
             // Fade the school into the shared white background before revealing the team image.
@@ -91,9 +91,9 @@ public final class StartupAnimation {
             }
             g.setComposite(AlphaComposite.SrcOver.derive(ease((elapsed / 1000.0 - 0.65) / 0.4)));
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
+            g.setFont(I18n.font(new Font(Font.SANS_SERIF, Font.PLAIN, 10)));
             g.setColor(new Color(126, 131, 140));
-            String hint = "SPACE / ENTER / ESC TO SKIP";
+            String hint = I18n.text("SPACE / ENTER / ESC TO SKIP");
             g.drawString(hint, (W - g.getFontMetrics().stringWidth(hint)) / 2, 474);
             float shade = Math.max(1 - ease(elapsed / 350.0),
                     showingSchool?0:ease((t - 1.55) / 0.45));

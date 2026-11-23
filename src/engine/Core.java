@@ -30,9 +30,9 @@ import screen.TutorialScreen;
 public final class Core {
 
 	/** Width of current screen. */
-	private static final int WIDTH = 448;
+	private static final int WIDTH = 432;
 	/** Height of current screen. */
-	private static final int HEIGHT = 520;
+	private static final int HEIGHT = 497;
 	/** Max fps of current screen. */
 	private static final int FPS = 60;
 
@@ -90,6 +90,7 @@ public final class Core {
 	private static ConsoleHandler consoleHandler;
 	/** Persistent achievement progress manager. */
 	private static AchievementManager achievementManager;
+	private static AchievementManager testAchievementManager;
 
 
 	/**
@@ -119,8 +120,8 @@ public final class Core {
 
 		frame = new Frame(WIDTH, HEIGHT);
 		DrawManager.getInstance().setFrame(frame);
-		int width = frame.getWidth();
-		int height = frame.getHeight();
+		int width = WIDTH;
+		int height = HEIGHT;
 
         // Show the supplied school and team credits once, before the main menu.
         if (!Boolean.getBoolean("game.skipIntro")) {
@@ -381,19 +382,23 @@ public final class Core {
 	 * @return Shared achievement manager.
 	 */
 	public static AchievementManager getAchievementManager() {
-		if (achievementManager == null) {
-			achievementManager = new AchievementManager();
-
-			java.util.Set<String> roster = new java.util.HashSet<String>();
-
-			for (Ship.ShipType type : Ship.ShipType.values()) {
-				roster.add(getShipId(type));
-			}
-
-			achievementManager.configureLevel10Ships(roster);
+		if (TesterMode.isEnabled()) {
+			if (testAchievementManager == null)
+				testAchievementManager = createAchievementManager(true);
+			return testAchievementManager;
 		}
-
+		if (achievementManager == null)
+			achievementManager = createAchievementManager(false);
 		return achievementManager;
+	}
+
+	private static AchievementManager createAchievementManager(boolean testing) {
+		AchievementManager manager = new AchievementManager(testing);
+		java.util.Set<String> roster = new java.util.HashSet<String>();
+		for (Ship.ShipType type : Ship.ShipType.values())
+			roster.add(getShipId(type));
+		manager.configureLevel10Ships(roster);
+		return manager;
 	}
 	/**
 	 * Returns the achievement ID of the selected ship. The standard ship is

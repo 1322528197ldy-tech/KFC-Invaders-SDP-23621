@@ -1,0 +1,446 @@
+# English source	简体中文	한국어
+Play	开始游戏	게임 시작
+Customize	飞船定制	함선 꾸미기
+Shop	商店	상점
+Achievements	成就	업적
+High scores	最高分纪录	최고 점수
+Settings	设置	설정
+Exit	退出	종료
+Endless Mode	无尽模式	무한 모드
+Language	语言	언어
+Key Bindings	操作按键	조작 안내
+Back	返回	뒤로
+Really quit?	确定退出？	정말 종료할까요?
+Yes	是	예
+No	否	아니요
+arrows to choose, space ok, esc cancel	方向键选择 · 空格确认 · Esc 取消	방향키 선택 · Space 확인 · Esc 취소
+w+s/arrows move, space select, esc exit	W/S 或方向键选择 · 空格确认 · Esc 退出	W/S 또는 방향키 선택 · Space 확인 · Esc 종료
+esc back	Esc 返回	Esc 뒤로
+TUTORIAL	新手教程	조작 연습
+1/3  Move: A/D or LEFT/RIGHT	1/3  移动：A/D 或左右方向键	1/3  이동: A/D 또는 좌우 방향키
+2/3  Press SPACE to fire	2/3  按空格键射击	2/3  Space로 발사
+3/3  Defeat the practice enemy	3/3  击败练习敌人	3/3  연습용 적 처치
+Tutorial complete!	教程完成！	연습 완료!
+Stronger enemies and bosses	后续关卡将会出现	다음 스테이지에는 더 강한 적과
+await in later stages.	更强的敌人和首领。	보스가 기다리고 있습니다.
+Press ENTER to start Stage 1	按 Enter 开始第 1 关	Enter로 스테이지 1 시작
+Clear the wave to finish.	清空敌人即可完成练习。	적을 모두 처치하면 완료됩니다.
+Practice enemy will not attack.	练习敌人不会攻击。	연습용 적은 공격하지 않습니다.
+S: skip to Stage 1 | ESC: menu	S 跳过至第 1 关 · Esc 菜单	S: 스테이지 1로 건너뛰기 · Esc: 메뉴
+Catch item drops with your ship	驾驶飞船拾取掉落道具	함선으로 떨어지는 아이템을 획득하세요
+PAUSED	已暂停	일시 정지
+Resume	继续游戏	계속하기
+Restart	重新开始	다시 시작
+Game Over	游戏结束	게임 오버
+Press Space to play again, Escape to exit	空格再玩一次 · Esc 退出	Space: 다시 하기 · Esc: 종료
+New Record!	新纪录！	신기록!
+Introduce name:	请输入名字：	이름 입력:
+Press Space to return	按空格返回	Space로 돌아가기
+LIVES	生命	목숨
+SCORE	得分	점수
+LEVEL	关卡	스테이지
+GO!	出击！	출격!
+Diamonds at risk	待结算钻石	미정산 다이아
+Diamonds banked	已结算钻石	정산한 다이아
+esc cash out and end run	Esc 结算并结束本局	Esc: 정산 후 게임 종료
+Normal	普通成就	일반 업적
+Tier	进阶成就	단계별 업적
+No achievements yet.	暂无成就。	아직 업적이 없습니다.
+ ------  MORE ACHIEVEMENT BELOW  ------	—— 下方还有更多成就 ——	—— 아래에 업적이 더 있습니다 ——
+left right page, up down move, esc back	左右翻页 · 上下滚动 · Esc 返回	좌우: 페이지 · 위아래: 스크롤 · Esc: 뒤로
+ACHIEVEMENT UNLOCKED	成就已解锁	업적 달성
+UNLOCKED	已解锁	잠금 해제
+LOCKED	未解锁	잠김
+PENDING	待完成	진행 대기
+First Flight	初次出击	첫 출격
+Welcome to Invaders.	欢迎加入太空侵略者。	스페이스 인베이더에 오신 것을 환영합니다.
+Humble Beginnings	初露锋芒	작은 시작
+Beat the game with the starter ship.	使用初始飞船通关。	기본 함선으로 게임을 클리어하세요.
+Infinity Void	无尽虚空	끝없는 공허
+Buggin' the Boss	首领克星	보스 사냥꾼
+Defeat a boss for the first time.	首次击败首领。	처음으로 보스를 처치하세요.
+Fleet Master	舰队大师	함대의 지배자
+Beat the game with every ship.	使用每种飞船通关。	모든 함선으로 게임을 클리어하세요.
+Bronze Hunter	青铜猎手	브론즈 사냥꾼
+Silver Hunter	白银猎手	실버 사냥꾼
+Gold Hunter	黄金猎手	골드 사냥꾼
+Bronze Survivor	青铜幸存者	브론즈 생존자
+Silver Survivor	白银幸存者	실버 생존자
+Gold Survivor	黄金幸存者	골드 생존자
+Clear 1 level without taking damage.	无伤完成 1 个关卡。	피해 없이 스테이지 1개를 클리어하세요.
+Clear 4 levels without taking damage.	无伤完成 4 个关卡。	피해 없이 스테이지 4개를 클리어하세요.
+Clear 10 levels without taking damage.	无伤完成 10 个关卡。	피해 없이 스테이지 10개를 클리어하세요.
+Bronze Sharpshooter	青铜神射手	브론즈 명사수
+Silver Sharpshooter	白银神射手	실버 명사수
+Gold Sharpshooter	黄金神射手	골드 명사수
+Bronze Looter	青铜收藏家	브론즈 수집가
+Silver Looter	白银收藏家	실버 수집가
+Gold Looter	黄金收藏家	골드 수집가
+Bronze Item User	青铜道具达人	브론즈 아이템 전문가
+Silver Item User	白银道具达人	실버 아이템 전문가
+Gold Item User	黄金道具达人	골드 아이템 전문가
+Successfully use 100 items.	成功使用 100 次道具。	아이템을 100회 사용하세요.
+Successfully use 250 items.	成功使用 250 次道具。	아이템을 250회 사용하세요.
+Successfully use 500 items.	成功使用 500 次道具。	아이템을 500회 사용하세요.
+Ship	飞船	함선
+Look	外形	외형
+Skin	皮肤	스킨
+Upgrade	升级	강화
+Effect	特效	효과
+Ships	飞船	함선
+Skins	皮肤	스킨
+Looks	外形	외형
+Upgrades	升级	강화
+Effects	特效	효과
+Night Mkt	夜市	야시장
+FAST MOVE	高速型	고속형
+Two-Way Shot	双发型	쌍포형
+FAST ATTACK	速射型	속사형
+BIG BULLET	重炮型	중포형
+Original	原始外形	기본 외형
+None	无	없음
+Classic	经典绿	클래식
+Crimson Hull	绯红机身	진홍빛 선체
+Azure Wing	苍蓝之翼	푸른 날개
+Violet Nova	紫晶新星	보랏빛 신성
+Gilded	鎏金	황금빛
+Triple T Sahur	节拍之木	트리플 T 사후르
+Rainbow Rush	虹彩跃迁	무지개 질주
+Phantom	幽灵	유령
+Arrow	利箭	화살
+Twin Fang	双獠牙	쌍송곳니
+Stealth	隐形	스텔스
+Cannon	巨炮	대포
+Mortar	迫击炮	박격포
+Fortress	堡垒	요새
+Jet	喷气机	제트
+Triple Thruster	三重推进器	3중 추진기
+Long Barrels	长炮管	장포신
+Twin Spike	双尖刺	쌍창
+Hollow	镂空	중공형
+Sharper arrowhead with spiked wings.	尖锐机头配合锋利机翼。	뾰족한 날개를 갖춘 화살촉 기체.
+Twin muzzles for a rapid-fire ship.	专为速射飞船设计的双炮口。	속사 함선용 쌍포구.
+A light, hollow outline of the hull.	轻盈的镂空机身轮廓。	가벼운 중공형 선체.
+A thick U-shaped barrel on a wide base.	宽大底座搭配厚重 U 型炮管。	넓은 받침과 두꺼운 U자형 포신.
+A short muzzle on a rounded hull with legs.	圆润机身与短炮口，配有侧支架。	지지대가 달린 둥근 선체와 짧은 포구.
+A tall muzzle on a solid, battlemented base.	城垛状坚实底座搭配高耸炮口。	성벽 모양의 단단한 받침과 긴 포구.
+A longer nose and wing tips that rise into spikes.	修长机头与向上翘起的尖锐翼端。	긴 기수와 위로 솟은 뾰족한 날개 끝.
+Three thrusters side by side.	三个并排的推进器。	나란히 배치된 추진기 3개.
+Longer barrels on a gun carriage.	炮架上装有加长炮管。	포가에 장착된 긴 포신.
+Thin spike barrels and a notched hull.	细长尖刺炮管与凹口机身。	가느다란 포신과 홈이 파인 선체.
+Barrels and upper hull as a hollow frame.	炮管和上机身组成镂空框架。	포신과 상부 선체가 이루는 중공형 프레임.
+A red-and-black repaint of your ship.	红黑相间的飞船涂装。	빨강과 검정으로 도색한 함선.
+A cool blue repaint of your ship.	冷色调的蓝色飞船涂装。	차분한 파란색 함선 도색.
+A deep purple repaint of your ship.	深紫色的飞船涂装。	짙은 보라색 함선 도색.
+Show off a golden hull.	闪耀夺目的黄金机身。	황금빛 선체를 뽐내세요.
+Wooden hull that flashes to the beat: tung, tung, tung... sahur!	随节拍闪烁的木质机身。	박자에 맞춰 반짝이는 나무 선체.
+Cycles through every colour of the rainbow.	在彩虹的各种颜色间循环变换。	무지개 색상으로 계속 바뀝니다.
+A ghostly hull that fades in and out. Halloween only.	若隐若现的幽灵机身，万圣节限定。	나타났다 사라지는 유령 선체. 핼러윈 한정.
+Moves twice as fast as the standard ship.	移动速度为标准飞船的两倍。	기본 함선보다 이동 속도가 2배 빠릅니다.
+Fires twice as often as the standard ship.	射击频率为标准飞船的两倍。	기본 함선보다 2배 빠르게 발사합니다.
+Fires from two barrels at once, but moves slowly.	同时从两个炮管开火，移动速度较慢。	쌍포를 동시에 발사하지만 이동이 느립니다.
+Heavy cannon with a slower rate of fire.	射速较慢、威力强大的重型火炮。	발사 속도가 느린 중포를 장착합니다.
+More item slots in every run.	每局获得更多道具槽位。	매 게임 아이템 슬롯이 늘어납니다.
+Picks up items as soon as they land.	道具落地时自动拾取。	아이템이 떨어지면 즉시 획득합니다.
+Life items can take you higher than the normal cap.	生命道具可突破普通生命上限。	회복 아이템으로 기본 목숨 상한을 넘길 수 있습니다.
+Shield, freeze and boosts last longer.	延长护盾、冻结和强化的持续时间。	보호막, 빙결, 강화 효과가 더 오래 지속됩니다.
+Kills chain lightning to nearby enemies. Streaks turn it violet, then gold. Look only.	击败敌人时产生连锁闪电，连击后变为紫色和金色。仅改变外观。	적 처치 시 주변에 연쇄 번개가 흐릅니다. 연속 처치 시 보라색, 금색으로 변합니다. 외형 효과입니다.
+Your shots leave a blazing orange tail. Look only.	子弹留下炽热的橙色尾迹，仅改变外观。	탄환에 주황빛 꼬리가 남습니다. 외형 효과입니다.
+Fading copies of your ship follow it while it moves. Look only.	飞船移动时留下逐渐消散的残影，仅改变外观。	이동할 때 함선의 잔상이 남습니다. 외형 효과입니다.
+Your ship beams in at the start of each level and after a lost life. Look only.	关卡开始或损失生命后，飞船通过光束传送入场。仅改变外观。	스테이지 시작과 목숨 손실 후 빛과 함께 등장합니다. 외형 효과입니다.
+Lightning Chain	连锁闪电	연쇄 번개
+Comet Trail	彗星尾迹	혜성 꼬리
+Ghost Trail	幽灵残影	유령 잔상
+Warp In	跃迁入场	워프 진입
+up/down row | left/right browse | space on/off | esc back	上下选行 · 左右浏览 · 空格开关 · Esc 返回	위아래: 행 · 좌우: 탐색 · Space: 켜기/끄기 · Esc: 뒤로
+up/down row | left/right change | esc back	上下选行 · 左右切换 · Esc 返回	위아래: 행 · 좌우: 변경 · Esc: 뒤로
+SPEED	移速	속도
+SHOTS PER SEC	每秒射击	초당 발사
+BULLETS	弹数	탄환 수
+ON	开启	켜짐
+OFF	关闭	꺼짐
+No upgrades in the shop	商店暂无升级项目	상점에 강화 항목이 없습니다
+No effects in the shop yet	商店暂无特效	상점에 효과가 없습니다
+Limited edition - no longer sold	限定款已停售	한정판 판매 종료
+Locked - buy it in the Shop	尚未解锁 · 请前往商店购买	잠김 · 상점에서 구매하세요
+LIMITED EDITION	限定款	한정판
+or	或	또는
+coins	金币	코인
+diamonds	钻石	다이아
+arrows/click select | C coins | V diamonds | esc back	方向键或点击选择 · C 金币 · V 钻石 · Esc 返回	방향키/클릭: 선택 · C: 코인 · V: 다이아 · Esc: 뒤로
+Nothing for sale here.	暂无商品。	판매 중인 상품이 없습니다.
+LIMITED	限定	한정
+MAX LEVEL	已满级	최고 레벨
+OWNED	已拥有	보유 중
+ENDED	已结束	종료됨
+SOLD OUT	已售罄	품절
+PRICE	价格	가격
+SOON	即将推出	출시 예정
+BULLET EFFECT	子弹特效	탄환 효과
+COMING SOON	即将推出	출시 예정
+PREVIEW SOON	预览即将推出	미리보기 준비 중
+LOOK ONLY - SAME STATS	仅改变外观 · 属性不变	외형 전용 · 능력치 동일
+ONE EQUIPPED AT A TIME	同时只能装备一个	한 번에 하나만 장착 가능
+SWITCH ON/OFF IN CUSTOMIZE	在飞船定制中开启或关闭	함선 꾸미기에서 켜기/끄기
+LOOK ONLY - NO STAT CHANGE	仅改变外观 · 不影响属性	외형 전용 · 능력치 변화 없음
+It is on.	已开启。	켜졌습니다.
+Choose it in Customize.	可在飞船定制中选择。	함선 꾸미기에서 선택하세요.
+You already own this.	你已拥有此物品。	이미 보유한 상품입니다.
+Already at max level.	已达到最高等级。	이미 최고 레벨입니다.
+Today's deal has ended.	今日优惠已结束。	오늘의 할인 판매가 끝났습니다.
+This limited edition is no longer sold.	此限定款已停售。	이 한정판은 판매가 종료되었습니다.
+Purchase failed, nothing was charged.	购买失败，未扣除任何货币。	구매에 실패했습니다. 재화는 차감되지 않았습니다.
+Life	生命	목숨
+Shield	护盾	보호막
+Rapid Fire	速射	속사
+Bullet Speed	弹速	탄속
+Freeze	冻结	빙결
+Boost	强化	부스트
+Score Boost	得分加成	점수 증가
+Extra Slots	额外槽位	추가 슬롯
+Magnet	磁铁	자석
+Max Life	生命上限	최대 목숨
+Long Lasting	效果延长	지속 시간 증가
+Life +1	生命 +1	목숨 +1
+RF	速射	속사
+BS	弹速	탄속
+SH	护盾	보호막
+FZ	冻结	빙결
+BO	强化	강화
+SC	得分	점수
+ENDLESS	无尽模式	무한 모드
+QA	测试	테스트
+KILLS	击杀	처치
+HULL CRITICAL	机体危急	기체 위험
+HULL / LIVES	机体 / 生命	기체 / 목숨
+TIME	时间	시간
+LEFT	剩余	남음
+BUFFS:	状态：	효과:
+FIRE	射速	발사
+BULLET	弹速	탄속
+EMPTY	空槽	비어 있음
+BOSS INCOMING	首领来袭	보스 출현
+MAX HP	最大生命	최대 체력
+DAMAGE / HIT	每次命中伤害	피격당 피해
+FOLLOW ITS MOVEMENT / DODGE THE SHOTS	留意首领移动 · 躲避弹幕	이동을 살피고 탄환을 피하세요
+WAVE UPGRADE	波次升级	웨이브 강화
+PERMANENT UPGRADE	永久升级	영구 강화
+SUPPLY / ITEM	补给 / 道具	보급 / 아이템
+REFRESH USED	刷新已使用	새로고침 사용 완료
+[R] REFRESH OPTIONS / 1 LEFT	[R] 刷新选项 / 剩余 1 次	[R] 선택지 새로고침 / 1회 남음
+RELEASE KEYS, THEN CHOOSE	松开按键后再选择	키를 놓은 뒤 선택하세요
+CLICK A CARD OR PRESS 1 / 2 / 3	点击卡片或按 1 / 2 / 3	카드를 클릭하거나 1 / 2 / 3 누르기
+ENDLESS RECORDS	无尽模式纪录	무한 모드 기록
+QA PERSONAL BESTS	测试模式个人最佳	테스트 개인 최고 기록
+PERSONAL BESTS	个人最佳	개인 최고 기록
+FORMATION BREACHED	敌军突破防线	적 편대가 방어선을 돌파했습니다
+REPAIR: +1 LIFE	修复：生命 +1	수리: 목숨 +1
+SHIP LOST	飞船已被摧毁	함선 파괴
+SHIELD BLOCKED A HIT	护盾抵挡了一次攻击	보호막이 공격을 막았습니다
+DAMAGE +10%	伤害 +10%	피해 +10%
+FIRE RATE +10%	射速 +10%	발사 속도 +10%
+MOVE SPEED +10%	移速 +10%	이동 속도 +10%
+PERMANENT ATTACK UPGRADE	永久提高攻击伤害	공격 피해 영구 증가
+PERMANENT ATTACK SPEED UPGRADE	永久提高射击速度	발사 속도 영구 증가
+PERMANENT MOVEMENT UPGRADE	永久提高移动速度	이동 속도 영구 증가
++1 PROJECTILE	弹数 +1	탄환 +1
+ADD ONE SHOT PER VOLLEY	每轮齐射增加一枚子弹	일제 사격당 탄환 1발 추가
+A/D OR ARROWS MOVE / SPACE FIRE	A/D 或方向键移动 / 空格射击	A/D 또는 방향키: 이동 / Space: 발사
+P / ESC PAUSE / Q END WHILE PAUSED	P / Esc 暂停 / 暂停时 Q 结束	P / Esc: 일시 정지 / 정지 중 Q: 종료
+CHOOSE AN UPGRADE EVERY 3 WAVES	每完成 3 波可选择一次升级	3웨이브마다 강화 선택
+SECTOR CLEAR	区域已清空	구역 정리 완료
+B SHOP / C CUSTOMIZE / O SETTINGS	B 商店 / C 飞船定制 / O 设置	B: 상점 / C: 꾸미기 / O: 설정
+CASHED OUT	已结算	정산 완료
+RUN ENDED	本局已结束	게임 종료
+BOSS	首领	보스
+INVADERS / SURVIVAL	星际保卫战 / 生存挑战	인베이더 / 생존 도전
+ACCESS GRANTED	已开放	입장 가능
+MODE LOCKED	模式未解锁	모드 잠김
+STAGE 10 COMPLETE. KEEP FIGHTING.	已完成第 10 关，继续挑战。	스테이지 10 완료. 계속 도전하세요.
+CLEAR STAGE 10 TO UNLOCK.	完成第 10 关后解锁。	스테이지 10 클리어 시 해제됩니다.
+SURVIVE	生存	생존
+NO LIMIT	无上限	무제한
+3 WAVES	每 3 波	3웨이브마다
+5 WAVES	每 5 波	5웨이브마다
+START RUN	开始挑战	도전 시작
+ESC TO RETURN	Esc 返回	Esc: 뒤로
+TEST ACCESS	测试入口	테스트 입장
+ENTER TEST PASSWORD	输入测试密码	테스트 비밀번호 입력
+TYPE DIGITS, THEN PRESS ENTER	输入数字后按 Enter	숫자 입력 후 Enter
+INCORRECT PASSWORD. TRY AGAIN.	密码错误，请重试。	비밀번호가 틀렸습니다. 다시 입력하세요.
+BACKSPACE TO EDIT	Backspace 删除	Backspace: 지우기
+TEST ONLY / NO SHARED PROGRESS	仅供测试 / 不计入正式进度	테스트 전용 / 정식 진행도에 반영 안 됨
+ENTER TEST	进入测试	테스트 시작
+ESC TO CANCEL	Esc 取消	Esc: 취소
+ENTER RETRY / ESC MAIN MENU	Enter 重试 / Esc 主菜单	Enter: 재도전 / Esc: 메인 메뉴
+PERSONAL BESTS SAVED	个人最佳纪录已保存	개인 최고 기록 저장 완료
+RECORDS UNAVAILABLE; RUN IS SAFE.	暂时无法读取纪录，本局不受影响。	기록을 읽을 수 없습니다. 현재 게임은 정상 진행됩니다.
+SAVE FAILED; KEPT THIS SESSION.	保存失败，本次会话中仍保留纪录。	저장 실패. 이번 세션에는 기록이 유지됩니다.
+FINAL BOSS	最终首领	최종 보스
+LEVEL_NOT_ACTIVE	当前不在战斗中	전투 중이 아닙니다
+INVALID_SLOT	无效道具槽位	잘못된 슬롯입니다
+PLAYER_UNAVAILABLE	飞船当前不可操作	현재 함선을 조작할 수 없습니다
+EMPTY_SLOT	道具槽位为空	빈 슬롯입니다
+EFFECT_ALREADY_ACTIVE	效果已经生效	이미 활성화된 효과입니다
+EFFECT_REJECTED	当前无法使用此效果	현재 이 효과를 사용할 수 없습니다
+Invaders	太空侵略者	스페이스 인베이더
+BGM	背景音乐	배경 음악
+SFX	音效	효과음
+Up/Down: select | Left/Right: adjust | Esc: back	↑↓ 选择 · ←→ 调整 · Esc 返回	↑↓ 선택 · ←→ 조절 · Esc 뒤로
+- Move Left: A / Left Arrow -	向左移动：A / ←	왼쪽 이동: A / ←
+- Move Right: D / Right Arrow -	向右移动：D / →	오른쪽 이동: D / →
+- Shoot: Space -	射击：空格	발사: Space
+- Back: ESC -	返回：Esc	뒤로: Esc
+DEVELOPED & ADAPTED BY KFC TEAM	由 KFC 团队开发与改编	KFC 팀 개발 및 각색
+HANYANG UNIVERSITY	汉阳大学	한양대학교
+KFC TEAM	KFC 团队	KFC 팀
+SPACE / ENTER / ESC TO SKIP	空格 / Enter / Esc 跳过	Space / Enter / Esc 건너뛰기
+Quit to menu	退出至主菜单	메인 메뉴로 나가기
+P / Esc to pause	P / Esc 暂停	P / Esc 일시 정지
+w+s / arrows to move, space to select, P / Esc to resume	W/S 或方向键选择 · 空格确认 · P / Esc 继续	W/S 또는 방향키 선택 · Space 확인 · P / Esc 계속
+w+s / arrows to move, space / enter to select	W/S 或方向键选择 · 空格 / Enter 确认	W/S 또는 방향키 선택 · Space / Enter 확인
+a+d / arrows to choose, space to confirm, Esc to cancel	A/D 或方向键选择 · 空格确认 · Esc 取消	A/D 또는 방향키 선택 · Space 확인 · Esc 취소
+Really restart?	确定重新开始？	다시 시작할까요?
+This level will start over	将从头开始当前关卡	현재 스테이지를 처음부터 다시 시작합니다
+Score, lives and loot are reset	本关得分、生命和战利品将重置	점수, 목숨, 전리품이 초기화됩니다
+This run will end now	本局游戏将结束	이번 게임을 종료합니다
+You go to the results screen	接下来将显示结算画面	결과 화면으로 이동합니다
+A new run will start now	将开始新一局	새 게임을 시작합니다
+This run is not cashed out	本局未结算的钻石将丢失	이번 게임에서 미정산한 다이아가 사라집니다
+Your earnings are cashed out	本局收益将结算入账	이번 게임에서 획득한 재화를 정산합니다
+Keys 1-%d use stored items	按数字键 1–%d 使用道具	숫자키 1–%d: 보관한 아이템 사용
+Equipped: %s	已装备：%s	장착: %s
+score %04d	得分 %04d	점수 %04d
+lives remaining %d	剩余生命 %d	남은 목숨 %d
+enemies destroyed %d	击败敌机 %d	처치한 적 %d기
+accuracy %.2f%%	命中率 %.2f%%	명중률 %.2f%%
+Level %d	第 %d 关	스테이지 %d
+Level %d - Bonus life!	第 %d 关 · 额外生命！	스테이지 %d · 추가 목숨!
+Level %d clear!	第 %d 关已通关！	스테이지 %d 클리어!
+space risk it on level %d	空格：继续挑战第 %d 关	Space: 스테이지 %d 도전
+Clear level %d for +%d diamonds	通关第 %d 关可获得 %d 颗钻石	스테이지 %d 클리어 시 다이아 %d개 획득
+Final level: %d banked automatically	最终关卡：通关后自动存入 %d 颗钻石	마지막 스테이지: 클리어 시 다이아 %d개 자동 정산
+Then %d at risk	通关后共有 %d 颗钻石待结算	클리어 시 미정산 다이아 %d개
+Unlock: defeat %d enemies.	解锁条件：击败 %d 架敌机。	해제 조건: 적 %d기 처치.
+Defeat %s enemies.	击败 %s 架敌机。	적 %s기를 처치하세요.
+Clear level 10 to unlock Endless Mode.	通关第 10 关解锁无尽模式。	스테이지 10을 클리어하면 무한 모드가 열립니다.
+Finish with %s%% accuracy on %s levels.	在 %2$s 个关卡中达到 %1$s%% 命中率。	%2$s개 스테이지에서 명중률 %1$s%% 이상을 달성하세요.
+Obtain %s coins in one run.	单局获得 %s 枚金币。	한 게임에서 코인 %s개를 획득하세요.
+A new look for your ship.	为飞船换上全新涂装。	함선에 새로운 외형을 적용합니다.
+It is on. Switch it off in Customize.	已开启，可在飞船定制中关闭。	켜져 있습니다. 함선 꾸미기에서 끌 수 있습니다.
+%s is now level %d!	%s 已升至 %d 级！	%s %d레벨 달성!
+Bought %s!	已购买 %s！	%s 구매 완료!
+Not enough %s (need %d).	%s不足（需要 %d）。	%s 부족 (필요 수량 %d).
+Can't be paid with %s.	无法用%s支付。	%s으로 결제할 수 없습니다.
+LV %d/%d	等级 %d/%d	레벨 %d/%d
+PRICE OF LEVEL %d	升至 %d 级的价格	%d레벨 가격
+WAS %s	原价 %s	기존 가격 %s
+BUY %d	购买 %d	구매 %d
+SPEED %d  |  BULLETS %d	移速 %d  |  每次弹数 %d	이동 속도 %d  |  한 번에 %d발
+SHOTS PER SEC %.2f	每秒发射 %.2f 发	초당 %.2f발
+FOR THE %s SHIP	适用于%s飞船	%s 전용
+LIMITED EDITION - %d DAY LEFT	限定款 · 剩余 %d 天	한정판 · %d일 남음
+LIMITED EDITION - %d DAYS LEFT	限定款 · 剩余 %d 天	한정판 · %d일 남음
+OWNED - ON	已拥有 · 已开启	보유 중 · 켜짐
+OWNED - OFF	已拥有 · 已关闭	보유 중 · 꺼짐
+%s is on - space to switch off	%s已开启 · 空格关闭	%s 켜짐 · Space로 끄기
+%s is off - space to switch on	%s已关闭 · 空格开启	%s 꺼짐 · Space로 켜기
+%s is equipped	已装备%s	%s 장착 중
+Locked - buy it in the Shop for %s	未解锁 · 可在商店用%s购买	잠김 · 상점 가격: %s
+%d %s	%d %s	%d %s
+%s is already active	%s已生效	%s 효과가 이미 적용 중입니다
+Max lives: +%d	生命已满：得分 +%d	목숨이 가득 찼습니다: 점수 +%d
+%s (press %d)	%s（按 %d 使用）	%s (%d 키로 사용)
+Adds one life, or awards %s points at the life cap.	恢复 1 点生命。生命已满时，改为获得 %s 分。	목숨을 1 회복합니다. 목숨이 가득 차면 대신 %s점을 얻습니다.
+Blocks %s incoming hit(s) for up to %s seconds.	最多持续 %2$s 秒，可抵挡 %1$s 次攻击。	최대 %2$s초 동안 공격을 %1$s회 막습니다.
+Fires faster for the rest of the run. Stacks up to %s times with smaller gains each time.	本局内提高射速。最多叠加 %s 层，后续每层的加成递减。	이번 게임 동안 발사 속도가 증가합니다. 최대 %s회 중첩되며 중첩할수록 증가량이 줄어듭니다.
+Bullets fly faster for the rest of the run. Stacks up to %s times with smaller gains each time.	本局内提高弹速。最多叠加 %s 层，后续每层的加成递减。	이번 게임 동안 탄속이 증가합니다. 최대 %s회 중첩되며 중첩할수록 증가량이 줄어듭니다.
+Stops all enemy movement for %s seconds.	停止所有敌机移动，持续 %s 秒。	%s초 동안 모든 적의 이동을 멈춥니다.
+Adds %s%% of base ship speed and fire rate for %s seconds.	在 %2$s 秒内，移速和射速各提高基础值的 %1$s%%。	%2$s초 동안 이동 속도와 발사 속도가 기본 수치의 %1$s%%만큼 증가합니다.
+Adds %s%% of base earned score for %s seconds.	在 %2$s 秒内，额外获得 %1$s%% 的得分。	%2$s초 동안 획득하는 점수가 기본 점수의 %1$s%%만큼 증가합니다.
+Equip: +%s inventory slot(s) in every run.	装备后，每局增加 %s 个道具槽。	장착하면 게임마다 아이템 슬롯이 %s개 늘어납니다.
+Equip: picks up items as soon as they land. A drop it cannot keep gives %s points instead.	装备后自动拾取落地道具，无法收纳时换成 %s 分。	장착하면 떨어진 아이템을 자동으로 줍습니다. 보관할 수 없으면 대신 %s점을 얻습니다.
+Equip: the life item can raise lives up to %s instead of %s.	装备后，生命道具可将生命上限从 %2$s 提到 %1$s。	장착하면 회복 아이템으로 목숨을 기본 %2$s개에서 최대 %1$s개까지 늘릴 수 있습니다.
+Equip: active items (shield, freeze, boost, score boost) last %s seconds longer.	装备后，护盾、冻结、强化和得分加成的持续时间延长 %s 秒。	장착하면 보호막, 빙결, 부스트, 점수 증가가 %s초 더 지속됩니다.
+ENDLESS / QA	无尽 / 测试	무한 / 테스트
+RESTARTED	已重新开始	다시 시작
+CASH OUT / QUIT	结算并退出	정산 후 종료
+QA / NO NORMAL REWARDS	测试模式 · 无正式奖励	테스트 모드 · 정식 보상 없음
+G ACHIEVEMENTS / H RECORDS / Q CASH OUT	G 成就 · H 纪录 · Q 结算	G 업적 · H 기록 · Q 정산
+[B] TO CHANGE	按 B 切换	B로 변경
+90 SECONDS	每 90 秒	90초마다
+30 KILLS	每击败 30 架	30기 처치마다
+BOSS W%d	首领 第%d波	보스 %d웨이브
+BOSS NEXT	下波是首领	다음은 보스
+BOSS %dS	距首领 %d秒	보스까지 %d초
+BOSS %d KILLS	距首领 %d 杀	보스까지 %d기
+BOSS ENCOUNTER	首领战	보스전
+GET READY / %d	准备出击 / %d	출격 준비 / %d
+SHIP / %s	飞船 / %s	함선 / %s
+GEAR / %s	装备 / %s	장비 / %s
+WAVE %d IN %d	第 %d 波 · %d 秒后开始	%d웨이브 · %d초 후 시작
+NEXT UPGRADE IN %d WAVE(S)	再过 %d 波可升级	%d웨이브 후 강화
+SCORE %d / BEST %d	得分 %d / 最高 %d	점수 %d / 최고 %d
+TIME %ds / KILLS %d / BOSSES %d	用时 %d 秒 / 击败 %d 架 / 首领 %d	시간 %d초 / 처치 %d기 / 보스 %d
+COINS +%d / DIAMONDS BANKED +%d	金币 +%d / 已结算钻石 +%d	코인 +%d / 정산한 다이아 +%d
+WAVE %d	第 %d 波	%d웨이브
+SCORE / %d KILLS	得分 / 击败 %d 架	점수 / %d기 처치
+TIME %02d:%02d	时间 %02d:%02d	시간 %02d:%02d
+LEFT %d	敌机剩余 %d	남은 적 %d기
+DIFF %.2fX	难度 %.2f 倍	난이도 %.2f배
+BOSS %d / %d	首领生命 %d / %d	보스 체력 %d / %d
+UPGRADE IN %d WAVE(S)	再过 %d 波可升级	%d웨이브 후 강화
+SCORE X2	双倍得分	점수 2배
+COINS %d / +%d   DIAMONDS %d / RISK %d	金币 %d / +%d   钻石 %d / 待结算 %d	코인 %d / +%d   다이아 %d / 미정산 %d
+ACHIEVEMENT / %s	成就 / %s	업적 / %s
+DMG %.1fX  FIRE %.1f/S  SPEED %d  SHOTS %d	伤害 %.1f倍  射速 %.1f/秒  移速 %d  弹数 %d	피해 %.1f배  발사 %.1f/초  이동 %d  탄환 %d
+WARNING / WAVE %d	警告 / 第 %d 波	경고 / %d웨이브
+%s LIFE	%s 点生命	목숨 %s
+BATTLE STARTS IN %d	战斗将在 %d 秒后开始	전투 시작까지 %d초
+WAVE %d CLEARED	第 %d 波已完成	%d웨이브 클리어
+CHOOSE ONE / NEXT WAVE %d	选一项 / 下一波：第 %d 波	하나 선택 / 다음은 %d웨이브
+SCORE %d	得分 %d	점수 %d
+SURVIVED %ds	存活 %d 秒	생존 %d초
+ENEMIES %d	击败敌机 %d 架	처치한 적 %d기
+ITEM: %s	道具：%s	아이템: %s
+Test mode	测试模式	테스트 모드
+Test mode on	测试模式已开启	테스트 모드 켜짐
+Enter the test code	输入测试密码	테스트 코드 입력
+Incorrect code. Try again.	密码错误，请重试。	코드가 틀렸습니다. 다시 입력하세요.
+All game content is unlocked for testing.	所有游戏内容已解锁，可自由测试。	테스트용으로 모든 게임 콘텐츠를 사용할 수 있습니다.
+Test progress stays separate from your save.	测试进度与正式存档分开。	테스트 진행도는 기존 저장 데이터와 분리됩니다.
+Switching modes ends the current Endless run.	切换模式会结束当前无尽挑战。	모드를 전환하면 현재 무한 모드가 종료됩니다.
+Enable	开启	켜기
+Cancel	取消	취소
+Disable test mode	取消测试模式	테스트 모드 끄기
+TEST MODE / B SHOP / C CUSTOMIZE / O SETTINGS	测试模式 · B 商店 · C 飞船定制 · O 设置	테스트 모드 · B 상점 · C 함선 꾸미기 · O 설정
+UPGRADE: DAMAGE +10%	升级：伤害 +10%	강화: 피해 +10%
+UPGRADE: SPEED +10%	升级：移速 +10%	강화: 이동 속도 +10%
+UPGRADE: +1 PROJECTILE	升级：弹数 +1	강화: 탄환 +1
+UPGRADE: FIRE RATE +10%	升级：射速 +10%	강화: 발사 속도 +10%
+GRID	网格	격자
+TRIANGLE	三角	삼각형
+V SHAPE	V 形	V자
+DIAMOND	菱形	마름모
+STAGGERED	错列	엇갈림
+SWEEP	横扫	좌우 이동
+ZIGZAG	之字	지그재그
+SINE WAVE	波浪	물결
+SINGLE	直射	직선탄
+AIMED	瞄准	조준탄
+FAN	扇射	부채꼴탄
+TWO WAY	双发型	쌍포형
+MID BOSS	中型首领	중간 보스
+ITEMS	道具	아이템
+Fast Attack - Arrow	速射型 · 利箭	속사형 · 화살
+Fast Attack - Twin Fang	速射型 · 双獠牙	속사형 · 쌍송곳니
+Fast Attack - Stealth	速射型 · 隐形	속사형 · 스텔스
+Big Bullet - Cannon	重炮型 · 巨炮	중포형 · 대포
+Big Bullet - Mortar	重炮型 · 迫击炮	중포형 · 박격포
+Big Bullet - Fortress	重炮型 · 堡垒	중포형 · 요새
+Fast Move - Jet	高速型 · 喷气机	고속형 · 제트
+Fast Move - Triple Thruster	高速型 · 三重推进器	고속형 · 3중 추진기
+Fast Move - Stealth	高速型 · 隐形	고속형 · 스텔스
+Two-Way Shot - Long Barrels	双发型 · 长炮管	쌍포형 · 장포신
+Two-Way Shot - Twin Spike	双发型 · 双尖刺	쌍포형 · 쌍창
+Two-Way Shot - Hollow	双发型 · 镂空	쌍포형 · 중공형

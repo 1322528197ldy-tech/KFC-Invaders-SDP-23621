@@ -2,6 +2,13 @@ package engine;
 
 import screen.EndlessMode;
 import screen.Screen;
+import screen.SettingsScreen;
+import java.awt.Rectangle;
+import java.util.List;
+import item.ItemSystem;
+import entity.Ship.ShipType;
+import shop.ShopCatalog;
+import shop.Skin;
 import screen.TitleScreen;
 import java.awt.Canvas;
 import java.awt.Graphics;
@@ -48,9 +55,31 @@ public final class EntryGateChecks {
         ((MouseListener)controls).mousePressed(new MouseEvent(INPUT,MouseEvent.MOUSE_PRESSED,0,0,x+16,y+55,1,false,MouseEvent.BUTTON1));
     }
     private static void update()throws Exception { EndlessMode.updateEntry(menu); }
-    private static Object password()throws Exception { return get(EndlessMode.class,null,"testPassword"); }
-    private static boolean promptOpen()throws Exception { return (Boolean)get(password().getClass(),password(),"open"); }
-    private static String value()throws Exception { return (String)get(password().getClass(),password(),"value"); }
+    private static void updateSettings(SettingsScreen settings) throws Exception {
+        Method update = SettingsScreen.class.getDeclaredMethod("update");
+        update.setAccessible(true);
+        update.invoke(settings);
+    }
+    private static void settingsKey(SettingsScreen settings, int code) throws Exception {
+        InputManager input = Core.getInputManager();
+        input.keyPressed(new KeyEvent(INPUT, KeyEvent.KEY_PRESSED, 0, 0, code, KeyEvent.CHAR_UNDEFINED));
+        updateSettings(settings);
+        input.keyReleased(new KeyEvent(INPUT, KeyEvent.KEY_RELEASED, 0, 0, code, KeyEvent.CHAR_UNDEFINED));
+        updateSettings(settings);
+    }
+    private static void settingsClick(SettingsScreen settings, String method, Object... arguments) throws Exception {
+        Method bounds = arguments.length == 0 ? SettingsScreen.class.getDeclaredMethod(method)
+                : SettingsScreen.class.getDeclaredMethod(method, boolean.class);
+        bounds.setAccessible(true);
+        Rectangle button = (Rectangle) bounds.invoke(settings, arguments);
+        int x = (int) button.getCenterX();
+        int y = (int) button.getCenterY();
+        InputManager input = Core.getInputManager();
+        input.mousePressed(new MouseEvent(INPUT, MouseEvent.MOUSE_PRESSED, 0, 0, x, y, 1, false, MouseEvent.BUTTON1));
+        updateSettings(settings);
+        input.mouseReleased(new MouseEvent(INPUT, MouseEvent.MOUSE_RELEASED, 0, 0, x, y, 1, false, MouseEvent.BUTTON1));
+        updateSettings(settings);
+    }
     private static void render(Path directory,String name)throws Exception {
         Core.getDrawManager().initDrawing(menu);EndlessMode.drawEntry(menu);
         ImageIO.write((BufferedImage)get(DrawManager.class,null,"backBuffer"),"png",directory.resolve(name+".png").toFile());
@@ -90,21 +119,62 @@ public final class EntryGateChecks {
         Path screenshots=Path.of(args[0]);Files.createDirectories(screenshots);
         render(screenshots,"entry-locked");
         click(360,337);update();
-        check(promptOpen() && get(Frame.class,frame,"currentScreen")==null,"Lock click opens a prompt without starting QA");
-        tap(KeyEvent.VK_ENTER);update();
-        check(promptOpen() && get(Frame.class,frame,"currentScreen")==null,"Empty password is rejected");
-        tap(KeyEvent.VK_1);tap(KeyEvent.VK_2);tap(KeyEvent.VK_3);tap(KeyEvent.VK_ENTER);update();
-        check((Boolean)get(password().getClass(),password(),"error") && value().isEmpty(),"Wrong password clears input and shows an error");
-        check(get(Frame.class,frame,"currentScreen")==null,"Wrong password never launches a game");
-        render(screenshots,"entry-password-error");
-        tap(KeyEvent.VK_0);tap(KeyEvent.VK_1);tap(KeyEvent.VK_BACK_SPACE);tap(KeyEvent.VK_NUMPAD0);update();
-        check(value().equals("00"),"Ordered digits, numpad and backspace edit the masked password");
-        tap(KeyEvent.VK_DELETE);update();check(value().isEmpty(),"Delete clears the password");
-        tap(KeyEvent.VK_0);tap(KeyEvent.VK_ESCAPE);update();
-        check(!promptOpen() && (Boolean)get(EndlessMode.class,null,"gateOpen"),"Escape cancels only the password prompt");
-        click(360,337);update();check(value().isEmpty(),"Reopening starts with an empty password");
-        tap(KeyEvent.VK_0);tap(KeyEvent.VK_0);tap(KeyEvent.VK_0);update();
-        render(screenshots,"entry-password");
+        check((Boolean)get(EndlessMode.class,null,"gateOpen")
+                && get(Frame.class,frame,"currentScreen")==null && !TesterMode.isEnabled(),
+                "The former lock location has no test action");
+        tap(KeyEvent.VK_ESCAPE);update();
+
+        PurchaseManager normal = PurchaseManager.getInstance();
+        var normalShip = normal.getSelectedShip();
+        var normalSkin = normal.getSelectedSkin();
+        int normalCoins = CurrencyManager.getInstance().getCoins();
+        int normalDiamonds = DiamondManager.getInstance().getDiamonds();
+        var normalScores = Core.getFileManager().loadHighScores();
+        var normalAchievementManager = Core.getAchievementManager();
+        byte[] ownedSave = Files.readAllBytes(location.getParent().resolve("shop-owned"));
+
+        SettingsScreen settings = new SettingsScreen(432,497,60);
+        field(Cooldown.class,"time").setLong(get(Screen.class,settings,"inputDelay"),0);
+        settingsClick(settings,"testButton");
+        check((Boolean)get(SettingsScreen.class,settings,"testDialog"),"Settings lock opens the test mode prompt");
+        settingsKey(settings,KeyEvent.VK_ENTER);
+        check(!TesterMode.isEnabled(),"Empty code is rejected");
+        settingsKey(settings,KeyEvent.VK_1);
+        settingsKey(settings,KeyEvent.VK_2);
+        settingsKey(settings,KeyEvent.VK_ENTER);
+        check((Boolean)get(SettingsScreen.class,settings,"wrongCode")
+                && Core.getInputManager().enteredCode().isEmpty(),"Wrong code clears the input");
+        settingsKey(settings,KeyEvent.VK_0);
+        settingsKey(settings,KeyEvent.VK_1);
+        settingsKey(settings,KeyEvent.VK_BACK_SPACE);
+        settingsKey(settings,KeyEvent.VK_NUMPAD0);
+        check(Core.getInputManager().enteredCode().equals("00"),"Code field accepts numpad and backspace");
+        settingsKey(settings,KeyEvent.VK_DELETE);
+        check(Core.getInputManager().enteredCode().isEmpty(),"Delete clears the code");
+        settingsKey(settings,KeyEvent.VK_ESCAPE);
+        check(!(Boolean)get(SettingsScreen.class,settings,"testDialog") && !TesterMode.isEnabled(),
+                "Escape closes the prompt without enabling testing");
+
+        settingsClick(settings,"testButton");
+        for (int i=0;i<3;i++) settingsKey(settings,KeyEvent.VK_0);
+        settingsClick(settings,"dialogButton",true);
+        check(TesterMode.isEnabled() && EndlessMode.unlocked(),"Correct code unlocks Endless from Settings");
+        PurchaseManager tester = PurchaseManager.getInstance();
+        check(tester != normal && ShopCatalog.getAll().stream().allMatch(tester::isOwned),
+                "All catalog entries are unlocked in a separate profile");
+        check(tester.selectShip(ShipType.FAST_MOVE) && tester.selectSkin(Skin.GILDED),
+                "Test ship and skin can be equipped");
+        check(tester.setUpgradeOn("magnet",true) && ItemSystem.equippedItem().itemId.equals("magnet"),
+                "Test equipment can be enabled and equipped");
+        check(Core.getAchievementManager().getAchievements().stream().allMatch(Achievement::isUnlocked),
+                "Achievements are unlocked in the test profile");
+        CurrencyManager.getInstance().addCoins(123);
+        DiamondManager.getInstance().addDiamonds(45);
+        Core.getFileManager().saveHighScores(List.of(new Score("TST",99999)));
+
+        tap(KeyEvent.VK_E);update();
+        check((Boolean)get(EndlessMode.class,null,"gateAvailable"),"Unlocked settings profile enables Start Run");
+        render(screenshots,"entry-unlocked-for-testing");
         AtomicReference<Throwable> failure=new AtomicReference<>();
         tap(KeyEvent.VK_ENTER);
         Thread launch=new Thread(()->{try{update();}catch(Throwable e){failure.set(e);}},"entry-check");
@@ -113,20 +183,35 @@ public final class EntryGateChecks {
         Screen active=null;
         while(launch.isAlive() && System.nanoTime()<deadline){
             active=(Screen)get(Frame.class,frame,"currentScreen");
-            if(active!=null && (Boolean)get(Screen.class,active,"isRunning"))break;
+            if(active instanceof EndlessMode && (Boolean)get(Screen.class,active,"isRunning"))break;
             Thread.sleep(10);
         }
-        check(active instanceof EndlessMode,"Correct password launches the real Endless screen");
-        check((Boolean)get(EndlessMode.class,active,"testing"),"Password access always launches nonpersistent QA");
+        check(active instanceof EndlessMode,"Start Run launches a real Endless screen");
+        check((Boolean)get(EndlessMode.class,active,"testing"),"Endless uses its test records and test progress");
+        endless.GameplaySession session=(endless.GameplaySession)get(EndlessMode.class,active,"systems");
+        check(session.getShip().getType()==ShipType.FAST_MOVE && session.getSkin()==Skin.GILDED,
+                "Endless uses the test ship and skin");
         set(Screen.class,active,"isRunning",false);launch.join(2000);
-        check(!launch.isAlive() && failure.get()==null,"Password launch returns without errors");
-        check(!EndlessMode.unlocked(),"QA password never unlocks the campaign achievement");
-        tap(KeyEvent.VK_E);update();click(360,337);update();
-        check(promptOpen() && value().isEmpty(),"The next test run requires the password again");
-        click(50,337);update();check(!promptOpen(),"BACK cancels the password prompt");
-        set(EndlessMode.class,null,"gateAvailable",true);
-        render(screenshots,"entry-unlocked");
-        check(!(Boolean)get(password().getClass(),password(),"open"),"Normal unlocked entry has no password prompt");
+        check(!launch.isAlive() && failure.get()==null,"Test run returns without errors");
+        settingsClick(settings,"testButton");
+        settingsClick(settings,"dialogButton",false);
+        check(TesterMode.isEnabled(),"Back leaves test mode enabled");
+        settingsClick(settings,"testButton");
+        settingsClick(settings,"dialogButton",true);
+        check(!TesterMode.isEnabled() && !EndlessMode.unlocked(),"Disabling restores the original Endless lock");
+        check(PurchaseManager.getInstance()==normal && normal.getSelectedShip()==normalShip
+                && normal.getSelectedSkin()==normalSkin,"Disabling restores the regular loadout");
+        check(CurrencyManager.getInstance().getCoins()==normalCoins
+                && DiamondManager.getInstance().getDiamonds()==normalDiamonds,"Test currency never enters regular balances");
+        check(Core.getAchievementManager()==normalAchievementManager
+                && Core.getAchievementManager().getAchievements().stream().anyMatch(a->!a.isUnlocked()),
+                "Regular achievements retain their original state");
+        check(Core.getFileManager().loadHighScores().size()==normalScores.size(),
+                "Test records are excluded from regular high scores");
+        check(java.util.Arrays.equals(ownedSave,Files.readAllBytes(location.getParent().resolve("shop-owned"))),
+                "Testing leaves the regular shop file byte-for-byte intact");
+
+        tap(KeyEvent.VK_E);update();
         check(get(EndlessMode.class,null,"bossRule")==endless.BossRule.EVERY_FIVE_WAVES,"Five-wave bosses are the default rule");
         tap(KeyEvent.VK_B);update();
         check(get(EndlessMode.class,null,"bossRule")==endless.BossRule.EVERY_90_SECONDS,"B switches to the 90 second rule");
@@ -137,6 +222,6 @@ public final class EntryGateChecks {
         render(screenshots,"entry-boss-rule-kills");
         tap(KeyEvent.VK_B);update();
         check(get(EndlessMode.class,null,"bossRule")==endless.BossRule.EVERY_FIVE_WAVES,"The third switch returns to five waves");
-        System.out.println("PASS: "+checks+" packaged entry / password checks");
+        System.out.println("PASS: "+checks+" packaged entry / Settings test mode checks");
     }
 }

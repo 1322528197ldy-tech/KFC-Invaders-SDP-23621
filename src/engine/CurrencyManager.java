@@ -21,6 +21,8 @@ public final class CurrencyManager {
 
 	/** Singleton instance. */
 	private static CurrencyManager instance;
+	private static CurrencyManager testInstance;
+	private final boolean testing;
 
 	/** Current coin balance, persisted to disk. Never negative. */
 	private int coins;
@@ -28,8 +30,9 @@ public final class CurrencyManager {
 	/**
 	 * Private constructor, loads whatever balance was last saved.
 	 */
-	private CurrencyManager() {
-		this.coins = Math.max(0, FileManager.getInstance().loadCoins());
+	private CurrencyManager(boolean testing) {
+		this.testing = testing;
+		this.coins = testing ? 0 : Math.max(0, FileManager.getInstance().loadCoins());
 	}
 
 	/**
@@ -38,8 +41,13 @@ public final class CurrencyManager {
 	 * @return shared instance of CurrencyManager.
 	 */
 	public static CurrencyManager getInstance() {
+		if (TesterMode.isEnabled()) {
+			if (testInstance == null)
+				testInstance = new CurrencyManager(true);
+			return testInstance;
+		}
 		if (instance == null)
-			instance = new CurrencyManager();
+			instance = new CurrencyManager(false);
 		return instance;
 	}
 
@@ -115,6 +123,7 @@ public final class CurrencyManager {
 	 * Writes the current balance to disk.
 	 */
 	private void save() {
-		FileManager.getInstance().saveCoins(this.coins);
+		if (!testing)
+			FileManager.getInstance().saveCoins(this.coins);
 	}
 }
