@@ -207,3 +207,6 @@ diamonds.tmp
 /endless-records.properties
 /endless-test-records.properties
 /ui-settings.properties
+
+# Per-player window size preference
+/window-settings.properties

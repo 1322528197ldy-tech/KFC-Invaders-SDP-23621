@@ -56,11 +56,14 @@ public class HighScoreScreen extends Screen {
 	 */
 	protected final void update() {
 		super.update();
+        if (takeEscapePress() || takeNavigationClick()) {
+            this.returnCode = 1;
+            this.isRunning = false;
+            draw();
+            return;
+        }
 
 		draw();
-		if (inputManager.isKeyDown(KeyEvent.VK_ESCAPE)
-				&& this.inputDelay.checkFinished())
-			this.isRunning = false;
 	}
 
 	/**

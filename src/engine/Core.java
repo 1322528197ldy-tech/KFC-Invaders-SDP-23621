@@ -122,8 +122,8 @@ public final class Core {
 
 		frame = new Frame(WIDTH, HEIGHT);
 		DrawManager.getInstance().setFrame(frame);
-		int width = WIDTH;
-		int height = HEIGHT;
+		int width = frame.getLogicalWidth();
+		int height = frame.getLogicalHeight();
 
         // Show the supplied school and team credits once, before the main menu.
         if (!Boolean.getBoolean("game.skipIntro")) {

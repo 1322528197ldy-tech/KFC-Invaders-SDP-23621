@@ -14,12 +14,12 @@ import java.awt.event.MouseMotionListener;
  * @author <a href="mailto:RobertoIA1987@gmail.com">Roberto Izquierdo Amo</a>
  * 
  */
-public final class InputManager implements KeyListener, MouseMotionListener, MouseListener {
+public final class InputManager implements KeyListener, MouseMotionListener, MouseListener, ResettableInput {
 
 	/** Number of recognised keys. */
 	private static final int NUM_KEYS = 256;
 	/** Array with the keys marked as pressed or not. */
-	private static boolean[] keys;
+	private static volatile boolean[] keys;
 	private StringBuilder enteredCode;
 	/** Singleton instance of the class. */
 	private static InputManager instance;
@@ -28,11 +28,20 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	/** Current mouse Y position. */
 	private volatile int mouseY;
 	/** Whether the mouse has moved since the last check. */
-	private boolean isMoved = false;
+	private final java.util.concurrent.atomic.AtomicBoolean isMoved =
+            new java.util.concurrent.atomic.AtomicBoolean();
 	/** Whether a mouse button is currently held down. */
-	private boolean isClick;
+	private volatile boolean isClick;
 	/** Whether the left mouse button is held down. */
 	private volatile boolean leftMousePressed;
+    /** Preserve a quick Escape tap even when both events occur between two game updates. */
+    private final java.util.concurrent.atomic.AtomicBoolean escapePressed =
+            new java.util.concurrent.atomic.AtomicBoolean();
+
+    public boolean consumeEscapePress() { return escapePressed.getAndSet(false); }
+    private final java.util.concurrent.atomic.AtomicBoolean pausePressed =
+            new java.util.concurrent.atomic.AtomicBoolean();
+    public boolean consumePausePress() { return pausePressed.getAndSet(false); }
 
 	/**
 	 * Private constructor.
@@ -63,6 +72,16 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 		return keys[keyCode];
 	}
 
+    /** Release keyboard/mouse state together when native focus or visibility changes. */
+    @Override public synchronized void resetInput() {
+        this.leftMousePressed=false;this.isClick=false;this.isMoved.set(false);
+        this.escapePressed.set(false);
+        this.pausePressed.set(false);
+        this.mouseX=-1;this.mouseY=-1;
+        // Publish a fresh released state to the game thread as well as the event thread.
+        keys=new boolean[NUM_KEYS];
+    }
+
 	/**
 	 * Changes the state of the key to pressed.
 	 * 
@@ -73,8 +92,11 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	public synchronized void keyPressed(final KeyEvent key) {
 		int code = key.getKeyCode();
 		if (code >= 0 && code < NUM_KEYS) {
-			if (!keys[code] && enteredCode != null)
-				editCode(code);
+			if (!keys[code]) {
+                if (enteredCode != null) editCode(code);
+                if (code == KeyEvent.VK_ESCAPE) escapePressed.set(true);
+                if (code == KeyEvent.VK_P) pausePressed.set(true);
+            }
 			keys[code] = true;
 		}
 	}
@@ -163,7 +185,7 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	@Override
 	public void mouseMoved(final MouseEvent e) {
 		updateMousePosition(Frame.gamePoint(e));
-		isMoved = true;
+		isMoved.set(true);
 
 	}
 
@@ -174,9 +196,7 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	 */
 
 	public boolean isMouseMoved() {
-		boolean moved = isMoved;
-		isMoved = false;
-		return moved;
+		return isMoved.getAndSet(false);
 	}
 	/**
 	 * Updates the mouse position and records movement while dragging.

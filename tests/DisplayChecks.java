@@ -161,6 +161,7 @@ public final class DisplayChecks {
         });
         Frame frame = window[0];
         try {
+            frame.applyWindowMode(WindowSettings.Mode.LARGE);
             Core.getDrawManager().setFrame(frame);
             Canvas surface = (Canvas) field(Frame.class, "surface").get(frame);
             var transform = surface.getGraphicsConfiguration().getDefaultTransform();
