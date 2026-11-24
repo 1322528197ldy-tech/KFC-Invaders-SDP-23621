@@ -41,6 +41,7 @@ public final class FileManager {
 	private static FileManager instance;
 	/** Application logger. */
 	private static Logger logger;
+	private List<Score> testHighScores = List.of();
 	/** Max number of high scores. */
 	private static final int MAX_SCORES = 7;
 	/** Name of the file containing persistent player progress. */
@@ -155,6 +156,11 @@ public final class FileManager {
 	 * @throws FontFormatException
 	 *             In case of incorrect font format.
 	 */
+	public Font loadUiFont(float size) throws IOException, FontFormatException {
+		return System.getProperty("game.font") == null
+				? new Font(Font.SANS_SERIF, Font.PLAIN, 1).deriveFont(size) : loadFont(size);
+	}
+
 	public Font loadFont(final float size) throws IOException,
 			FontFormatException {
 		String path = System.getProperty("game.font", DEFAULT_FONT);
@@ -242,6 +248,8 @@ public final class FileManager {
 	 *             In case of loading problems.
 	 */
 	public List<Score> loadHighScores() throws IOException {
+		if (TesterMode.isEnabled())
+			return new ArrayList<>(testHighScores);
 
 		List<Score> highScores = new ArrayList<Score>();
 		InputStream inputStream = null;
@@ -297,6 +305,10 @@ public final class FileManager {
 	 */
 	public void saveHighScores(final List<Score> highScores)
 			throws IOException {
+		if (TesterMode.isEnabled()) {
+			testHighScores = List.copyOf(highScores);
+			return;
+		}
 		OutputStream outputStream = null;
 		BufferedWriter bufferedWriter = null;
 

@@ -1,5 +1,6 @@
 package engine;
 
+import java.awt.Point;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 
@@ -19,6 +20,7 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	private static final int NUM_KEYS = 256;
 	/** Array with the keys marked as pressed or not. */
 	private static boolean[] keys;
+	private StringBuilder enteredCode;
 	/** Singleton instance of the class. */
 	private static InputManager instance;
 	/** Current mouse X position. */
@@ -57,7 +59,7 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	 *            Key number to check.
 	 * @return Key state.
 	 */
-	public boolean isKeyDown(final int keyCode) {
+	public synchronized boolean isKeyDown(final int keyCode) {
 		return keys[keyCode];
 	}
 
@@ -68,9 +70,38 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	 *            Key pressed.
 	 */
 	@Override
-	public void keyPressed(final KeyEvent key) {
-		if (key.getKeyCode() >= 0 && key.getKeyCode() < NUM_KEYS)
-			keys[key.getKeyCode()] = true;
+	public synchronized void keyPressed(final KeyEvent key) {
+		int code = key.getKeyCode();
+		if (code >= 0 && code < NUM_KEYS) {
+			if (!keys[code] && enteredCode != null)
+				editCode(code);
+			keys[code] = true;
+		}
+	}
+
+	public synchronized void beginCodeEntry() {
+		enteredCode = new StringBuilder();
+	}
+
+	public synchronized String enteredCode() {
+		return enteredCode == null ? "" : enteredCode.toString();
+	}
+
+	public synchronized void endCodeEntry() {
+		enteredCode = null;
+	}
+
+	private void editCode(int code) {
+		if (code == KeyEvent.VK_BACK_SPACE && enteredCode.length() > 0) {
+			enteredCode.deleteCharAt(enteredCode.length() - 1);
+		} else if (code == KeyEvent.VK_DELETE) {
+			enteredCode.setLength(0);
+		} else if (enteredCode.length() < 8) {
+			if (code >= KeyEvent.VK_0 && code <= KeyEvent.VK_9)
+				enteredCode.append(code - KeyEvent.VK_0);
+			else if (code >= KeyEvent.VK_NUMPAD0 && code <= KeyEvent.VK_NUMPAD9)
+				enteredCode.append(code - KeyEvent.VK_NUMPAD0);
+		}
 	}
 
 	/**
@@ -80,7 +111,7 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	 *            Key released.
 	 */
 	@Override
-	public void keyReleased(final KeyEvent key) {
+	public synchronized void keyReleased(final KeyEvent key) {
 		if (key.getKeyCode() >= 0 && key.getKeyCode() < NUM_KEYS)
 			keys[key.getKeyCode()] = false;
 	}
@@ -131,8 +162,7 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	 */
 	@Override
 	public void mouseMoved(final MouseEvent e) {
-		mouseX = e.getX();
-		mouseY = e.getY();
+		updateMousePosition(Frame.gamePoint(e));
 		isMoved = true;
 
 	}
@@ -173,8 +203,10 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	 */
 	@Override
 	public void mousePressed(final MouseEvent e) {
-		mouseX = e.getX();
-		mouseY = e.getY();
+		Point point = Frame.gameClick(e);
+		if (point == null)
+			return;
+		updateMousePosition(point);
 		isClick = true;
 		if (e.getButton() == MouseEvent.BUTTON1)
 			this.leftMousePressed = true;
@@ -187,10 +219,14 @@ public final class InputManager implements KeyListener, MouseMotionListener, Mou
 	@Override
 	public void mouseReleased(final MouseEvent e) {
 		isClick = false;
-		mouseX = e.getX();
-		mouseY = e.getY();
+		updateMousePosition(Frame.gamePoint(e));
 		if (e.getButton() == MouseEvent.BUTTON1)
 			this.leftMousePressed = false;
+	}
+
+	private void updateMousePosition(Point point) {
+		mouseX = point.x;
+		mouseY = point.y;
 	}
 	/**
 	 * Does nothing.

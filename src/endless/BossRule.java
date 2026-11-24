@@ -1,5 +1,7 @@
 package endless;
 
+import engine.I18n;
+
 /**
  * When a boss-only wave replaces the next ordinary endless wave. Chosen on the entry panel.
  *
@@ -109,10 +111,10 @@ public enum BossRule {
 
         /** Short HUD label: the boss wave, or what is still missing before the next boss. */
         public String status(int wave, double seconds, int kills) {
-            if (fixedWaves()) return "BOSS W" + nextBossWave(wave, seconds, kills);
+            if (fixedWaves()) return I18n.format("BOSS W%d", nextBossWave(wave, seconds, kills));
             if (due(seconds, kills)) return "BOSS NEXT";
             int missing = (int) Math.ceil(rule.interval - gathered(seconds, kills));
-            return "BOSS " + missing + (rule.counter == Counter.SECONDS ? "S" : " KILLS");
+            return I18n.format(rule.counter == Counter.SECONDS ? "BOSS %dS" : "BOSS %d KILLS", missing);
         }
     }
 }

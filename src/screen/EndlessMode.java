@@ -23,8 +23,7 @@ import item.ItemSystem;
 
 /**
  * Removable local add-on: click the menu entry (or press E).
- * Requires the original infinity_void achievement; the bottom-right lock is a
- * password-protected tester bypass and writes only endless-test-records.properties.
+ * Normally requires the infinity_void achievement. Settings can enable a separate test profile.
  * Base score = active whole seconds * 10 + defeated enemies * 100; items can add bonuses.
  * Boss encounters open with a safe three-second introduction. The entry panel picks when
  * they happen (every 5 waves, 90 seconds or 30 kills); the rules live in endless.BossRule.
@@ -43,7 +42,7 @@ public final class EndlessMode extends Screen {
     private static final Color GOLD = new Color(255,214,92);
     private static final Color DANGER = new Color(255,91,101);
     private static Font loadUiFont() {
-        try { return Core.getFileManager().loadFont(12f); }
+        try { return Core.getFileManager().loadUiFont(12f); }
         catch (IOException | FontFormatException e) { return new Font(Font.MONOSPACED,Font.PLAIN,12); }
     }
     private static final Color[] SPARKLES = {Color.WHITE, Color.YELLOW, Color.ORANGE, Color.CYAN};
@@ -52,7 +51,6 @@ public final class EndlessMode extends Screen {
     private static Screen menuScreen;
     private static int menuIndex;
     private static boolean gateOpen, gateAvailable;
-    private static final TestPassword testPassword = new TestPassword();
     /** Chosen on the entry panel; kept for retries and later runs in this session. */
     private static BossRule bossRule = BossRule.EVERY_FIVE_WAVES;
     private static final Rectangle BOSS_RULE_BOX = new Rectangle(266,224,112,58);
@@ -98,6 +96,7 @@ public final class EndlessMode extends Screen {
 
     /** Only reads the existing achievement. The test bypass never modifies it. */
     public static boolean unlocked() {
+        if (TesterMode.isEnabled()) return true;
         for (Achievement a : Core.getAchievementManager().getAchievements())
             if ("infinity_void".equals(a.getId())) return a.isUnlocked();
         return false;
@@ -115,9 +114,8 @@ public final class EndlessMode extends Screen {
         engine.Frame frame = (engine.Frame)drawingField("frame");
         if (frame == boundFrame) return;
         boundFrame = frame;
-        frame.addKeyListener(controls);
-        frame.getContentPane().addMouseListener(controls);
-        frame.getContentPane().addMouseMotionListener(controls);
+        frame.addGameKeyListener(controls);
+        frame.addGameMouseListener(controls);
     }
 
     private static Field menuField(String name) throws ReflectiveOperationException {
@@ -133,7 +131,6 @@ public final class EndlessMode extends Screen {
         int ordinal = ((MenuItem)menuField("selected").get(screen)).ordinal();
         menuIndex = ordinal == 0 ? 0 : ordinal + 1;
         gateOpen = false;
-        testPassword.close();
         controls.clear();
     }
 
@@ -185,27 +182,14 @@ public final class EndlessMode extends Screen {
             Point local = click == null ? null : new Point(
                     click.x - (screen.getWidth()-GATE_WIDTH)/2,
                     click.y - (screen.getHeight()-GATE_HEIGHT)/2);
-            if (testPassword.open) {
-                if (escape || inside(local,362,10,24,24) || inside(local,22,320,148,36)) {
-                    testPassword.close();
-                    controls.clear();
-                } else if (testPassword.accept(controls.takePasswordInput(),
-                        enter || inside(local,182,320,196,36))) {
-                    startEndless(screen, true);
-                }
-                return true;
-            }
             if (escape || inside(local, 362,10,24,24)
                     || inside(local,22,320,gateAvailable ? 148 : 300,36)) {
                 gateOpen = false;
                 controls.clear();
             } else if (controls.take(KeyEvent.VK_B) || (local != null && BOSS_RULE_BOX.contains(local))) {
                 bossRule = bossRule.next();
-            } else if (inside(local,344,320,34,36)) {
-                testPassword.show();
-                controls.beginPasswordInput();
-            } else if (gateAvailable && (enter || inside(local,182,320,140,36))) {
-                startEndless(screen, false);
+            } else if (gateAvailable && (enter || inside(local,182,320,196,36))) {
+                startEndless(screen, TesterMode.isEnabled());
             }
             return true;
         }
@@ -228,7 +212,6 @@ public final class EndlessMode extends Screen {
             if (menuIndex == 1) {
                 gateAvailable = unlocked();
                 gateOpen = true;
-                testPassword.close();
                 controls.clear();
             } else {
                 java.lang.reflect.Method confirm = TitleScreen.class.getDeclaredMethod("confirm");
@@ -241,7 +224,6 @@ public final class EndlessMode extends Screen {
 
     private static void startEndless(Screen screen, boolean testing) throws ReflectiveOperationException {
         gateOpen = false;
-        testPassword.close();
         controls.clear();
         boolean again;
         do {
@@ -257,16 +239,18 @@ public final class EndlessMode extends Screen {
     }
 
     private static void gateButton(Graphics2D g, Point pointer, String label, int x, int width) {
+        label = I18n.text(label);
         boolean hover = inside(pointer, x,320,width,36);
         g.setColor(hover ? new Color(8,40,16) : new Color(0,16,5));
         g.fillRect(x,320,width,36);
         g.setColor(hover ? Color.GREEN : new Color(45,103,58));
         g.drawRect(x,320,width-1,35);
-        g.setFont(UI_FONT);g.setColor(Color.GREEN);
+        g.setFont(uiFont(12));g.setColor(Color.GREEN);
         g.drawString(label,x+(width-g.getFontMetrics().stringWidth(label))/2,344);
     }
 
     private static void centerGate(Graphics2D g, String text, int y, Color color) {
+        text = I18n.text(text);
         g.setColor(color);
         g.drawString(text,(GATE_WIDTH-g.getFontMetrics().stringWidth(text))/2,y);
     }
@@ -285,82 +269,30 @@ public final class EndlessMode extends Screen {
         g.setColor(new Color(40,115,54));g.drawRect(0,0,GATE_WIDTH-1,GATE_HEIGHT-1);
         g.setColor(Color.GREEN);
         for(int x:new int[]{0,GATE_WIDTH-17})for(int y:new int[]{0,GATE_HEIGHT-17})g.drawRect(x,y,16,16);
-        g.setFont(UI_FONT.deriveFont(10f));g.setColor(MUTED);g.drawString("INVADERS / SURVIVAL",22,28);
+        g.setFont(uiFont(10));g.setColor(MUTED);g.drawString(I18n.text("INVADERS / SURVIVAL"),22,28);
         g.setColor(inside(pointer,362,10,24,24) ? Color.GREEN : MUTED);
         g.drawRect(362,10,23,23);
         g.drawLine(369,17,378,26);g.drawLine(378,17,369,26);
-        if (testPassword.open) {
-            drawTestPassword(g,pointer);
-            g.dispose();
-            return;
-        }
-        g.setFont(UI_FONT.deriveFont(24f));centerGate(g,"ENDLESS",73,Color.GREEN);
-        g.setColor(gateAvailable?Color.GREEN:new Color(110,132,116));pixelLock(g,182,95,4);
-        g.setFont(UI_FONT.deriveFont(14f));centerGate(g,gateAvailable?"ACCESS GRANTED":"MODE LOCKED",163,gateAvailable?Color.GREEN:Color.WHITE);
-        g.setFont(UI_FONT);centerGate(g,gateAvailable?"STAGE 10 COMPLETE. KEEP FIGHTING.":"CLEAR STAGE 10 TO UNLOCK.",190,MUTED);
+        g.setFont(uiFont(24));centerGate(g,"ENDLESS",73,Color.GREEN);
+        g.setFont(uiFont(14));centerGate(g,gateAvailable?"ACCESS GRANTED":"MODE LOCKED",139,gateAvailable?Color.GREEN:Color.WHITE);
+        String help = TesterMode.isEnabled() ? "Test mode on" : gateAvailable
+                ? "STAGE 10 COMPLETE. KEEP FIGHTING." : "CLEAR STAGE 10 TO UNLOCK.";
+        g.setFont(uiFont(12));centerGate(g,help,172,MUTED);
         g.setColor(new Color(35,76,43));g.drawLine(22,210,378,210);
         String[] labels={"SURVIVE","UPGRADE","BOSS"};String[] values={"NO LIMIT","3 WAVES",bossRule.label};
         for(int i=0;i<3;i++){int x=22+i*122;
             // The boss box is the one setting on this panel: click it or press B to switch rules.
             boolean option=i==2;
             g.setColor(option?new Color(45,103,58):new Color(22,48,28));g.drawRect(x,224,112,58);
-            g.setFont(UI_FONT.deriveFont(10f));g.setColor(MUTED);g.drawString(labels[i],x+10,option?241:244);
+            g.setFont(uiFont(10));g.setColor(MUTED);g.drawString(I18n.text(labels[i]),x+10,option?241:244);
             fitted(g,values[i],x+10,option?260:268,92,12,Color.WHITE);
             if(option)fitted(g,"[B] TO CHANGE",x+10,275,92,8,MUTED);}
         gateButton(g,pointer,"BACK",22,gateAvailable?148:300);
-        if(gateAvailable)gateButton(g,pointer,"START RUN",182,140);
-        gateButton(g,pointer,"",344,34);
-        g.setColor(new Color(185,174,96));pixelLock(g,352,328,2);
-        g.setFont(UI_FONT.deriveFont(9f));g.setColor(MUTED);g.drawString("QA",352,310);
+        if(gateAvailable)gateButton(g,pointer,"START RUN",182,196);
         centerGate(g,"ESC TO RETURN",374,MUTED);
         g.dispose();
     }
 
-    private static void drawTestPassword(Graphics2D g, Point pointer) {
-        g.setFont(UI_FONT.deriveFont(22f));centerGate(g,"TEST ACCESS",83,Color.GREEN);
-        g.setFont(UI_FONT);centerGate(g,"ENTER TEST PASSWORD",137,Color.WHITE);
-        centerGate(g,"TYPE DIGITS, THEN PRESS ENTER",164,MUTED);
-        g.setColor(new Color(4,25,13));g.fillRect(90,190,220,50);
-        g.setColor(Color.GREEN);g.drawRect(90,190,220,50);
-        g.setFont(UI_FONT.deriveFont(24f));
-        centerGate(g,"*".repeat(testPassword.value.length())+"_",225,Color.WHITE);
-        g.setFont(UI_FONT.deriveFont(10f));
-        centerGate(g,testPassword.error?"INCORRECT PASSWORD. TRY AGAIN.":"BACKSPACE TO EDIT",268,
-                testPassword.error?DANGER:MUTED);
-        centerGate(g,"TEST ONLY / NO SHARED PROGRESS",295,MUTED);
-        gateButton(g,pointer,"BACK",22,148);
-        gateButton(g,pointer,"ENTER TEST",182,196);
-        centerGate(g,"ESC TO CANCEL",374,MUTED);
-    }
-
-    /** Session-only QA access. Never changes the campaign unlock achievement. */
-    private static final class TestPassword {
-        private boolean open, error;
-        private String value="";
-        void show() { open=true;error=false;value=""; }
-        void close() { open=false;error=false;value=""; }
-        boolean accept(String input, boolean submit) {
-            if (!open) return false;
-            for (char c : input.toCharArray()) {
-                if (c=='\b') { if(!value.isEmpty())value=value.substring(0,value.length()-1); }
-                else if(c==127)value="";
-                else if(c>='0' && c<='9' && value.length()<16)value+=c;
-                error=false;
-            }
-            if (!submit) return false;
-            if ("000".equals(value)) { close();return true; }
-            value="";error=true;
-            return false;
-        }
-    }
-
-    private static void pixelLock(Graphics g,int x,int y,int scale) {
-        g.fillRect(x+2*scale,y,5*scale,scale);
-        g.fillRect(x+scale,y+scale,scale,4*scale);
-        g.fillRect(x+7*scale,y+scale,scale,4*scale);
-        g.fillRect(x,y+4*scale,9*scale,6*scale);
-        g.setColor(Color.BLACK);g.fillRect(x+4*scale,y+6*scale,scale,2*scale);
-    }
     @Override public void initialize(){previousTime=System.nanoTime(); controls.clear();}
     @Override public int run(){ super.run(); return returnCode; }
     @Override protected void update() {
@@ -421,14 +353,22 @@ public final class EndlessMode extends Screen {
                 else openPauseConfirm(PauseConfirm.Action.ENDLESS_QUIT);
             }
             Screen menu = null;
-            if(shop && !testing) menu = new ShopScreen(width,height,60);
-            else if(customize && !testing) menu = new ShipSelectScreen(width,height,60);
-            else if(settings) menu = new SettingsScreen(width,height,60);
+            if(shop && (!testing || TesterMode.isEnabled())) menu = new ShopScreen(width,height,60);
+            else if(customize && (!testing || TesterMode.isEnabled())) menu = new ShipSelectScreen(width,height,60);
+            else if(settings) menu = new SettingsScreen(width,height,60,true);
             else if(achievements) menu = new AchievementsScreen(width,height,60);
             else if(scores) menu = new EndlessRecordsScreen(width,height,testing);
             if(menu!=null) {
-                boundFrame.setScreen(menu); controls.clear(); previousTime=System.nanoTime(); systems.resumeAudio();
-                boundFrame.requestFocusInWindow();
+                boolean testModeBefore = TesterMode.isEnabled();
+                boundFrame.setScreen(menu);
+                controls.clear();
+                if (testModeBefore != TesterMode.isEnabled()) {
+                    systems.leave();
+                    isRunning = false;
+                    return;
+                }
+                previousTime=System.nanoTime();
+                systems.resumeAudio();
             }
             if((esc || pause) && run.getPhase()==Run.Phase.PAUSED && !pauseConfirm.isOpen()) run.togglePause();
         }
@@ -574,30 +514,35 @@ public final class EndlessMode extends Screen {
         if(phase==Run.Phase.REWARD) drawRewards(g);
         else if(phase==Run.Phase.BOSS_INTRO)drawBossIntro(g,boss);
         else if(phase==Run.Phase.READY){
-            panel(g,"GET READY / "+run.getCountdown());
+            panel(g,I18n.format("GET READY / %d",run.getCountdown()));
             row(g,"A/D OR ARROWS MOVE / SPACE FIRE",0);
             row(g,"P / ESC PAUSE / Q END WHILE PAUSED",1);
             row(g,"CHOOSE AN UPGRADE EVERY 3 WAVES",2);
-            row(g,"SHIP / "+player.getType().name().replace('_',' '),3);
+            row(g,I18n.format("SHIP / %s",I18n.text(player.getType().name().replace('_',' '))),3);
             ItemInfo gear=systems.getItems().equippedThisRun();
-            row(g,"GEAR / "+(gear==null?"NONE":gear.displayName.toUpperCase(java.util.Locale.ROOT)),4);
+            row(g,I18n.format("GEAR / %s",I18n.text(gear==null?"NONE":gear.displayName.toUpperCase(java.util.Locale.ROOT))),4);
         } else if(phase==Run.Phase.INTERMISSION){
-            panel(g,"WAVE "+run.getWave()+" IN "+run.getCountdown());
+            panel(g,I18n.format("WAVE %d IN %d",run.getWave(),run.getCountdown()));
             row(g,run.getNotice().isEmpty()?"SECTOR CLEAR":run.getNotice(),0);
-            row(g,"NEXT UPGRADE IN "+run.getWavesUntilReward()+" WAVE(S)",1);
+            row(g,I18n.format("NEXT UPGRADE IN %d WAVE(S)",run.getWavesUntilReward()),1);
         } else if(phase==Run.Phase.PAUSED && pauseConfirm.isOpen()){
+            drawManager.drawFadeOverlay(this,185);
             pauseConfirm.draw(drawManager,this);
         } else if(phase==Run.Phase.PAUSED){
+            drawManager.drawFadeOverlay(this,185);
             drawManager.drawPauseMenu(this,new String[]{"RESUME","RESTART","CASH OUT / QUIT"},pauseSelection);
             drawManager.drawKeyHints(this,"w+s / arrows to move, space / enter to select");
-            fitted(g,testing?"QA / NO NORMAL REWARDS":"B SHOP / C CUSTOMIZE / O SETTINGS",12,145,width-24,10,HUD_LABEL);
-            fitted(g,"G ACHIEVEMENTS / H RECORDS / Q CASH OUT",12,height-48,width-24,9,HUD_LABEL);
+            String options = TesterMode.isEnabled() ? "TEST MODE / B SHOP / C CUSTOMIZE / O SETTINGS"
+                    : testing ? "QA / NO NORMAL REWARDS" : "B SHOP / C CUSTOMIZE / O SETTINGS";
+            centered(g,options,
+                    height-94,10,HUD_LABEL);
+            centered(g,"G ACHIEVEMENTS / H RECORDS / Q CASH OUT",height-74,10,HUD_LABEL);
         } else if(phase==Run.Phase.OVER){
             if(deathTime<3) drawManager.drawGameOverBanner(this,"GAME OVER",Math.min(9,(int)(deathTime*5)+1));
-            else {panel(g,run.getEndReason()); row(g,"SCORE "+run.getScore()+" / BEST "+records.getScore(),0);
-                row(g,"TIME "+run.getSeconds()+"s / KILLS "+run.getKills()+" / BOSSES "+run.getBosses(),1);
+            else {panel(g,run.getEndReason()); row(g,I18n.format("SCORE %d / BEST %d",run.getScore(),records.getScore()),0);
+                row(g,I18n.format("TIME %ds / KILLS %d / BOSSES %d",run.getSeconds(),run.getKills(),run.getBosses()),1);
                 row(g,"ENTER RETRY / ESC MAIN MENU",2); row(g,records.getStatus(),3);
-                row(g,"COINS +"+systems.getCoinsEarned()+" / DIAMONDS BANKED +"+systems.getBankedDiamonds(),4);}
+                row(g,I18n.format("COINS +%d / DIAMONDS BANKED +%d",systems.getCoinsEarned(),systems.getBankedDiamonds()),4);}
         }
         drawManager.completeDrawing(this);
     }
@@ -608,8 +553,13 @@ public final class EndlessMode extends Screen {
         return new Rectangle(8+index*(slotWidth+6),height-32,slotWidth,22);
     }
 
+    private static Font uiFont(float size) {
+        return I18n.font(UI_FONT.deriveFont(size));
+    }
+
     private static void fitted(Graphics2D g,String value,int x,int y,int available,float size,Color color) {
-        Font font=UI_FONT.deriveFont(size);g.setFont(font);
+        value = I18n.text(value);
+        Font font=uiFont(size);g.setFont(font);
         while(size>8 && g.getFontMetrics().stringWidth(value)>available)g.setFont(font.deriveFont(--size));
         while(value.length()>3 && g.getFontMetrics().stringWidth(value)>available)
             value=value.substring(0,value.length()-4)+"...";
@@ -633,8 +583,8 @@ public final class EndlessMode extends Screen {
         g.setColor(HUD_PANEL);g.fillRect(0,0,width,130);
         g.setColor(HUD_BORDER);g.drawLine(0,129,width,129);
         fitted(g,testing?"ENDLESS / QA":"ENDLESS",12,18,80,9,Color.CYAN);
-        fitted(g,"WAVE "+run.getWave(),12,42,88,18,Color.WHITE);
-        fitted(g,"SCORE / "+run.getKills()+" KILLS",108,18,width-254,9,HUD_LABEL);
+        fitted(g,I18n.format("WAVE %d",run.getWave()),12,42,88,18,Color.WHITE);
+        fitted(g,I18n.format("SCORE / %d KILLS",run.getKills()),108,18,width-254,9,HUD_LABEL);
         fitted(g,Long.toString(run.getScore()),108,42,width-254,19,Color.WHITE);
 
         int hullX=width-136;
@@ -648,24 +598,24 @@ public final class EndlessMode extends Screen {
             heart(g,hullX+8+i*17,28,i<run.getLives()?hull:new Color(42,58,49));
         fitted(g,run.getLives()+"/"+run.lifeCap,hullX+91,42,30,12,Color.WHITE);
 
-        fitted(g,String.format(java.util.Locale.ROOT,"TIME %02d:%02d",run.getSeconds()/60,run.getSeconds()%60),12,62,132,10,Color.WHITE);
-        fitted(g,"LEFT "+run.getRemainingEnemies(),152,62,85,10,HUD_LABEL);
-        fitted(g,String.format(java.util.Locale.ROOT,"DIFF %.2fX",run.getDifficulty()),width-112,62,102,10,HUD_LABEL);
+        fitted(g,I18n.format("TIME %02d:%02d",run.getSeconds()/60,run.getSeconds()%60),12,62,132,10,Color.WHITE);
+        fitted(g,I18n.format("LEFT %d",run.getRemainingEnemies()),152,62,85,10,HUD_LABEL);
+        fitted(g,I18n.format("DIFF %.2fX",run.getDifficulty()),width-112,62,102,10,HUD_LABEL);
         if(boss==null) {
             fitted(g,run.getPatternLabel(),12,79,width-104,9,HUD_LABEL);
-            fitted(g,run.getBossStatus(),width-86,69,74,8,Color.ORANGE);
-            bar(g,width-86,73,74,6,run.getBossProgress(),Color.ORANGE);
+            fitted(g,run.getBossStatus(),width-86,73,74,8,Color.ORANGE);
+            bar(g,width-86,77,74,6,run.getBossProgress(),Color.ORANGE);
         } else {
-            fitted(g,"BOSS "+(int)Math.ceil(boss.hp)+" / "+(int)boss.maxHp,12,79,150,10,Color.ORANGE);
+            fitted(g,I18n.format("BOSS %d / %d",(int)Math.ceil(boss.hp),(int)boss.maxHp),12,79,150,10,Color.ORANGE);
             bar(g,166,71,width-178,10,boss.hp/boss.maxHp,Color.ORANGE);
         }
-        fitted(g,"UPGRADE IN "+run.getWavesUntilReward()+" WAVE(S)",12,95,width-140,10,GOLD);
+        fitted(g,I18n.format("UPGRADE IN %d WAVE(S)",run.getWavesUntilReward()),12,95,width-140,10,GOLD);
         int completed=(run.getWave()-1)%3;
         for(int i=0;i<3;i++)bar(g,width-124+i*38,87,30,9,i<completed?1:0,GOLD);
 
-        g.setFont(UI_FONT.deriveFont(8f));g.setColor(HUD_LABEL);g.drawString("BUFFS:",12,107);
+        g.setFont(uiFont(8));g.setColor(HUD_LABEL);g.drawString(I18n.text("BUFFS:"),12,107);
         int effectX=50;
-        if(view.effects.isEmpty())g.drawString("NONE",effectX,107);
+        if(view.effects.isEmpty())g.drawString(I18n.text("NONE"),effectX,107);
         for(EffectView effect:view.effects) {
             String tag;
             switch(effect.item.effectKind) {
@@ -677,6 +627,7 @@ public final class EndlessMode extends Screen {
                 case BOOST:tag="BOOST";break;
                 default:tag=effect.item.displayName.toUpperCase(java.util.Locale.ROOT);
             }
+            tag=I18n.text(tag);
             if(effect.stacks!=null)tag+="x"+effect.stacks;
             if(effect.remainingMillis!=null)tag+=" "+(effect.remainingMillis+999)/1000+"s";
             int span=g.getFontMetrics().stringWidth(tag)+10;
@@ -684,14 +635,14 @@ public final class EndlessMode extends Screen {
             g.setColor(ItemSystem.colorOf(effect.item.effectKind));g.drawString(tag,effectX,107);effectX+=span;
         }
 
-        fitted(g,"COINS "+systems.getWalletCoins()+" / +"+systems.getCoinsEarned()
-                +"   DIAMONDS "+systems.getWalletDiamonds()+" / RISK "+systems.getPendingDiamonds(),
+        fitted(g,I18n.format("COINS %d / +%d   DIAMONDS %d / RISK %d",
+                systems.getWalletCoins(),systems.getCoinsEarned(),systems.getWalletDiamonds(),systems.getPendingDiamonds()),
                 12,120,width-24,8,GOLD);
         String unlocked=systems.pollAchievement();
         if(unlocked!=null){achievementNotice=unlocked;achievementUntil=System.currentTimeMillis()+4000;}
         if(System.currentTimeMillis()<achievementUntil) {
             g.setColor(HUD_PANEL);g.fillRect(8,134,width-16,28);
-            fitted(g,"ACHIEVEMENT / "+achievementNotice,16,153,width-32,11,GOLD);
+            fitted(g,I18n.format("ACHIEVEMENT / %s",I18n.text(achievementNotice)),16,153,width-32,11,GOLD);
         }
 
         for(int i=0;i<view.slots.size();i++) {
@@ -704,13 +655,13 @@ public final class EndlessMode extends Screen {
             fitted(g,item==null?"EMPTY":item.displayName.toUpperCase(java.util.Locale.ROOT),slot.x+24,slot.y+14,slot.width-29,10,color);
         }
         Modifiers modifiers=run.items.getModifiers();
-        String stats=String.format(java.util.Locale.ROOT,"DMG %.1fX  FIRE %.1f/S  SPEED %d  SHOTS %d",run.damage,
+        String stats=I18n.format("DMG %.1fX  FIRE %.1f/S  SPEED %d  SHOTS %d",run.damage,
                 run.fireRate*modifiers.fireRateMultiplier+modifiers.fireRateBonus,
                 Math.round(run.playerSpeed*modifiers.movementSpeedMultiplier),run.getProjectiles());
         g.setColor(Color.BLACK);g.fillRect(0,height-9,width,9);
         fitted(g,stats,9,height-2,width-18,8,HUD_LABEL);
         if(!run.getNotice().isEmpty()) {
-            g.setFont(UI_FONT);int w=Math.min(width-32,g.getFontMetrics().stringWidth(run.getNotice())+20);
+            g.setFont(uiFont(12));int w=Math.min(width-32,g.getFontMetrics().stringWidth(I18n.text(run.getNotice()))+20);
             g.setColor(HUD_PANEL);g.fillRect((width-w)/2,height-94,w,22);
             fitted(g,run.getNotice(),(width-w)/2+10,height-78,w-20,12,GOLD);
         }
@@ -723,7 +674,8 @@ public final class EndlessMode extends Screen {
     }
     private Rectangle refreshBounds(){return new Rectangle(18,height-78,width-36,34);}
     private void centered(Graphics2D g,String value,int y,float size,Color color) {
-        g.setFont(UI_FONT.deriveFont(size));g.setColor(color);
+        value=I18n.text(value);
+        g.setFont(uiFont(size));g.setColor(color);
         g.drawString(value,(width-g.getFontMetrics().stringWidth(value))/2,y);
     }
     private void drawBossIntro(Graphics2D g,Run.Body boss) {
@@ -733,7 +685,7 @@ public final class EndlessMode extends Screen {
         g.setColor(HUD_PANEL);g.fillRect(12,top,width-24,283);
         g.setColor(Color.ORANGE);g.drawRect(12,top,width-25,282);
         g.fillRect(12,top,width-24,4);g.fillRect(12,top+278,width-24,4);
-        centered(g,"WARNING / WAVE "+run.getWave(),top+25,10,GOLD);
+        centered(g,I18n.format("WARNING / WAVE %d",run.getWave()),top+25,10,GOLD);
         centered(g,"BOSS INCOMING",top+58,22,Color.ORANGE);
         centered(g,SharedAccess.bossName((Boss)boss.entity).toUpperCase(java.util.Locale.ROOT),top+79,11,Color.WHITE);
         int portraitScale=Math.max(1,Math.min(4,56/Math.max(1,boss.height/2)));
@@ -744,9 +696,9 @@ public final class EndlessMode extends Screen {
             int x=24+i*(statWidth+12);
             g.setColor(HUD_BORDER);g.drawRect(x,top+151,statWidth,58);
             fitted(g,i==0?"MAX HP":"DAMAGE / HIT",x+12,top+170,statWidth-24,10,HUD_LABEL);
-            fitted(g,i==0?number(boss.maxHp):number(boss.damage)+" LIFE",x+12,top+198,statWidth-24,20,i==0?GOLD:DANGER);
+            fitted(g,i==0?number(boss.maxHp):I18n.format("%s LIFE",number(boss.damage)),x+12,top+198,statWidth-24,20,i==0?GOLD:DANGER);
         }
-        centered(g,"BATTLE STARTS IN "+run.getCountdown(),top+238,13,Color.WHITE);
+        centered(g,I18n.format("BATTLE STARTS IN %d",run.getCountdown()),top+238,13,Color.WHITE);
         bar(g,32,top+247,width-64,7,1-run.countdown/3.0,Color.ORANGE);
         centered(g,"FOLLOW ITS MOVEMENT / DODGE THE SHOTS",top+270,9,HUD_LABEL);
     }
@@ -754,8 +706,8 @@ public final class EndlessMode extends Screen {
         drawManager.drawFadeOverlay(this,245);
         g.setColor(HUD_BORDER);g.drawRect(8,18,width-17,height-28);
         centered(g,"WAVE UPGRADE",53,22,Color.GREEN);
-        centered(g,"WAVE "+(run.getWave()-1)+" CLEARED",78,12,Color.WHITE);
-        centered(g,"CHOOSE ONE / NEXT WAVE "+run.getWave(),97,10,HUD_LABEL);
+        centered(g,I18n.format("WAVE %d CLEARED",run.getWave()-1),78,12,Color.WHITE);
+        centered(g,I18n.format("CHOOSE ONE / NEXT WAVE %d",run.getWave()),97,10,HUD_LABEL);
         Point pointer=controls.pointer();
         for(int i=0;i<run.offers.size();i++) {
             Run.Reward offer=run.offers.get(i);Rectangle card=rewardCardBounds(i);
@@ -778,21 +730,25 @@ public final class EndlessMode extends Screen {
     }
     private void row(Graphics2D g,String text,int index){text(g,text,24,height/2-20+index*27,Color.WHITE);}
     private static void wrapped(Graphics2D g,String value,int x,int y,int width,Color color) {
-        g.setFont(UI_FONT.deriveFont(8f));g.setColor(color);
-        String[] words=value.split(" ");int word=0;
-        for(int line=0;line<2 && word<words.length;line++) {
-            String text="";
-            while(word<words.length && g.getFontMetrics().stringWidth(text+" "+words[word])<=width)
-                text+=(text.isEmpty()?"":" ")+words[word++];
-            if(text.isEmpty())text=words[word++];
-            if(line==1 && word<words.length) {
-                while(!text.isEmpty() && g.getFontMetrics().stringWidth(text+"...")>width)text=text.substring(0,text.length()-1);
-                text+="...";
+        g.setFont(uiFont(I18n.language() == I18n.Language.ENGLISH ? 8 : 10));
+        FontMetrics metrics = g.getFontMetrics();
+        List<String> lines = I18n.wrap(I18n.numberedText(value), width, metrics::stringWidth);
+        g.setColor(color);
+        for (int index = 0; index < Math.min(2, lines.size()); index++) {
+            String line = lines.get(index);
+            if (index == 1 && lines.size() > 2) {
+                while (!line.isEmpty() && metrics.stringWidth(line + "…") > width)
+                    line = line.substring(0, line.length() - 1);
+                line += "…";
             }
-            g.drawString(text,x,y+line*12);
+            g.drawString(line, x, y + index * 12);
         }
     }
-    private static void text(Graphics2D g,String text,int x,int y,Color color){g.setFont(UI_FONT);g.setColor(color);g.drawString(text,x,y);}
+    private static void text(Graphics2D g,String text,int x,int y,Color color){
+        g.setFont(uiFont(12));
+        g.setColor(color);
+        g.drawString(I18n.text(text),x,y);
+    }
 
     /** Endless-owned view of its records; the game's original high-score page is unchanged. */
     private static final class EndlessRecordsScreen extends Screen {
@@ -807,9 +763,9 @@ public final class EndlessMode extends Screen {
             drawManager.initDrawing(this);
             drawManager.drawScreenTitle(this,"ENDLESS RECORDS");
             drawManager.drawCenteredRegularString(this,testing?"QA PERSONAL BESTS":"PERSONAL BESTS",height/3);
-            drawManager.drawCenteredRegularString(this,"SCORE "+best.getScore(),height/2-20);
-            drawManager.drawCenteredRegularString(this,"SURVIVED "+best.getSeconds()+"s",height/2+12);
-            drawManager.drawCenteredRegularString(this,"ENEMIES "+best.getKills(),height/2+44);
+            drawManager.drawCenteredRegularString(this,I18n.format("SCORE %d",best.getScore()),height/2-20);
+            drawManager.drawCenteredRegularString(this,I18n.format("SURVIVED %ds",best.getSeconds()),height/2+12);
+            drawManager.drawCenteredRegularString(this,I18n.format("ENEMIES %d",best.getKills()),height/2+44);
             drawManager.drawKeyHints(this,"esc back");drawManager.completeDrawing(this);
             if(inputManager.isKeyDown(KeyEvent.VK_ESCAPE) && inputDelay.checkFinished())isRunning=false;
         }
@@ -819,20 +775,11 @@ public final class EndlessMode extends Screen {
         private final boolean[] down=new boolean[256], pressed=new boolean[256];
         private Point click, hover;
         private boolean moved;
-        private boolean passwordInputActive;
-        private final StringBuilder passwordInput = new StringBuilder();
         @Override public synchronized void keyPressed(KeyEvent e){
             int k=e.getKeyCode();
             if(k>=0&&k<256){
-                if(!down[k]){
+                if(!down[k])
                     pressed[k]=true;
-                    if(passwordInputActive){
-                        if(k>=KeyEvent.VK_0 && k<=KeyEvent.VK_9)passwordInput.append((char)('0'+k-KeyEvent.VK_0));
-                        else if(k>=KeyEvent.VK_NUMPAD0 && k<=KeyEvent.VK_NUMPAD9)passwordInput.append((char)('0'+k-KeyEvent.VK_NUMPAD0));
-                        else if(k==KeyEvent.VK_BACK_SPACE)passwordInput.append('\b');
-                        else if(k==KeyEvent.VK_DELETE)passwordInput.append((char)127);
-                    }
-                }
                 down[k]=true;
             }
         }
@@ -844,11 +791,9 @@ public final class EndlessMode extends Screen {
         synchronized Point takeHover(){Point p=moved?hover:null;moved=false;return p;}
         synchronized Point pointer(){return hover==null?null:new Point(hover);}
         synchronized void discardPresses(){java.util.Arrays.fill(pressed,false);click=null;}
-        synchronized void clear(){discardPresses();java.util.Arrays.fill(down,false);moved=false;passwordInputActive=false;passwordInput.setLength(0);}
-        synchronized void beginPasswordInput(){clear();passwordInputActive=true;}
-        synchronized String takePasswordInput(){String input=passwordInput.toString();passwordInput.setLength(0);return input;}
-        @Override public synchronized void mousePressed(MouseEvent e){if(e.getButton()==MouseEvent.BUTTON1)click=e.getPoint();}
-        @Override public synchronized void mouseMoved(MouseEvent e){hover=e.getPoint();moved=true;}
+        synchronized void clear(){discardPresses();java.util.Arrays.fill(down,false);moved=false;}
+        @Override public synchronized void mousePressed(MouseEvent e){if(e.getButton()==MouseEvent.BUTTON1)click=engine.Frame.gameClick(e);}
+        @Override public synchronized void mouseMoved(MouseEvent e){hover=engine.Frame.gamePoint(e);moved=true;}
     }
 
     public static final class Run {
@@ -1216,7 +1161,15 @@ public final class EndlessMode extends Screen {
         }
     }
 
-    public void useItem(int slot){if(phase==Phase.PLAYING){UseResult result=itemSystem.useSlot(slot);if(result!=UseResult.USED)notice="ITEM: "+result;noticeClock=3;itemEvents();}}
+    public void useItem(int slot) {
+        if (phase != Phase.PLAYING)
+            return;
+        UseResult result = itemSystem.useSlot(slot);
+        if (result != UseResult.USED)
+            notice = I18n.format("ITEM: %s", I18n.text(result.name()));
+        noticeClock = 3;
+        itemEvents();
+    }
     private void itemEvents(){
         for(ItemAPI.ItemEvent event:items.drainEvents()){
             systems.itemEvent(event);

@@ -3,11 +3,11 @@ package screen;
 import java.awt.Color;
 import java.awt.Rectangle;
 import java.awt.event.KeyEvent;
-import java.util.ArrayList;
 import java.util.List;
 
 import engine.Core;
 import engine.DrawManager.SpriteType;
+import engine.I18n;
 import engine.PurchaseManager;
 import entity.Ship.ShipType;
 import shop.Currency;
@@ -366,8 +366,8 @@ public class ShipSelectScreen extends Screen {
 				PurchaseManager loadout = PurchaseManager.getInstance();
 				if (!loadout.isOwned(upgrade))
 					return upgrade.getName();
-				return upgrade.getName()
-						+ (loadout.isUpgradeOn(upgrade.getRef()) ? " ON" : " OFF");
+				return I18n.text(upgrade.getName()) + " "
+						+ I18n.text(loadout.isUpgradeOn(upgrade.getRef()) ? "ON" : "OFF");
 		}
 	}
 
@@ -773,21 +773,19 @@ public class ShipSelectScreen extends Screen {
 			// AUTHORED BY: VFX TEAM (Effection)
 			ShopItem effect = browsedEffect();
 			boolean on = PurchaseManager.getInstance().isEffectOn(effect);
-			status = effect.getName() + (on
-					? " is on - space to switch off"
-					: " is off - space to switch on");
+			status = I18n.format(on ? "%s is on - space to switch off"
+					: "%s is off - space to switch on", I18n.text(effect.getName()));
 			color = on ? Color.GREEN : Color.GRAY;
 		} else if (this.row == Row.UPGRADE && isUnlocked(this.row)) {
 			boolean on = PurchaseManager.getInstance().isUpgradeOn(
 					browsedUpgrade().getRef());
-			status = browsedUpgrade().getName() + (on
-					? " is on - space to switch off"
-					: " is off - space to switch on");
+			status = I18n.format(on ? "%s is on - space to switch off"
+					: "%s is off - space to switch on", I18n.text(browsedUpgrade().getName()));
 			color = on ? Color.GREEN : Color.GRAY;
 		} else if (isUnlocked(this.row)) {
 			status = this.row == Row.UPGRADE ? "No upgrades in the shop"
 					: this.row == Row.EFFECT ? "No effects in the shop yet"
-					: choiceName(this.row) + " is equipped";
+					: I18n.format("%s is equipped", I18n.text(choiceName(this.row)));
 			color = browsedEffect() == null && this.row == Row.EFFECT
 					? Color.GRAY : Color.GREEN;
 		} else {
@@ -796,8 +794,8 @@ public class ShipSelectScreen extends Screen {
 					java.time.LocalDate.now()))
 				status = "Limited edition - no longer sold";
 			else
-				status = "Locked - buy it in the Shop"
-						+ (entry == null ? "" : " for " + priceText(entry));
+				status = entry == null ? "Locked - buy it in the Shop"
+						: I18n.format("Locked - buy it in the Shop for %s", priceText(entry));
 			color = LOCKED;
 		}
 		if (this.row == Row.SKIN
@@ -841,8 +839,8 @@ public class ShipSelectScreen extends Screen {
 			if (price <= 0)
 				continue;
 			if (text.length() > 0)
-				text.append(" or ");
-			text.append(price).append(' ').append(currency.getLabel());
+				text.append(' ').append(I18n.text("or")).append(' ');
+			text.append(I18n.format("%d %s", price, I18n.text(currency.getLabel())));
 		}
 		return text.toString();
 	}
@@ -870,21 +868,7 @@ public class ShipSelectScreen extends Screen {
 	 * @return Lines, in order.
 	 */
 	private List<String> wrap(final String text, final int maxWidth) {
-		List<String> lines = new ArrayList<String>();
-		StringBuilder line = new StringBuilder();
-		for (String word : text.split(" ")) {
-			String candidate = line.length() == 0 ? word : line + " " + word;
-			if (line.length() > 0
-					&& drawManager.getSmallStringWidth(candidate) > maxWidth) {
-				lines.add(line.toString());
-				line = new StringBuilder(word);
-			} else {
-				line = new StringBuilder(candidate);
-			}
-		}
-		if (line.length() > 0)
-			lines.add(line.toString());
-		return lines;
+		return I18n.wrap(I18n.text(text), maxWidth, drawManager::getSmallStringWidth);
 	}
 
 	private static double maxSpeed() {
