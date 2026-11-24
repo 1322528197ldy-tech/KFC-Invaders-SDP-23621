@@ -19,6 +19,10 @@ import sun.misc.Unsafe;
 /** Deterministic render preview and transition/input tests, without a display or extra libraries. */
 public final class StartupAnimationTest {
     private static int checks;
+    private static final long SCENE = StartupAnimation.SCENE_DURATION_MS;
+    private static final long DURATION = StartupAnimation.DURATION_MS;
+    private static final long SCHOOL_VISIBLE = SCENE / 2;
+    private static final long TEAM_VISIBLE = SCENE + SCHOOL_VISIBLE;
     public static final class Offscreen extends engine.Frame {
         public Offscreen() { super(448,520); }
         @Override public Graphics getGraphics() { return new BufferedImage(448,520,1).getGraphics(); }
@@ -65,34 +69,35 @@ public final class StartupAnimationTest {
         check(school!=null&&school.getWidth()==school.getHeight()&&school.getWidth()>1000,"supplied Hanyang emblem loads from bundled resources");
         StartupAnimation animation=new StartupAnimation(font,school,logo);
         File dir=new File(args.length==0?"verification/preview":args[0]); dir.mkdirs();
-        for (long time:new long[]{0,400,1000,1600,2300,2850,3200,3600,4200,4800,5500,6050,6400}) {
+        for (long time:new long[]{0,SCENE / 4,SCHOOL_VISIBLE,SCENE,SCENE + SCENE / 4,
+                TEAM_VISIBLE,DURATION - SCENE / 4,DURATION}) {
             BufferedImage image=render(animation,448,520,time);
             ImageIO.write(image,"png",new File(dir,"intro-"+time+".png"));
             check(image.getWidth()==448 && image.getHeight()==520,"renders intro at "+time+" ms");
         }
-        check(Arrays.equals(pixels(render(animation,448,520,1600)),pixels(render(animation,448,520,1600))),"render is independent of frame rate and deterministic at the same timestamp");
-        check(!Arrays.equals(pixels(render(animation,448,520,1000)),pixels(render(animation,448,520,1600))),"animation progresses over time");
-        check(Arrays.stream(pixels(render(animation,448,520,6400))).allMatch(v->(v&0xFFFFFF)==0),"intro fades to black after both logos before returning to menu");
-        check(render(animation,432,501,1500).getWidth()==432,"renderer accepts original game client dimensions");
-        check(Arrays.stream(pixels(render(animation,434,497,6400))).allMatch(v->(v&0xFFFFFF)==0),"final fade covers the complete actual game viewport");
+        check(Arrays.equals(pixels(render(animation,448,520,SCHOOL_VISIBLE)),pixels(render(animation,448,520,SCHOOL_VISIBLE))),"render is independent of frame rate and deterministic at the same timestamp");
+        check(!Arrays.equals(pixels(render(animation,448,520,SCENE / 4)),pixels(render(animation,448,520,SCHOOL_VISIBLE))),"animation progresses over time");
+        check(Arrays.stream(pixels(render(animation,448,520,DURATION))).allMatch(v->(v&0xFFFFFF)==0),"intro fades to black after both logos before returning to menu");
+        check(render(animation,432,501,SCHOOL_VISIBLE).getWidth()==432,"renderer accepts original game client dimensions");
+        check(Arrays.stream(pixels(render(animation,434,497,DURATION))).allMatch(v->(v&0xFFFFFF)==0),"final fade covers the complete actual game viewport");
         BufferedImage blue=new BufferedImage(8,8,BufferedImage.TYPE_INT_RGB),red=new BufferedImage(8,8,BufferedImage.TYPE_INT_RGB);
         Graphics2D fill=blue.createGraphics();fill.setColor(Color.BLUE);fill.fillRect(0,0,8,8);fill.dispose();
         fill=red.createGraphics();fill.setColor(Color.RED);fill.fillRect(0,0,8,8);fill.dispose();
         StartupAnimation order=new StartupAnimation(font,blue,red);
-        check(render(order,448,520,1600).getRGB(224,244)==Color.BLUE.getRGB(),"first scene is the school image");
-        check(render(order,448,520,4800).getRGB(224,244)==Color.RED.getRGB(),"second scene is the team image");
-        check(render(order,448,520,3200).getRGB(224,244)==Color.WHITE.getRGB(),"school transitions to team through the shared white background");
-        ImageIO.write(render(animation,434,497,1600),"png",new File(dir,"school-preview.png"));
-        ImageIO.write(render(animation,434,497,4800),"png",new File(dir,"team-preview.png"));
+        check(render(order,448,520,SCHOOL_VISIBLE).getRGB(224,244)==Color.BLUE.getRGB(),"first scene is the school image");
+        check(render(order,448,520,TEAM_VISIBLE).getRGB(224,244)==Color.RED.getRGB(),"second scene is the team image");
+        check(render(order,448,520,SCENE).getRGB(224,244)==Color.WHITE.getRGB(),"school transitions to team through the shared white background");
+        ImageIO.write(render(animation,434,497,SCHOOL_VISIBLE),"png",new File(dir,"school-preview.png"));
+        ImageIO.write(render(animation,434,497,TEAM_VISIBLE),"png",new File(dir,"team-preview.png"));
         AtomicLong clock=new AtomicLong(10_000_000_000L);
         StartupScreen s=screen(clock);
-        clock.addAndGet(1_600_000_000L); s.update();
-        check(s.isRunning,"intro stays active at midpoint");
-        clock.addAndGet(1_600_000_000L); s.update();
+        clock.addAndGet(SCHOOL_VISIBLE * 1_000_000L); s.update();
+        check(s.isRunning,"intro stays active during the school scene");
+        clock.addAndGet(SCENE * 1_000_000L); s.update();
         check(s.isRunning,"intro continues into the team scene after the school emblem");
-        clock.addAndGet(3_200_000_000L);s.update();
-        check(!s.isRunning && s.returnCode==1,"intro ends automatically at 6.4 seconds and returns menu code");
-        for(long phase:new long[]{1000,4200}) for (int key:new int[]{KeyEvent.VK_SPACE,KeyEvent.VK_ENTER,KeyEvent.VK_ESCAPE}) {
+        clock.addAndGet((DURATION - TEAM_VISIBLE) * 1_000_000L);s.update();
+        check(!s.isRunning && s.returnCode==1,"intro ends automatically at the configured duration and returns menu code");
+        for(long phase:new long[]{SCHOOL_VISIBLE,TEAM_VISIBLE}) for (int key:new int[]{KeyEvent.VK_SPACE,KeyEvent.VK_ENTER,KeyEvent.VK_ESCAPE}) {
             s=screen(clock);clock.addAndGet(phase*1_000_000L); press(key); s.update();
             check(!s.isRunning && s.returnCode==1,"key "+KeyEvent.getKeyText(key)+" skips immediately to menu");
             TitleScreen menu=new TitleScreen(448,520,60); menu.isRunning=true;
@@ -104,8 +109,8 @@ public final class StartupAnimationTest {
         s=screen(clock); press(KeyEvent.VK_A); s.update(); release(KeyEvent.VK_A);
         check(s.isRunning,"ordinary movement keys do not skip the intro");
         StartupAnimation fallback=new StartupAnimation(null,null,null);
-        check(render(fallback,448,520,1600)!=null,"fallback font and absent logo do not crash rendering");
-        check(render(fallback,448,520,4800)!=null,"team fallback also works when images are absent");
+        check(render(fallback,448,520,SCHOOL_VISIBLE)!=null,"fallback font and absent logo do not crash rendering");
+        check(render(fallback,448,520,TEAM_VISIBLE)!=null,"team fallback also works when images are absent");
         makeGif(animation,new File(dir,"startup-preview.gif"));
         System.out.println("TOTAL "+checks+" startup checks passed");
         System.exit(0);

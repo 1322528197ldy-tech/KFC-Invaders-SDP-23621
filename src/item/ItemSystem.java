@@ -24,6 +24,8 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import engine.Core;
+import engine.I18n;
+import engine.TesterMode;
 import entity.Entity;
 import item.ItemAPI.*;
 
@@ -43,6 +45,7 @@ public final class ItemSystem {
     private static final long NOTICE_MILLIS = 2000;
 
     private static ItemSystem current;
+    private static boolean currentTesting;
 
     /** Balance values of this run (res/item-balance.properties). Read once when the run starts. */
     private final ItemBalance balance;
@@ -87,7 +90,11 @@ public final class ItemSystem {
 
     /** Run instance for the level number. Starts a new run at level 1 or when there is no run. */
     public static ItemSystem forLevel(int level) {
-        if (level <= 1 || current == null) current = new ItemSystem(new Random());
+        boolean testing = TesterMode.isEnabled();
+        if (level <= 1 || current == null || currentTesting != testing) {
+            currentTesting = testing;
+            current = new ItemSystem(new Random());
+        }
         return current;
     }
 
@@ -101,6 +108,7 @@ public final class ItemSystem {
     private static final String EQUIPMENT_FILE = "equipment";
     private static Set<String> ownedEquipment;
     private static String equippedId;
+    private static String testEquippedId;
     /** Item catalog for the equipment calls outside a run. Loaded on first use, refreshed when a run starts. */
     private static ItemDefinitions catalog;
 
@@ -118,12 +126,16 @@ public final class ItemSystem {
     }
 
     public static boolean isOwned(String itemId) {
+        if (TesterMode.isEnabled())
+            return equipment(itemId) != null;
         loadEquipment();
         return ownedEquipment.contains(itemId);
     }
 
     /** The equipped item, or null when nothing is equipped. */
     public static ItemInfo equippedItem() {
+        if (TesterMode.isEnabled())
+            return equipment(testEquippedId);
         loadEquipment();
         return equippedId == null ? null : equipment(equippedId);
     }
@@ -136,6 +148,8 @@ public final class ItemSystem {
     public static boolean grantEquipment(String itemId) {
         ItemInfo item = equipment(itemId);
         if (item == null) return false;
+        if (TesterMode.isEnabled())
+            return true;
         loadEquipment();
         if (ownedEquipment.contains(itemId)) return true;
         ownedEquipment.add(itemId);
@@ -151,6 +165,10 @@ public final class ItemSystem {
     public static boolean equip(String itemId) {
         ItemInfo item = equipment(itemId);
         if (item == null || !isOwned(itemId)) return false;
+        if (TesterMode.isEnabled()) {
+            testEquippedId = itemId;
+            return true;
+        }
         String previous = equippedId;
         equippedId = itemId;
         if (!saveEquipment()) {
@@ -163,6 +181,10 @@ public final class ItemSystem {
 
     /** Takes off the equipped item. Takes effect when the next run starts. */
     public static void unequip() {
+        if (TesterMode.isEnabled()) {
+            testEquippedId = null;
+            return;
+        }
         loadEquipment();
         if (equippedId == null) return;
         String previous = equippedId;
@@ -290,7 +312,7 @@ public final class ItemSystem {
             usingSlot = false;
         }
         if (result == UseResult.EFFECT_ALREADY_ACTIVE && item != null) {
-            showNotice(item.displayName + " is already active");
+            showNotice(I18n.format("%s is already active", I18n.text(item.displayName)));
             logger.info("Item not used: " + item.displayName + " is already active.");
         }
         return result;
@@ -344,7 +366,9 @@ public final class ItemSystem {
             graphics.setColor(colorOf(drop.item.effectKind));
             graphics.fillRect(x, y, w, h);
             graphics.setColor(Color.BLACK);
-            graphics.drawString(drop.item.displayName.substring(0, 1), x + w / 4, y + h - 3);
+            String label = I18n.text(drop.item.displayName).substring(0, 1);
+            graphics.drawString(label, x + (w - graphics.getFontMetrics().stringWidth(label)) / 2,
+                    y + h - 3);
         }
     }
 
@@ -379,7 +403,7 @@ public final class ItemSystem {
                 int points = scoreFor(balance.lifeCapBonusScore);
                 hooks.addScore(points);
                 logger.info("Life item at max lives: +" + points + " score.");
-                showNotice("Max lives: +" + points);
+                showNotice(I18n.format("Max lives: +%d", points));
             }
             return true;
         }
@@ -397,7 +421,7 @@ public final class ItemSystem {
                 if (event.slotIndex != null) {
                     int key = event.slotIndex + 1;
                     logger.info("Item collected: " + name + " stored in slot " + key + ".");
-                    showNotice(name + " (press " + key + ")");
+                    showNotice(I18n.format("%s (press %d)", I18n.text(name), key));
                 } else {
                     logger.info("Item collected: " + name + ".");
                 }
@@ -407,13 +431,14 @@ public final class ItemSystem {
                 Core.getAchievementManager().recordItemUsed();
                 notice = null; // a "(press N)" hint is outdated once the item is used
                 if (item != null && (item.effectKind == EffectKind.BOOST || item.effectKind == EffectKind.SCORE_BOOST))
-                    showNotice(name + " x" + multiplier(item.magnitude));
+                    showNotice(I18n.text(name) + " x" + multiplier(item.magnitude));
                 break;
             case EFFECT_STARTED: {
                 Integer stacks = stacksOf(event.effectId);
                 String label = name + (stacks != null ? " x" + stacks : "");
                 logger.info("Item effect started: " + label + ".");
-                if (!usingSlot) showNotice(label); // picked up, not used from a slot
+                if (!usingSlot)
+                    showNotice(I18n.text(name) + (stacks != null ? " x" + stacks : ""));
                 break;
             }
             case EFFECT_ENDED:
@@ -430,7 +455,7 @@ public final class ItemSystem {
                 int points = magnet == null ? 0 : magnet.magnitude.intValue();
                 hooks.addScore(points);
                 logger.info("Magnet: " + name + " could not be kept, +" + points + " score.");
-                showNotice(name + " +" + points);
+                showNotice(I18n.text(name) + " +" + points);
                 break;
             }
             default:

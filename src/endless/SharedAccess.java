@@ -51,7 +51,8 @@ public final class SharedAccess {
 
     /** Existing manager when available; a cold QA launch reads its native save without running migrations. */
     public static Loadout loadout(boolean testing) {
-        PurchaseManager purchases=testing?(PurchaseManager)get(PurchaseManager.class,"instance"):PurchaseManager.getInstance();
+        PurchaseManager purchases=testing && !TesterMode.isEnabled()
+                ? (PurchaseManager)get(PurchaseManager.class,"instance") : PurchaseManager.getInstance();
         Loadout result=new Loadout();
         if(purchases!=null) {
             result.ship=purchases.getSelectedShip();result.skin=purchases.getSelectedSkin();

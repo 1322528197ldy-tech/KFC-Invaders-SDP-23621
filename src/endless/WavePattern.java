@@ -1,5 +1,6 @@
 package endless;
 
+import engine.I18n;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -125,7 +126,7 @@ public final class WavePattern {
     public double shotDelayMultiplier() { return attack == Attack.FAN ? 1.6 : attack == Attack.AIMED ? 1.15 : 1; }
 
     public String label() {
-        return formation.name().replace('_', ' ') + " / " + movement.name().replace('_', ' ')
-                + " / " + attack.name();
+        return I18n.text(formation.name().replace('_', ' ')) + " / "
+                + I18n.text(movement.name().replace('_', ' ')) + " / " + I18n.text(attack.name());
     }
 }

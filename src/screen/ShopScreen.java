@@ -10,6 +10,7 @@ import java.util.List;
 import engine.CurrencyManager;
 import engine.DiamondManager;
 import engine.DrawManager.SpriteType;
+import engine.I18n;
 import engine.PurchaseManager;
 import engine.PurchaseManager.PurchaseResult;
 import entity.Ship.ShipType;
@@ -354,14 +355,15 @@ public class ShopScreen extends Screen {
 				entry.discounted);
 		switch (result) {
 			case SUCCESS:
-				showMessage((item.isRepeatable() ? item.getName() + " is now"
-								+ " level " + purchases.getQuantity(item) + "! "
-								: "Bought " + item.getName() + "! ") + afterBuying(item),
-						Color.GREEN);
+				String name = I18n.text(item.getName());
+				String bought = item.isRepeatable()
+						? I18n.format("%s is now level %d!", name, purchases.getQuantity(item))
+						: I18n.format("Bought %s!", name);
+				showMessage(bought + " " + I18n.text(afterBuying(item)), Color.GREEN);
 				break;
 			case INSUFFICIENT_FUNDS:
-				showMessage("Not enough " + currency.getLabel() + " (need "
-						+ price + ").", TOO_EXPENSIVE);
+				showMessage(I18n.format("Not enough %s (need %d).",
+						I18n.text(currency.getLabel()), price), TOO_EXPENSIVE);
 				break;
 			case ALREADY_OWNED:
 				showMessage("You already own this.", TOO_EXPENSIVE);
@@ -370,7 +372,7 @@ public class ShopScreen extends Screen {
 				showMessage("Already at max level.", TOO_EXPENSIVE);
 				break;
 			case CURRENCY_NOT_ACCEPTED:
-				showMessage("Can't be paid with " + currency.getLabel() + ".",
+				showMessage(I18n.format("Can't be paid with %s.", I18n.text(currency.getLabel())),
 						TOO_EXPENSIVE);
 				break;
 			case NOT_ON_SALE:
@@ -595,8 +597,7 @@ public class ShopScreen extends Screen {
 			}
 			int quantity = purchases.getQuantity(entry.item);
 			if (entry.item.isRepeatable() && quantity > 0) {
-				String level = "LV " + quantity + "/"
-						+ entry.item.getMaxLevel();
+				String level = I18n.format("LV %d/%d", quantity, entry.item.getMaxLevel());
 				this.drawManager.drawSmallString(level, area.x + area.width
 								- 6 - this.drawManager.getSmallStringWidth(level),
 						baseline, Color.GRAY);
@@ -689,17 +690,16 @@ public class ShopScreen extends Screen {
 		boolean ended = !maxed
 				&& !ShopCatalog.isOnSale(item, LocalDate.now());
 		String priceLabel = item.isRepeatable() && !maxed
-				? "PRICE OF LEVEL " + (purchases.getQuantity(item) + 1)
+				? I18n.format("PRICE OF LEVEL %d", purchases.getQuantity(item) + 1)
 				: "PRICE";
 		this.drawManager.drawSmallString(priceLabel, area.x + 12,
 				priceBaseline, Color.GRAY);
 		if (entry.discounted && !maxed) {
-			StringBuilder was = new StringBuilder("WAS");
+			java.util.StringJoiner originalPrices = new java.util.StringJoiner(" / ");
 			for (Currency currency : Currency.values())
 				if (item.accepts(currency))
-					was.append(was.length() > 3 ? " / " : " ").append(item
-							.getPrice(currency, purchases.getQuantity(item)));
-			String text = was.toString();
+					originalPrices.add(Integer.toString(item.getPrice(currency, purchases.getQuantity(item))));
+			String text = I18n.format("WAS %s", originalPrices);
 			this.drawManager.drawSmallString(text, area.x + area.width - 12
 							- this.drawManager.getSmallStringWidth(text),
 					priceBaseline, Color.GRAY);
@@ -727,7 +727,7 @@ public class ShopScreen extends Screen {
 						button.height, tint(this.tab.color));
 			this.drawManager.drawBox(button.x, button.y, button.width,
 					button.height, color);
-			String label = "BUY " + price;
+			String label = I18n.format("BUY %d", price);
 			int labelWidth = 12 + this.drawManager.getSmallStringWidth(label);
 			int left = button.x + (button.width - labelWidth) / 2;
 			this.drawManager.drawCurrencyIcon(left, button.y + 15,
@@ -1045,17 +1045,15 @@ public class ShopScreen extends Screen {
 		switch (item.getCategory()) {
 			case SHIP: {
 				ShipType type = ShipType.valueOf(item.getRef());
-				lines.add("SPEED " + type.getSpeed() + "  |  BULLETS "
-						+ type.getBulletsPerShot());
-				lines.add("SHOTS PER SEC " + String.format("%.2f",
-						type.getBulletsPerShot() * 1000.0
-								/ type.getShootingInterval()));
+				lines.add(I18n.format("SPEED %d  |  BULLETS %d", type.getSpeed(), type.getBulletsPerShot()));
+				lines.add(I18n.format("SHOTS PER SEC %.2f",
+						type.getBulletsPerShot() * 1000.0 / type.getShootingInterval()));
 				break;
 			}
 			case SHAPE: {
 				ShapeSkin shape = ShapeSkin.valueOf(item.getRef());
-				lines.add("FOR THE " + ShopCatalog.shipName(shape.getShipType())
-						.toUpperCase() + " SHIP");
+				lines.add(I18n.format("FOR THE %s SHIP",
+						I18n.text(ShopCatalog.shipName(shape.getShipType()).toUpperCase(java.util.Locale.ROOT))));
 				lines.add("LOOK ONLY - SAME STATS");
 				break;
 			}
@@ -1065,17 +1063,15 @@ public class ShopScreen extends Screen {
 					break;
 				long days = skin.daysLeft(LocalDate.now());
 				lines.add(days == 0 ? "LIMITED EDITION - NO LONGER SOLD"
-						: "LIMITED EDITION - " + days
-						+ (days == 1 ? " DAY LEFT" : " DAYS LEFT"));
+						: I18n.format(days == 1 ? "LIMITED EDITION - %d DAY LEFT"
+								: "LIMITED EDITION - %d DAYS LEFT", days));
 				break;
 			}
 			case UPGRADE: {
 				if (!purchases.isOwned(item)) {
 					lines.add("ONE EQUIPPED AT A TIME");
 				} else {
-					lines.add("OWNED - "
-							+ (purchases.isUpgradeOn(item.getRef()) ? "ON"
-							: "OFF"));
+					lines.add(purchases.isUpgradeOn(item.getRef()) ? "OWNED - ON" : "OWNED - OFF");
 					lines.add("SWITCH ON/OFF IN CUSTOMIZE");
 				}
 				break;
@@ -1133,22 +1129,7 @@ public class ShopScreen extends Screen {
 	 * @return Lines, in order.
 	 */
 	private List<String> wrap(final String text, final int maxWidth) {
-		List<String> lines = new ArrayList<String>();
-		StringBuilder line = new StringBuilder();
-		for (String word : text.split(" ")) {
-			String candidate = line.length() == 0 ? word : line + " " + word;
-			if (line.length() > 0
-					&& this.drawManager.getSmallStringWidth(candidate)
-					> maxWidth) {
-				lines.add(line.toString());
-				line = new StringBuilder(word);
-			} else {
-				line = new StringBuilder(candidate);
-			}
-		}
-		if (line.length() > 0)
-			lines.add(line.toString());
-		return lines;
+		return I18n.wrap(I18n.text(text), maxWidth, this.drawManager::getSmallStringWidth);
 	}
 
 	/**

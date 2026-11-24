@@ -107,6 +107,8 @@ public final class PurchaseManager {
 
 	/** Singleton instance. */
 	private static PurchaseManager instance;
+	private static PurchaseManager testInstance;
+	private final boolean testing;
 
 	/** Shop id mapped to how many the player has (upgrade level). */
 	private final Map<String, Integer> owned;
@@ -131,7 +133,8 @@ public final class PurchaseManager {
 	/**
 	 * Private constructor, loads whatever was last saved.
 	 */
-	private PurchaseManager() {
+	private PurchaseManager(boolean testing) {
+		this.testing = testing;
 		this.logger = Core.getLogger();
 		this.owned = new LinkedHashMap<String, Integer>();
 		this.upgradesOff = new LinkedHashSet<String>();
@@ -139,7 +142,15 @@ public final class PurchaseManager {
 		this.selectedShip = ShipType.STANDARD;
 		this.selectedSkin = Skin.CLASSIC;
 		this.selectedShapes = new EnumMap<ShipType, ShapeSkin>(ShipType.class);
-		load();
+		if (testing) {
+			for (ShopItem item : ShopCatalog.getAll()) {
+				this.owned.put(item.getId(), item.getMaxLevel());
+				if (item.getCategory() == ShopCategory.UPGRADE || item.getCategory() == ShopCategory.EFFECT)
+					this.upgradesOff.add(item.getId());
+			}
+		} else {
+			load();
+		}
 		syncItemSystem();
 	}
 
@@ -147,8 +158,13 @@ public final class PurchaseManager {
 	 * @return Shared instance of PurchaseManager.
 	 */
 	public static PurchaseManager getInstance() {
+		if (TesterMode.isEnabled()) {
+			if (testInstance == null)
+				testInstance = new PurchaseManager(true);
+			return testInstance;
+		}
 		if (instance == null)
-			instance = new PurchaseManager();
+			instance = new PurchaseManager(false);
 		return instance;
 	}
 
@@ -845,6 +861,8 @@ public final class PurchaseManager {
 	 * @return false (and logs) when the file could not be written.
 	 */
 	private boolean save() {
+		if (testing)
+			return true;
 		Properties saved = new Properties();
 		for (Map.Entry<String, Integer> entry : this.owned.entrySet())
 			saved.setProperty(OWNED_PREFIX + entry.getKey(),

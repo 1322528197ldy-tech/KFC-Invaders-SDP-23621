@@ -114,14 +114,16 @@ public class GlitchEffect {
      * @param g     Graphics of the back buffer.
      */
     public void draw(final BufferedImage image, final Graphics g) {
+        if (image != null)
+            draw(image, g, image.getWidth(), image.getHeight());
+    }
+
+    void draw(BufferedImage image, Graphics g, int width, int height) {
         if (!this.enabled || image == null || g == null) {
             return;
         }
         long now = System.currentTimeMillis();
         updateBurst(now);
-
-        int width = image.getWidth();
-        int height = image.getHeight();
 
         drawScanlines(g, width, height);
 
@@ -145,7 +147,7 @@ public class GlitchEffect {
             final int width, final int height) {
         int count = 1 + this.random.nextInt(MAX_SLICES);
         for (int i = 0; i < count; i++) {
-            int sliceHeight = 2 + this.random.nextInt(MAX_SLICE_HEIGHT);
+            int sliceHeight = Math.min(height, 2 + this.random.nextInt(MAX_SLICE_HEIGHT));
             int y = this.random.nextInt(Math.max(1, height - sliceHeight));
             int dx = this.random.nextInt(MAX_SHIFT * 2 + 1) - MAX_SHIFT;
             if (dx == 0) {
@@ -153,16 +155,20 @@ public class GlitchEffect {
             }
 
             // Copy slice first, so we do not read pixels we already moved.
-            BufferedImage slice = new BufferedImage(width, sliceHeight,
+            int rasterWidth = image.getWidth();
+            int sourceY = (int) Math.floor(y * (double) image.getHeight() / height);
+            int sourceEnd = (int) Math.ceil((y + sliceHeight) * (double) image.getHeight() / height);
+            int rasterHeight = sourceEnd - sourceY;
+            BufferedImage slice = new BufferedImage(rasterWidth, rasterHeight,
                     BufferedImage.TYPE_INT_RGB);
             Graphics sg = slice.getGraphics();
-            sg.drawImage(image, 0, 0, width, sliceHeight,
-                    0, y, width, y + sliceHeight, null);
+            sg.drawImage(image, 0, 0, rasterWidth, rasterHeight,
+                    0, sourceY, rasterWidth, sourceEnd, null);
             sg.dispose();
 
-            g.drawImage(slice, dx, y, null);
+            g.drawImage(slice, dx, y, width, sliceHeight, null);
             // Wrap the part that goes off screen to the other side.
-            g.drawImage(slice, dx > 0 ? dx - width : dx + width, y, null);
+            g.drawImage(slice, dx > 0 ? dx - width : dx + width, y, width, sliceHeight, null);
 
             // Color split line on slice edge.
             g.setColor(this.random.nextBoolean() ? RED : CYAN);

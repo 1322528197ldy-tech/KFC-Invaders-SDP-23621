@@ -2,11 +2,12 @@ $ErrorActionPreference = 'Stop'
 $projectPath = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 Push-Location -LiteralPath $projectPath
 try {
-    # Class location controls the game's save directory. Every check gets disposable saves.
+    # Saves may live beside the classes or in the working directory.
     $verificationPath = Join-Path $projectPath ('bin/connected-check-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
     $classPath = Join-Path $verificationPath 'classes'
     $tempPath = Join-Path $verificationPath 'tmp'
     $servicePath = Join-Path $classPath 'META-INF/services'
+    $resourcesPath = Join-Path $projectPath 'res'
     New-Item -ItemType Directory -Force $classPath, $tempPath, $servicePath | Out-Null
     Set-Content -LiteralPath (Join-Path $servicePath 'endless.GameplayExtension') -Encoding ascii -Value 'engine.ConnectedSystemsChecks$Probe'
     $productionSources = @(Get-ChildItem -LiteralPath src -Filter '*.java' -Recurse | ForEach-Object FullName)
@@ -23,8 +24,11 @@ try {
         New-Item -ItemType Directory -Force $suitePath | Out-Null
         Copy-Item -LiteralPath $classPath -Destination $suitePath -Recurse
         $suiteClasses = Join-Path $suitePath 'classes'
-        & java '-Duser.language=en' "-Djava.io.tmpdir=$tempPath" -cp "$suiteClasses;res" $suite (Join-Path $verificationPath 'screenshots') *> $suiteLog
-        if ($LASTEXITCODE -ne 0) { Get-Content -LiteralPath $suiteLog -Tail 12; throw "$suite failed." }
+        Push-Location -LiteralPath $suitePath
+        try {
+            & java '-Duser.language=en' "-Djava.io.tmpdir=$tempPath" -cp "$suiteClasses;$resourcesPath" $suite (Join-Path $verificationPath 'screenshots') *> $suiteLog
+            if ($LASTEXITCODE -ne 0) { Get-Content -LiteralPath $suiteLog -Tail 12; throw "$suite failed." }
+        } finally { Pop-Location }
         Get-Content -LiteralPath $suiteLog | Select-String '^(PASS:|TOTAL )' | ForEach-Object { $_.Line }
     }
     # Reproduce a release launch: only a JAR, bundled resources and an empty cwd.
