@@ -42,7 +42,7 @@ public final class EntryGateChecks {
         public Offscreen() { super(432,497); }
         @Override public Graphics getGraphics() { return new BufferedImage(432,497,BufferedImage.TYPE_INT_RGB).getGraphics(); }
         @Override public Insets getInsets() { return new Insets(0,0,0,0); }
-        @Override void present(BufferedImage image) {
+        @Override public void present(BufferedImage image) {
             if (afterDraw == null)
                 return;
             try {

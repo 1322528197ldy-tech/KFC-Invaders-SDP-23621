@@ -135,6 +135,12 @@ public class AchievementsScreen extends Screen {
 	@Override
 	protected final void update() {
 		super.update();
+        if (takeEscapePress() || takeNavigationClick()) {
+            this.returnCode = 1;
+            this.isRunning = false;
+            draw();
+            return;
+        }
 		draw();
 		if (this.inputDelay.checkFinished()
 				&& this.selectionCooldown.checkFinished()) {
@@ -178,10 +184,6 @@ public class AchievementsScreen extends Screen {
 			} else if (this.selected >= this.scrollOffset + visibleRows) {
 				this.scrollOffset = this.selected - visibleRows + 1;
 			}
-		}
-		if (this.inputManager.isKeyDown(KeyEvent.VK_ESCAPE)
-				&& this.inputDelay.checkFinished()) {
-			this.isRunning = false;
 		}
 	}
 

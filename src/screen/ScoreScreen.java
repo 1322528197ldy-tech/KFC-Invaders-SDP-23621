@@ -102,16 +102,17 @@ public class ScoreScreen extends Screen {
 	 */
 	protected final void update() {
 		super.update();
+        if (takeEscapePress() || takeNavigationClick()) {
+            if (this.isNewRecord) saveScore();
+            this.returnCode = 1;
+            this.isRunning = false;
+            draw();
+            return;
+        }
 
 		draw();
 		if (this.inputDelay.checkFinished()) {
-			if (inputManager.isKeyDown(KeyEvent.VK_ESCAPE)) {
-				// Return to main menu.
-				this.returnCode = 1;
-				this.isRunning = false;
-				if (this.isNewRecord)
-					saveScore();
-			} else if (inputManager.isKeyDown(KeyEvent.VK_SPACE)) {
+			if (inputManager.isKeyDown(KeyEvent.VK_SPACE)) {
 				// Play again.
 				this.returnCode = 2;
 				this.isRunning = false;

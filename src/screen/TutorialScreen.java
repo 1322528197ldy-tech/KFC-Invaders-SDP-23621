@@ -51,13 +51,9 @@ public final class TutorialScreen extends Screen {
 
     @Override
     protected void update() {
+        if (takeEscapePress() || takeNavigationClick()) { returnCode=1;isRunning=false;draw();return; }
         boolean enterDown = inputManager.isKeyDown(KeyEvent.VK_ENTER);
         boolean skipDown = inputManager.isKeyDown(KeyEvent.VK_S);
-        if (inputManager.isKeyDown(KeyEvent.VK_ESCAPE)) {
-            returnCode = 1;
-            isRunning = false;
-            return;
-        }
         // A fresh press can skip any step, including the initial input delay.
         // Ignore S held over from menu navigation until released and pressed again.
         if (skipDown && !skipWasDown) {

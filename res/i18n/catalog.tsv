@@ -444,3 +444,12 @@ Fast Move - Stealth	高速型 · 隐形	고속형 · 스텔스
 Two-Way Shot - Long Barrels	双发型 · 长炮管	쌍포형 · 장포신
 Two-Way Shot - Twin Spike	双发型 · 双尖刺	쌍포형 · 쌍창
 Two-Way Shot - Hollow	双发型 · 镂空	쌍포형 · 중공형
+
+Window size	窗口大小	창 크기
+Original 448x520	原始 448x520	원본 448x520
+Fit screen	适应屏幕	화면에 맞춤
+Applied: %s	当前：%s	적용: %s
+Applied - not saved	已应用，未保存	적용됨 - 저장 안 됨
+arrows adjust, click size, esc back	方向键调整 · 点击尺寸 · Esc 返回	방향키 조정 · 크기 클릭 · Esc 뒤로
+< Back	< 返回	< 뒤로
+Quit	退出	나가기
