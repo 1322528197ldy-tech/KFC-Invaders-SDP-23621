@@ -66,12 +66,11 @@ public final class TwoHitEnemyTest {
                 if (enemy.getHealth() == 2) elites++;
                 else ordinary++;
             }
-            check(elites == (level == 6 ? 4 : level == 9 ? 7 : 0),
+            check(elites == (level >= 6 && level <= 9 ? (level - 5) * 2 : 0),
                 "Stage placement " + level);
-            check(ordinary + elites == settings.getFormationWidth()
-                * settings.getFormationHeight(), "Formation size " + level);
+            check(ordinary + elites == settings.getEnemyCount(), "Formation size " + level);
         }
-        for (int level : new int[] {6, 9}) {
+        for (int level : new int[] {6, 7, 8, 9}) {
             Field field = Core.class.getDeclaredField("SETTINGS_LEVEL_" + level);
             field.setAccessible(true);
             GameSettings settings = (GameSettings) field.get(null);
@@ -86,10 +85,11 @@ public final class TwoHitEnemyTest {
                         layout.append(enemy.getPositionX()).append(',')
                             .append(enemy.getPositionY()).append(';');
                         upperRowElite |= enemy.getPositionY()
-                            < 100 + 40 * (settings.getFormationHeight() - 1);
+                            < 100 + (level >= 7 ? 32 : 40) * (settings.getFormationHeight() - 1)
+                                + (level == 6 ? 32 : 0);
                     }
                 }
-                check(elites == (level == 6 ? 4 : 7), "Exact random count " + level);
+                check(elites == (level - 5) * 2, "Exact random count " + level);
                 layouts.add(layout.toString());
             }
             check(layouts.size() > 1, "Layouts vary across starts " + level);

@@ -124,10 +124,11 @@ public final class CampaignMovementTest {
 
     private static void removeEdge(EnemyShipFormation formation,
             Map<EnemyShip, Position> starts, int stage, int frame) throws Exception {
-        int right = 20 + 40 * (settings(stage).getFormationWidth() - 1);
+        int right = spawnX(stage, settings(stage).getFormationWidth() - 1);
+        int top = starts.values().stream().mapToInt(Position::y).min().orElseThrow();
         List<EnemyShip> removed = starts.entrySet().stream()
                 .filter(entry -> frame == 225 ? entry.getValue().x() == 20
-                        : frame == 405 ? entry.getValue().y() == 100
+                        : frame == 405 ? entry.getValue().y() == top
                         : entry.getValue().x() == right)
                 .map(Map.Entry::getKey).toList();
         check(!removed.isEmpty(), "The selected edge contains enemies");
@@ -138,7 +139,49 @@ public final class CampaignMovementTest {
         formation.removeDestroyed();
     }
 
-    private static void checkShape(int stage, int frame, Position offset, int width) {
+    private static int spawnX(int stage, int column) {
+        int gap = switch (stage) {
+            case 3 -> column >= 2 ? 40 : 0;
+            case 4, 6 -> column / 2 * 16;
+            case 7, 8, 9 -> -column * 8;
+            default -> 0;
+        };
+        return 20 + 40 * column + gap;
+    }
+
+    private static int spawnY(int stage, int column, int row) {
+        int depth = switch (stage) {
+            case 2 -> column * 8;
+            case 4 -> column == 2 || column == 3 ? 24 : 0;
+            case 6 -> column / 2 * 16;
+            default -> 0;
+        };
+        return 100 + row * (stage >= 7 ? 32 : 40) + depth;
+    }
+
+    private static boolean occupied(int stage, int column, int row) {
+        return switch (stage) {
+            case 7 -> column == 0 || column == 9 || row == 0 || row == 5;
+            case 8 -> column == 3 || column == 4 || row == 3 || row == 4;
+            case 9 -> Math.abs(column - row) <= 1 || Math.abs(column + row - 6) <= 1;
+            default -> true;
+        };
+    }
+
+    private static int span(int stage, int width) throws Exception {
+        return width - 44 - spawnX(stage, settings(stage).getFormationWidth() - 1);
+    }
+
+    private static int travelY(int stage, int height, boolean centered) throws Exception {
+        int bottom = 0;
+        GameSettings config = settings(stage);
+        for (int column = 0; column < config.getFormationWidth(); column++)
+            bottom = Math.max(bottom, spawnY(stage, column, config.getFormationHeight() - 1) + 16);
+        int available = height - 80 - bottom;
+        return centered ? Math.min(120, 2 * Math.min(60, available)) : Math.min(120, available);
+    }
+
+    private static void checkShape(int stage, int frame, Position offset, int width, int height) throws Exception {
         if (stage == 1) {
             check(offset.x() == offset.y() && offset.x() >= 0 && offset.x() <= 120,
                     "Stage 1 follows its diagonal segment");
@@ -151,10 +194,10 @@ public final class CampaignMovementTest {
         if (frame % 720 == 0)
             check(offset.equals(new Position(0, 0)), "Stage " + stage + " closes the 720-update loop");
         int travelX = switch (stage) {
-            case 2 -> width - 224;
-            case 4 -> width - 264;
+            case 2, 4 -> span(stage, width);
             default -> 160;
         };
+        int depth = travelY(stage, height, stage != 4);
         if (stage == 2) {
             double halfWidth = travelX / 2.0;
             double diamond = Math.abs((offset.x() - halfWidth) / halfWidth) + Math.abs(offset.y() / 60.0);
@@ -164,7 +207,7 @@ public final class CampaignMovementTest {
                     + Math.pow(offset.y() / 60.0, 2);
             check(Math.abs(ellipse - 1) < 0.03, "Stage 3 follows the ellipse");
         } else {
-            check(offset.x() == 0 || offset.x() == travelX || offset.y() == 0 || offset.y() == 120,
+            check(offset.x() == 0 || offset.x() == travelX || offset.y() == 0 || offset.y() == depth,
                     "Stage 4 follows the rectangle edges");
         }
         if (frame <= 720 && frame % 180 == 0) {
@@ -173,24 +216,30 @@ public final class CampaignMovementTest {
                         new Position(travelX / 2, 60), new Position(0, 0)};
                 case 3 -> new Position[] {new Position(80, 60), new Position(160, 0),
                         new Position(80, -60), new Position(0, 0)};
-                default -> new Position[] {new Position(travelX, 0), new Position(travelX, 120),
-                        new Position(0, 120), new Position(0, 0)};
+                default -> new Position[] {new Position(travelX, 0), new Position(travelX, depth),
+                        new Position(0, depth), new Position(0, 0)};
             };
             check(offset.equals(quarters[frame / 180 - 1]), "Stage " + stage + " quarter-loop waypoint");
         }
     }
 
-    private static Map<Integer, Position> checkpoints(int stage) {
+    private static Map<Integer, Position> checkpoints(int stage, int width, int height) throws Exception {
+        int across = span(stage, width);
+        int depth = travelY(stage, height, stage == 7);
         return switch (stage) {
-            case 6 -> Map.of(120, new Position(184, 30), 240, new Position(0, 90),
-                    360, new Position(184, 120), 480, new Position(0, 90), 600, new Position(184, 30));
-            case 7 -> Map.of(75, new Position(27, 60), 150, new Position(92, 0),
-                    225, new Position(157, -60), 300, new Position(184, 0), 450, new Position(92, 0));
-            case 8 -> Map.of(90, new Position(72, 30), 180, new Position(144, 0),
-                    270, new Position(144, 120), 360, new Position(72, 90), 450, new Position(0, 120));
-            case 9 -> Map.of(120, new Position(72, -60), 240, new Position(144, 0),
-                    360, new Position(72, 60), 560, new Position(144, 30), 720, new Position(144, 120),
-                    1020, new Position(21, 60), 1080, new Position(72, 0), 1200, new Position(144, 0));
+            case 6 -> Map.of(180, new Position(across, 30), 360, new Position(0, 90),
+                    540, new Position(across, 120), 720, new Position(0, 90), 900, new Position(across, 30));
+            case 7 -> Map.of(75, new Position((int) Math.round(across * (1 - Math.sqrt(.5)) / 2), depth / 2),
+                    150, new Position(across / 2, 0),
+                    225, new Position((int) Math.round(across * (1 + Math.sqrt(.5)) / 2), -depth / 2),
+                    300, new Position(across, 0), 450, new Position(across / 2, 0));
+            case 8 -> Map.of(90, new Position(across / 2, (int) Math.round(depth * .25)), 180, new Position(across, 0),
+                    270, new Position(across, depth), 360, new Position(across / 2, (int) Math.round(depth * .75)),
+                    450, new Position(0, depth));
+            case 9 -> Map.of(120, new Position(across / 2, -60), 240, new Position(across, 0),
+                    360, new Position(across / 2, 60), 560, new Position(across, 30), 720, new Position(across, 120),
+                    1020, new Position((int) Math.round(across * (1 - Math.sqrt(.5)) / 2), 60),
+                    1080, new Position(across / 2, 0), 1200, new Position(across, 0));
             default -> throw new IllegalArgumentException("Unexpected stage " + stage);
         };
     }
@@ -201,12 +250,13 @@ public final class CampaignMovementTest {
         Map<EnemyShip, Position> original = positions(reference);
         Map<EnemyShip, Position> surviving = positions(reduced);
         GameSettings settings = settings(stage);
-        check(original.size() == settings.getFormationWidth() * settings.getFormationHeight(),
-                "Stage " + stage + " keeps its original enemy count");
+        int expectedCount = switch (stage) { case 6 -> 24; case 7, 8 -> 28; case 9 -> 33; default -> settings.getEnemyCount(); };
+        check(original.size() == expectedCount, "Stage " + stage + " has its planned enemy count");
         for (int column = 0; column < settings.getFormationWidth(); column++)
             for (int row = 0; row < settings.getFormationHeight(); row++)
-                check(original.containsValue(new Position(20 + column * 40, 100 + row * 40)),
-                        "Stage " + stage + " keeps its original spawn grid");
+                check(original.containsValue(new Position(spawnX(stage, column), spawnY(stage, column, row)))
+                                == occupied(stage, column, row),
+                        "Stage " + stage + " uses its campaign layout");
 
         boolean wallPatrol = stage == 2 || stage == 4 || stage >= 6;
         boolean reachedNewLeft = false;
@@ -215,11 +265,14 @@ public final class CampaignMovementTest {
         Position previousReduced = previous;
         int cycle = switch (stage) {
             case 1, 7 -> 600;
+            case 6 -> 1080;
             case 8 -> 540;
             case 9 -> 1440; // Three successive 480-update routes.
             default -> 720;
         };
-        Map<Integer, Position> landmarks = stage >= 6 ? checkpoints(stage) : Map.of();
+        Map<Integer, Position> landmarks = stage >= 6 ? checkpoints(stage, width, height) : Map.of();
+        boolean leftRemoved = false;
+        boolean rightRemoved = false;
         for (int frame = 1; frame <= cycle * 3; frame++) {
             reference.update();
             reduced.update();
@@ -230,13 +283,14 @@ public final class CampaignMovementTest {
             check(Math.abs(reducedOffset.x() - previousReduced.x()) <= 4
                             && Math.abs(reducedOffset.y() - previousReduced.y()) <= 4,
                     "No jump after edge removal at stage " + stage + ", frame " + frame);
-            reachedNewLeft |= reducedOffset.x() == -40;
-            int fullSpan = width - 64 - 40 * (settings.getFormationWidth() - 1);
-            reachedNewRight |= reducedOffset.x() == fullSpan + 40;
+            reachedNewLeft |= leftRemoved && surviving.entrySet().stream()
+                    .anyMatch(entry -> entry.getKey().getPositionX() == 20);
+            reachedNewRight |= rightRemoved && surviving.entrySet().stream()
+                    .anyMatch(entry -> entry.getKey().getPositionX() + entry.getKey().getWidth() == width - 20);
             check(Math.abs(offset.x() - previous.x()) <= 4 && Math.abs(offset.y() - previous.y()) <= 4,
                     "No movement jump at stage " + stage + ", frame " + frame);
             if (stage <= 4) {
-                checkShape(stage, frame, offset, width);
+                checkShape(stage, frame, offset, width, height);
             } else {
                 int phase = frame % cycle;
                 if (phase == 0 || stage == 9 && phase % 480 == 0)
@@ -248,12 +302,14 @@ public final class CampaignMovementTest {
             int rightRemovalFrame = switch (stage) {
                 case 2 -> 359;
                 case 4, 8 -> 179;
-                case 6 -> 119;
+                case 6 -> 179;
                 case 7 -> 299;
                 default -> 239;
             };
             if (frame == 225 || frame == 405 || frame == (wallPatrol ? rightRemovalFrame : 585)) {
                 removeEdge(reduced, surviving, stage, frame == rightRemovalFrame ? 585 : frame);
+                leftRemoved |= frame == 225;
+                rightRemoved |= frame == rightRemovalFrame;
                 check(reducedOffset.equals(displacement(reduced, surviving, width, height)),
                         "Removing a whole edge does not move survivors immediately");
             }
@@ -318,7 +374,7 @@ public final class CampaignMovementTest {
         for (int frame = 1; frame < clearFrame; frame++)
             patrol.update();
 
-        int rightStart = 20 + 40 * (settings(stage).getFormationWidth() - 1);
+        int rightStart = spawnX(stage, settings(stage).getFormationWidth() - 1);
         for (EnemyShip enemy : List.copyOf(survivors.keySet())) {
             int x = survivors.get(enemy).x();
             if ((clearLeft && x == 20) || (clearRight && x == rightStart)) {
@@ -329,8 +385,9 @@ public final class CampaignMovementTest {
         EnemyShip tracked = survivors.keySet().iterator().next();
         int start = survivors.get(tracked).x();
         int previousX = tracked.getPositionX() - start;
-        int wall = movingRight ? width - rightStart - 44 + (clearRight ? 40 : 0)
-                : (clearLeft ? -40 : 0);
+        int wall = movingRight ? width - 20 - survivors.entrySet().stream()
+                .mapToInt(entry -> entry.getValue().x() + entry.getKey().getWidth()).max().orElseThrow()
+                : 20 - survivors.values().stream().mapToInt(Position::x).min().orElseThrow();
         boolean reachedWall = false;
         for (int frame = 0; frame < 360; frame++) {
             patrol.update();
@@ -349,7 +406,7 @@ public final class CampaignMovementTest {
 
     private static void latePatrolWallTurns(int stage) throws Exception {
         int[] turns = switch (stage) {
-            case 6 -> new int[] {120, 240};
+            case 6 -> new int[] {180, 360};
             case 7 -> new int[] {300, 600};
             case 8 -> new int[] {180, 450};
             case 9 -> new int[] {240, 480, 560, 640, 1200, 1440};
@@ -482,6 +539,182 @@ public final class CampaignMovementTest {
         check(progress(restarted).patrolFrame() == 0, "Restart countdown does not advance a patrol");
     }
 
+    private static int fireColumn(EnemyShipFormation formation, Map<EnemyShip, Integer> columns) throws Exception {
+        field(Cooldown.class, "time").setLong(get(formation, "shootingCooldown"), 0);
+        Set<Bullet> bullets = new HashSet<>();
+        formation.shoot(bullets);
+        check(bullets.size() == 1, "Each campaign firing turn emits exactly one bullet");
+        Bullet shot = bullets.iterator().next();
+        for (EnemyShip enemy : formation) {
+            if (!enemy.isDestroyed() && shot.getPositionY() == enemy.getPositionY()
+                    && shot.getPositionX() + shot.getWidth() / 2 == enemy.getPositionX() + enemy.getWidth() / 2) {
+                @SuppressWarnings("unchecked")
+                List<EnemyShip> column = ((List<List<EnemyShip>>) get(formation, "enemyShips")).stream()
+                        .filter(ships -> ships.contains(enemy)).findFirst().orElseThrow();
+                check(formation.getNextShooter(column) == enemy, "Only an exposed enemy fires");
+                formation.shoot(bullets);
+                check(bullets.size() == 1, "Cooldown blocks a second shot in the same turn");
+                return columns.get(enemy);
+            }
+        }
+        throw new AssertionError("Shot must originate from a surviving enemy");
+    }
+
+    private static void firingOrders(int stage) throws Exception {
+        EnemyShipFormation formation = formation(stage, WIDTH, HEIGHT);
+        Map<EnemyShip, Integer> columns = new HashMap<>();
+        for (EnemyShip enemy : formation) {
+            for (int column = 0; column < settings(stage).getFormationWidth(); column++)
+                if (enemy.getPositionX() == spawnX(stage, column)) columns.put(enemy, column);
+            for (EnemyShip other : formation)
+                if (other != enemy)
+                    check(!new java.awt.Rectangle(enemy.getPositionX(), enemy.getPositionY(), enemy.getWidth(), enemy.getHeight())
+                            .intersects(new java.awt.Rectangle(other.getPositionX(), other.getPositionY(), other.getWidth(), other.getHeight())),
+                            "Campaign layout has no overlapping enemies");
+        }
+        formation.update();
+        int[] order = switch (stage) {
+            case 3 -> new int[] {0, 1, 0, 1};
+            case 4 -> new int[] {0, 1, 0, 1};
+            case 6 -> new int[] {0, 1, 2, 3, 4, 5};
+            case 7 -> new int[] {0, 9, 1, 8, 2, 7, 3, 6, 4, 5};
+            case 8 -> new int[] {3, 4, 2, 5, 1, 6, 0, 7};
+            case 9 -> new int[] {0, 1, 2, 3, 4, 5};
+            default -> new int[0];
+        };
+        for (int expected : order) {
+            int column = fireColumn(formation, columns);
+            int actual = switch (stage) {
+                case 3 -> column < 2 ? 0 : 1;
+                case 4 -> column == 2 || column == 3 ? 0 : 1;
+                default -> column;
+            };
+            check(actual == expected, "Stage " + stage + " follows its firing sequence");
+        }
+        if (stage == 9) {
+            field(EnemyShipFormation.class, "patrolFrame").setInt(formation, 480);
+            check(fireColumn(formation, columns) < 3, "Stage 9 switches to left wing at the second route");
+            check(fireColumn(formation, columns) >= 3, "Stage 9 alternates to the right wing");
+            field(EnemyShipFormation.class, "patrolFrame").setInt(formation, 960);
+            int center = fireColumn(formation, columns);
+            check(center >= 2 && center < 4, "Stage 9 switches to the center at the third route");
+            int wing = fireColumn(formation, columns);
+            check(wing < 2 || wing >= 4, "Stage 9 follows with a wing shot");
+        }
+        int lastColumn = settings(stage).getFormationWidth() - 1;
+        for (EnemyShip enemy : formation)
+            if (columns.get(enemy) != lastColumn) formation.destroy(enemy);
+        formation.removeDestroyed();
+        formation.update();
+        for (int turn = 0; turn < 10; turn++)
+            check(fireColumn(formation, columns) == lastColumn, "Missing groups are skipped without relabeling survivors");
+        for (EnemyShip enemy : formation) formation.destroy(enemy);
+        formation.removeDestroyed();
+        formation.update();
+        Set<Bullet> bullets = new HashSet<>();
+        formation.shoot(bullets);
+        check(formation.isEmpty() && bullets.isEmpty(), "An empty formation cannot fire");
+    }
+
+    private static void screenshots(java.nio.file.Path directory) throws Exception {
+        java.nio.file.Files.createDirectories(directory);
+        BufferedImage sheet = new BufferedImage(WIDTH * 4, (HEIGHT + 28) * 2, BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D graphics = sheet.createGraphics();
+        int index = 0;
+        for (int stage : List.of(1, 2, 3, 4, 6, 7, 8, 9)) {
+            GameScreen game = new GameScreen(new GameState(stage, 0, 3, 0, 0, 0),
+                    settings(stage), false, WIDTH, HEIGHT, 60);
+            game.initialize();
+            field(Cooldown.class, "time").setLong(field(Screen.class, "inputDelay").get(game), 0);
+            call(game, "draw");
+            BufferedImage image = (BufferedImage) field(engine.DrawManager.class, "backBuffer").get(null);
+            int x = index % 4 * WIDTH;
+            int y = index / 4 * (HEIGHT + 28);
+            graphics.drawImage(image, x, y, WIDTH, HEIGHT, null);
+            graphics.setColor(java.awt.Color.WHITE);
+            graphics.setFont(new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.PLAIN, 14));
+            graphics.drawString("STAGE " + stage + " / " + settings(stage).getFormationLayout(), x + 10, y + HEIGHT + 20);
+            index++;
+        }
+        graphics.dispose();
+        javax.imageio.ImageIO.write(sheet, "png", directory.resolve("campaign-formations.png").toFile());
+    }
+
+    private static void batchCompatibility(int stage) throws Exception {
+        GameSettings config = settings(stage);
+        List<EnemyShipFormation.SpawnSlot> plan = EnemyShipFormation.createSpawnPlan(config);
+        check(plan.size() == config.getEnemyCount(), "Spawn plan contains exactly the occupied slots");
+        check(plan.stream().filter(slot -> slot.health() == 2).count() == config.getTwoHitEnemyCount(),
+                "Elites are allocated once for the whole level");
+        int batchedCount = 0;
+        for (int group = 0; group < 3; group++) {
+            int selectedGroup = group;
+            List<EnemyShipFormation.SpawnSlot> slots = plan.stream()
+                    .filter(slot -> slot.column() % 3 == selectedGroup).toList();
+            EnemyShipFormation full = new EnemyShipFormation(config, plan);
+            EnemyShipFormation batch = new EnemyShipFormation(config, slots);
+            full.attach(new Screen(432, 497, 60));
+            batch.attach(new Screen(432, 497, 60));
+            Map<EnemyShip, Position> fullStarts = positions(full);
+            Map<EnemyShip, Position> batchStarts = positions(batch);
+            batchedCount += batchStarts.size();
+            check(batchStarts.size() == slots.size(), "A batch spawns only its selected slots");
+            for (EnemyShip enemy : batch) {
+                EnemyShipFormation.SpawnSlot slot = slots.stream()
+                        .filter(candidate -> enemy.getPositionX() == spawnX(stage, candidate.column())
+                                && enemy.getPositionY() == spawnY(stage, candidate.column(), candidate.row()))
+                        .findFirst().orElseThrow();
+                check(enemy.getSpriteType() == slot.spriteType() && enemy.getHealth() == slot.health(),
+                        "Each batch retains planned machine type, health and original position");
+            }
+            for (int frame = 0; frame < 600; frame++) {
+                full.update();
+                batch.update();
+                check(displacement(batch, batchStarts, 432, 497).equals(displacement(full, fullStarts, 432, 497)),
+                        "A sparse batch keeps the whole formation's patrol envelope");
+            }
+            @SuppressWarnings("unchecked")
+            Map<EnemyShip, Integer> originalColumns = (Map<EnemyShip, Integer>) get(batch, "originalColumns");
+            for (int shot = 0; shot < 10; shot++)
+                check(fireColumn(batch, originalColumns) % 3 == selectedGroup,
+                        "Batch firing skips columns which have not spawned");
+        }
+        check(batchedCount == config.getEnemyCount(), "Partitioning never duplicates or loses an enemy");
+        EnemyShipFormation empty = new EnemyShipFormation(config, List.of());
+        empty.attach(new Screen(WIDTH, HEIGHT, 60));
+        empty.update();
+        Set<Bullet> bullets = new HashSet<>();
+        empty.shoot(bullets);
+        check(empty.isEmpty() && bullets.isEmpty(), "An empty batch is safe while waiting for the next spawn");
+        try {
+            new EnemyShipFormation(config, List.of(plan.get(0), plan.get(0)));
+            throw new AssertionError("Duplicate batch slots must be rejected");
+        } catch (IllegalArgumentException expected) {
+            check(true, "Duplicate batch slots are rejected");
+        }
+    }
+
+    private static void difficultyProgression() throws Exception {
+        int previousHealth = 0;
+        int previousInterval = Integer.MAX_VALUE;
+        for (int stage = 6; stage <= 9; stage++) {
+            GameSettings config = settings(stage);
+            int health = config.getEnemyCount() + config.getTwoHitEnemyCount();
+            check(health > previousHealth, "Late campaign health budget increases at every stage");
+            check(config.getShootingFrecuency() < previousInterval, "Late campaign firing becomes progressively faster");
+            EnemyShipFormation formation = formation(stage, WIDTH, HEIGHT);
+            formation.update();
+            Cooldown cooldown = (Cooldown) get(formation, "shootingCooldown");
+            for (int reset = 0; reset < 50; reset++) {
+                cooldown.reset();
+                check((Integer) get(cooldown, "duration") == config.getShootingFrecuency(),
+                        "Ordered campaign firing has a stable interval without random difficulty spikes");
+            }
+            previousHealth = health;
+            previousInterval = config.getShootingFrecuency();
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         Core.getLogger().setUseParentHandlers(false);
         SoundManager.getInstance().setMuted(true);
@@ -515,7 +748,13 @@ public final class CampaignMovementTest {
             System.out.println("PASS: stage " + stage + " full routes, bounds, spacing, edge cleanup and shooting");
             screenLifecycle(stage);
             System.out.println("PASS: stage " + stage + " pause/freeze/resume, collisions, clear, next stage and restart");
+            firingOrders(stage);
+            System.out.println("PASS: stage " + stage + " layout overlap, firing order, cooldown and cleared groups");
+            batchCompatibility(stage);
+            System.out.println("PASS: stage " + stage + " sparse batches retain layout, types, health, patrol and firing groups");
         }
+        difficultyProgression();
+        if (args.length > 0) screenshots(java.nio.file.Path.of(args[0]));
         System.out.println("PASS: " + checks + " campaign movement checks");
     }
 }

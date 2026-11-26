@@ -15,6 +15,8 @@ import engine.soundEngine.SoundManager;
  * 
  */
 public class EnemyShip extends Entity {
+	public static final int WIDTH = 24;
+	public static final int HEIGHT = 16;
 	
 	/** Point value of a type A enemy. */
 	private static final int A_TYPE_POINTS = 10;
@@ -54,7 +56,7 @@ public class EnemyShip extends Entity {
 	 */
 	public EnemyShip(final int positionX, final int positionY,
 			final SpriteType spriteType) {
-		super(positionX, positionY, 12 * 2, 8 * 2, Color.WHITE);
+		super(positionX, positionY, WIDTH, HEIGHT, Color.WHITE);
 
 		this.spriteType = spriteType;
 		this.animationCooldown = Core.getCooldown(500);
