@@ -455,6 +455,10 @@ public final class EndlessMode extends Screen {
             if(controls.down(key))return true;
         return false;
     }
+    /** In-run Quit must be available during READY; post-run Back keeps its entry guard. */
+    @Override protected boolean navigationReady(){
+        return run.getPhase()!=Run.Phase.OVER || super.navigationReady();
+    }
     @Override protected Rectangle navigationBounds(){
         return new Rectangle(width-78,height-(run.getPhase()==Run.Phase.BOSS_INTRO?68:112),66,28);
     }

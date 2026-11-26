@@ -125,11 +125,14 @@ public class Screen {
 
     protected String navigationLabel() { return "< Back"; }
 
+    /** Ordinary menus retain their guard against accidental activation on entry. */
+    protected boolean navigationReady() { return inputDelay.checkFinished(); }
+
     protected final boolean takeNavigationClick() {
         boolean down = inputManager.isLeftMousePressed();
         boolean clicked = down && !navigationMouseWasDown;
         navigationMouseWasDown = down;
-        return navigationVisible() && inputDelay.checkFinished() && clicked
+        return navigationVisible() && navigationReady() && clicked
                 && navigationBounds().contains(inputManager.getMouseX(),inputManager.getMouseY());
     }
 

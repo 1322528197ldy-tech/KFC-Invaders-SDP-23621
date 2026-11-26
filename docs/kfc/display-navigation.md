@@ -70,3 +70,18 @@ and preserves its stages 6-9 movement, language selection, HD renderer and
 Settings-based tester profile. Window labels and navigation follow the selected
 language. Test-code entry survives focus loss, and a quick Escape closes only
 the dialog before a subsequent fresh press returns from Settings.
+
+## KAN-23: Quit during the startup countdown
+
+Campaign and Endless Quit are available during the countdown and open their
+existing confirmations with No selected. Esc/P cancels; confirming Yes follows
+the existing results/cash-out flow. Gameplay countdowns, ordinary menu guards
+and Endless post-run Back guards remain in place. `CountdownQuitChecks` covers
+the displayed 3/2/1 phases, four sizes, stages 1/10, held inputs, cancellation,
+No/Yes and inherited clicks. `EndlessQuitPhaseChecks` additionally covers READY,
+BOSS_INTRO and REWARD, preserved timers/offers/reroll state and exactly-once
+settlement through a test-only event provider.
+
+```sh
+python tests/display/verify-display.py --suite screen.CountdownQuitChecks --suite screen.EndlessQuitPhaseChecks
+```

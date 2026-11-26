@@ -9,6 +9,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 DISPLAY = [
+    "screen.CountdownQuitChecks",
+    "screen.EndlessQuitPhaseChecks",
     "screen.PlayInputChecks", "screen.EscapeResponseChecks", "screen.MenuResponseChecks",
     "screen.NavigationChecks", "screen.GameplaySizeChecks", "screen.DisplaySizeChecks",
     "screen.WindowPolishChecks",
@@ -80,7 +82,9 @@ def main():
                 shutil.copytree(ROOT / "res", working / "res")
             previews = output / suite
             previews.mkdir(exist_ok=True)
-            service.write_text("engine.ConnectedSystemsChecks$Probe\n" if suite == "engine.ConnectedSystemsChecks" else "", encoding="ascii")
+            providers = {"engine.ConnectedSystemsChecks": "engine.ConnectedSystemsChecks$Probe",
+                         "screen.EndlessQuitPhaseChecks": "screen.EndlessQuitPhaseChecks$FinishProbe"}
+            service.write_text(providers.get(suite, "") + "\n", encoding="ascii")
             with (output / (suite + ".log")).open("w", encoding="utf-8") as log:
                 result = subprocess.run([java, "-Djava.awt.headless=" + str(suite not in NATIVE).lower(),
                                          "-Duser.language=en", "-cp", str(local_jar) + os.pathsep + str(fixtures),

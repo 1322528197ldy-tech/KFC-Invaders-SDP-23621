@@ -968,6 +968,8 @@ public class GameScreen extends Screen {
     }
 
     @Override protected boolean navigationVisible() { return !levelFinished && lives > 0; }
+    /** Quit uses the existing confirmation even while the startup countdown blocks play. */
+    @Override protected boolean navigationReady() { return true; }
     @Override protected java.awt.Rectangle navigationBounds() {
         return new java.awt.Rectangle(width-78,height-112,66,28);
     }
