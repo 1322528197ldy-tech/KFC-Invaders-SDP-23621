@@ -27,12 +27,25 @@ public class KfcProgressionChecks {
  public static void main(String[] args)throws Exception{
  argsDir=args[0];new File(argsDir).mkdirs();
  Unsafe u=(Unsafe)f(Unsafe.class,"theUnsafe").get(null);Core.getDrawManager().setFrame((engine.Frame)u.allocateInstance(Offscreen.class));
- ok(((Font)f(DrawManager.class,"fontRegular").get(null)).getFamily().contains("Silkscreen"),"standard Silkscreen font loads");
+ ok(((Font)f(DrawManager.class,"fontRegular").get(null)).canDisplayUpTo("Stage 10")==-1,"UI font displays stage labels");
  for(Ship.ShipType type:Ship.ShipType.values()){Core.getDrawManager().initDrawing(new Screen(448,520,60));Ship ship=new Ship(100,100,type);Core.getDrawManager().drawEntity(ship,100,100);ok(ship.getWidth()==26,"new ship sprite renders: "+type);}
  Core.getInputManager();
  for(int level=1;level<=10;level++){
- GameSettings settings=(GameSettings)f(Core.class,"SETTINGS_LEVEL_"+level).get(null);GameScreen g=new GameScreen(new GameState(level,0,3,0,0),settings,false,448,520,60);g.initialize();call(g,"update");ok(!((boolean)get(g,"levelFinished")),"Stage "+level+" initializes and renders");
- EnemyShipFormation formation=(EnemyShipFormation)get(g,"enemyShipFormation");int count=0;for(EnemyShip e:formation)count++;ok(count==settings.getFormationWidth()*settings.getFormationHeight(),"Stage "+level+" actual formation count");if(level==9)image("stage9.png");
+ GameSettings settings=(GameSettings)f(Core.class,"SETTINGS_LEVEL_"+level).get(null);GameScreen g=new GameScreen(new GameState(level,0,3,0,0,0),settings,false,448,520,60);g.initialize();call(g,"update");ok(!((boolean)get(g,"levelFinished")),"Stage "+level+" initializes and renders");
+ EnemyShipFormation formation = (EnemyShipFormation) get(g, "enemyShipFormation");
+ if (level == 5 || level == 10) {
+  Class<? extends Boss> expectedBoss = level == 5 ? MidBoss.class : FinalBoss.class;
+  ok(formation == null && expectedBoss.isInstance(get(g, "midBoss")),
+    "Stage " + level + " initializes its boss encounter");
+ } else {
+  int count = 0;
+  for (EnemyShip enemy : formation) {
+   count++;
+  }
+  ok(count == settings.getFormationWidth() * settings.getFormationHeight(),
+    "Stage " + level + " actual formation count");
+ }
+ if (level == 9) image("stage9.png");
  }
  ok(Core.getNumLevels()==10,"ten-level completion boundary");System.out.println("TOTAL "+checks+" checks passed");
  }

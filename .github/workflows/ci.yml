@@ -26,6 +26,38 @@ jobs:
       - name: Check resources referenced by code exist
         run: test -f res/graphics && test -f res/scores
 
+  kfc-regression:
+    name: ${{ matrix.suite }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [KfcBossChecks, KfcProgressionChecks]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Compile and run with isolated saves and settings
+        shell: bash
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: |
+          suite_dir="$(mktemp -d "$RUNNER_TEMP/kfc-check.XXXXXXXX")"
+          classes="$suite_dir/classes"
+          resources="$GITHUB_WORKSPACE/res"
+          mkdir -p "$classes"
+          mapfile -d '' -t sources < <(find src -name '*.java' -print0)
+          javac --release 17 -encoding UTF-8 -d "$classes" \
+            "${sources[@]}" "tests/kfc/$SUITE.java"
+
+          # Saves use the class directory's parent; UI settings use the working directory.
+          cd "$suite_dir"
+          java -Djava.awt.headless=true -cp "$classes:$resources" "$SUITE" "$suite_dir/screenshots"
+
   # Runs the game for a few seconds on a virtual display and fails if it
   # throws. Compiling is not enough: a missing font made the game die on the
   # first frame while the window stayed open, which looked like a white screen
