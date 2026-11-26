@@ -5,6 +5,7 @@ import engine.Core;
 import engine.I18n;
 import engine.I18n.Language;
 import engine.TesterMode;
+import engine.WindowSettings;
 import java.awt.event.KeyEvent;
 import java.awt.Color;
 import java.awt.Font;
@@ -19,8 +20,9 @@ public class SettingsScreen extends Screen {
 	/** Milliseconds between selection steps. */
 	private static final int SELECTION_TIME = 200;
 	/** Spacing between menu items. */
-	private static final int SPACING = 23;
-	private static final int LANGUAGE_ROW = 2;
+	private static final int SPACING = 18;
+	private static final int WINDOW_ROW = 2;
+	private static final int LANGUAGE_ROW = 3;
 	private static final int ROW_COUNT = LANGUAGE_ROW + 1;
 	private static final Language[] LANGUAGES = Language.values();
 	private static final Font LANGUAGE_FONT = new Font(Font.DIALOG, Font.PLAIN, 14);
@@ -31,7 +33,7 @@ public class SettingsScreen extends Screen {
 	/** Current selected menu item. */
 	private int currentMenuItem = 0;
 	/** Vertical distance between the BGM and SFX sliders. */
-	private static final int SLIDER_ROW_SPACING = 68;
+	private static final int SLIDER_ROW_SPACING = 52;
 	/** Slider currently being dragged, or -1 when none is active. */
 	private int draggingSlider = -1;
 	/** Whether the left mouse button was pressed on the previous frame. */
@@ -41,6 +43,7 @@ public class SettingsScreen extends Screen {
 	private boolean wrongCode;
 	private boolean escapeWasDown;
 	private boolean enterWasDown;
+    private boolean confirmWasPressed;
 
 	/**
 	 * Constructor, establishes the properties of the screen.
@@ -66,7 +69,18 @@ public class SettingsScreen extends Screen {
 		this.mouseWasPressed = this.inputManager.isLeftMousePressed();
 		this.escapeWasDown = this.inputManager.isKeyDown(KeyEvent.VK_ESCAPE);
 		this.enterWasDown = this.inputManager.isKeyDown(KeyEvent.VK_ENTER);
+        this.confirmWasPressed = confirmDown();
 	}
+
+    private boolean confirmDown() {
+        return inputManager.isKeyDown(KeyEvent.VK_ENTER) || inputManager.isKeyDown(KeyEvent.VK_SPACE);
+    }
+    private void changeWindowSize(int direction) {
+        drawManager.applyWindowMode(WindowSettings.mode().step(direction));
+    }
+    private int windowSizeY() { return sliderY(1) + 64; }
+    private Rectangle backButtonBounds() { return new Rectangle(12,12,90,28); }
+    private boolean backButtonContains(int x,int y) { return backButtonBounds().contains(x,y); }
 
 	/** Returns the current volume as a percentage. */
 	private int getVolumePercent(final Sound.Category category) {
@@ -105,15 +119,19 @@ public class SettingsScreen extends Screen {
 		boolean click = mousePressed && !this.mouseWasPressed;
 		boolean escapeDown = this.inputManager.isKeyDown(KeyEvent.VK_ESCAPE);
 		boolean enterDown = this.inputManager.isKeyDown(KeyEvent.VK_ENTER);
-		boolean escape = escapeDown && !this.escapeWasDown;
+		boolean escape = takeEscapePress();
+        boolean confirm = confirmDown();
 		boolean enter = enterDown && !this.enterWasDown;
 		this.escapeWasDown = escapeDown;
 		this.enterWasDown = enterDown;
 
 		if (this.testDialog) {
 			updateTestDialog(click, enter, escape);
-		} else if (this.inputDelay.checkFinished()) {
-			if (escape) {
+        } else if (escape) {
+            this.draggingSlider = -1;
+            this.isRunning = false;
+        } else if (this.inputDelay.checkFinished()) {
+            if (click && backButtonContains(inputManager.getMouseX(), inputManager.getMouseY())) {
 				this.draggingSlider = -1;
 				this.isRunning = false;
 			} else if (click && this.draggingSlider == -1 && hovered(testButton())) {
@@ -138,15 +156,19 @@ public class SettingsScreen extends Screen {
 						adjustSelection(-1);
 						this.selectionCooldown.reset();
 					} else if (this.inputManager.isKeyDown(KeyEvent.VK_RIGHT)) {
-						adjustSelection(1);
-						this.selectionCooldown.reset();
-					}
+                        adjustSelection(1);
+                        this.selectionCooldown.reset();
+                    } else if (currentMenuItem == WINDOW_ROW && confirm && !confirmWasPressed) {
+                        changeWindowSize(1);
+                        this.selectionCooldown.reset();
+                    }
 				}
 			}
 		}
 
-		this.mouseWasPressed = mousePressed;
-		draw();
+        this.mouseWasPressed = mousePressed;
+        this.confirmWasPressed = confirm;
+        draw();
 	}
 
 	private Rectangle testButton() {
@@ -184,7 +206,9 @@ public class SettingsScreen extends Screen {
 	}
 
 	private void adjustSelection(int direction) {
-		if (this.currentMenuItem == LANGUAGE_ROW)
+        if (this.currentMenuItem == WINDOW_ROW)
+            changeWindowSize(direction);
+        else if (this.currentMenuItem == LANGUAGE_ROW)
 			I18n.cycle(direction);
 		else
 			adjustSelectedVolume(direction * 10);
@@ -199,7 +223,17 @@ public class SettingsScreen extends Screen {
 	private void updateMouse(final boolean mousePressed) {
 		int mouseX = this.inputManager.getMouseX();
 		int mouseY = this.inputManager.getMouseY();
-		boolean moved = this.inputManager.isMouseMoved();
+        boolean moved = this.inputManager.isMouseMoved();
+        boolean onWindowSize = mouseX >= 20 && mouseX < getWidth() - 20
+                && mouseY >= windowSizeY() - 16 && mouseY <= windowSizeY() + 10;
+        if (draggingSlider == -1 && onWindowSize) {
+            if (moved) currentMenuItem = WINDOW_ROW;
+            if (mousePressed && !mouseWasPressed) {
+                currentMenuItem = WINDOW_ROW;
+                changeWindowSize(mouseX < getWidth() / 2 ? -1 : 1);
+            }
+            return;
+        }
 
 		if (this.draggingSlider == -1) {
 			for (int index = 0; index < LANGUAGES.length; index++) {
@@ -290,7 +324,7 @@ public class SettingsScreen extends Screen {
 	}
 
 	private int languageY() {
-		return sliderY(1) + 62;
+		return windowSizeY() + 62;
 	}
 
 	private Rectangle languageOption(int index) {
@@ -306,7 +340,7 @@ public class SettingsScreen extends Screen {
 	 * @return Vertical position of the text baseline.
 	 */
 	private int bindingY(final int row) {
-		return languageY() + 72 + SPACING * row;
+		return languageY() + 61 + SPACING * row;
 	}
 
 	/**
@@ -404,6 +438,27 @@ public class SettingsScreen extends Screen {
 				(getWidth() - this.drawManager.getRegularStringWidth(label)) / 2, baseline, color);
 	}
 
+    private void drawWindowSize() {
+        int y=windowSizeY();
+        drawManager.drawMenuRow(this,"Window size",y-24,false);
+        drawManager.drawMenuRow(this,WindowSettings.mode().label,y,currentMenuItem==2);
+        Color color=currentMenuItem==2?Color.GREEN:Color.GRAY;
+        for(int x:new int[]{20,getWidth()-46}) {
+            drawManager.fillBox(x,y-17,26,28,new Color(12,24,17));
+            drawManager.drawBox(x,y-17,26,28,color);
+            drawManager.drawRegularString(x==20?"<":">",x+8,y+2,color);
+        }
+        drawManager.drawMenuRow(this,WindowSettings.isSaved()?I18n.format("Applied: %s",drawManager.displaySizeLabel()):"Applied - not saved",y+26,false);
+    }
+    private void drawBackButton() {
+        Rectangle b=backButtonBounds();
+        boolean hover=backButtonContains(inputManager.getMouseX(),inputManager.getMouseY());
+        Color color=hover?Color.GREEN:Color.GRAY;
+        drawManager.fillBox(b.x,b.y,b.width,b.height,new Color(8,20,13));
+        drawManager.drawBox(b.x,b.y,b.width-1,b.height-1,color);
+        drawManager.drawRegularString("< " + I18n.text("Back"),b.x+10,b.y+19,color);
+    }
+
 	/**
 	 * Draws the volume sliders, key bindings and footer.
 	 */
@@ -412,7 +467,9 @@ public class SettingsScreen extends Screen {
 		this.drawManager.drawScreenTitle(
 				this, MenuItem.SETTINGS.getTitle());
 
-		drawVolumeSlider(0, "BGM", Sound.Category.BGM);
+        drawBackButton();
+        drawWindowSize();
+        drawVolumeSlider(0, "BGM", Sound.Category.BGM);
 		drawVolumeSlider(1, "SFX", Sound.Category.SFX);
 		drawLanguages();
 
@@ -430,11 +487,10 @@ public class SettingsScreen extends Screen {
 		this.drawManager.drawMenuRow(
 				this, "- Shoot: Space -", bindingY(3), false);
 
-		this.drawManager.drawMenuRow(
-				this, "- Back: ESC -", bindingY(4), false);
 
-		this.drawManager.drawKeyHints(
-				this, "Up/Down: select | Left/Right: adjust | Esc: back");
+        String hint = "arrows adjust, click size, esc back";
+        this.drawManager.drawSmallString(hint,
+                (getWidth() - drawManager.getSmallStringWidth(hint)) / 2, getHeight() - 52, Color.GRAY);
 
 		Rectangle test = testButton();
 		boolean enabled = TesterMode.isEnabled();

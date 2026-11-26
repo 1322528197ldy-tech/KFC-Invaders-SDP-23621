@@ -85,7 +85,8 @@ public class TitleScreen extends Screen {
 
 		final boolean escapeDown =
 				this.inputManager.isKeyDown(KeyEvent.VK_ESCAPE);
-		final boolean escapePressed = escapeDown && !this.escapeWasDown;
+		final boolean escapePressed = inputManager.consumeEscapePress()
+                || (escapeDown && !this.escapeWasDown);
 		this.escapeWasDown = escapeDown;
 
 		final boolean confirmDown =
@@ -95,14 +96,16 @@ public class TitleScreen extends Screen {
 		this.confirmWasDown = confirmDown;
 
 		starfield.update();
-		draw();
+        if (!this.showingExitConfirm) optionalEndless("updateHover");
+        updateSelection(escapePressed,confirmPressed);
+        // Present the selection handled in this update, without an extra frame of delay.
+        draw();
+	}
 
-		if (!this.inputDelay.checkFinished()) {
-			return;
-		}
-		if (!this.showingExitConfirm && optionalEndless("updateEntry")) return;
-
+    private void updateSelection(final boolean escapePressed, final boolean confirmPressed) {
 		if (escapePressed) {
+            // Dismiss the frontmost entry/password dialog before touching the parent menu.
+            if (!this.showingExitConfirm && optionalEndless("dismissEntry")) return;
 			if (this.showingExitConfirm) {
 				closeExitConfirm();
 			} else {
@@ -110,6 +113,8 @@ public class TitleScreen extends Screen {
 			}
 			return;
 		}
+		if (!this.inputDelay.checkFinished()) return;
+		if (!this.showingExitConfirm && optionalEndless("updateEntry")) return;
 
 		if (this.showingExitConfirm) {
 			updateExitConfirm(confirmPressed);
@@ -135,7 +140,6 @@ public class TitleScreen extends Screen {
 				}
 			}
 		}
-
 	}
 
 	/**

@@ -151,6 +151,12 @@ public class ShipSelectScreen extends Screen {
 	 */
 	protected final void update() {
 		super.update();
+        if (takeEscapePress() || takeNavigationClick()) {
+            this.returnCode = 1;
+            this.isRunning = false;
+            draw();
+            return;
+        }
 
 		if (this.keysWereDown == null) {
 			// Keys and clicks still held from the menu must not act here.
@@ -184,7 +190,7 @@ public class ShipSelectScreen extends Screen {
 			toggleUpgrade();
 		} else if (confirm && this.row == Row.EFFECT) {
 			toggleEffect();
-		} else if (pressed(KeyEvent.VK_ESCAPE) || confirm) {
+		} else if (confirm) {
 			this.isRunning = false;
 		} else if (pressed(KeyEvent.VK_UP) || pressed(KeyEvent.VK_W)) {
 			this.row = Row.values()[Math.floorMod(this.row.ordinal() - 1,

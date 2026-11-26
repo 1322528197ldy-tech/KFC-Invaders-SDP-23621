@@ -79,6 +79,14 @@ public class CashOutScreen extends Screen {
 	 */
 	protected final void update() {
 		super.update();
+        if (takeEscapePress() || takeNavigationClick()) {
+            engine.DiamondManager.getInstance().addDiamonds(this.pendingDiamonds);
+            this.cashedOut = true;
+            this.returnCode = 1;
+            this.isRunning = false;
+            draw();
+            return;
+        }
 		draw();
 
 		boolean spaceDown = inputManager.isKeyDown(KeyEvent.VK_SPACE);
@@ -91,15 +99,7 @@ public class CashOutScreen extends Screen {
 		if (!this.inputDelay.checkFinished())
 			return;
 
-		if (escapeDown) {
-			// Bank what's been earned so far, then end the run.
-			DiamondManager.getInstance().addDiamonds(this.pendingDiamonds);
-			this.cashedOut = true;
-			this.isRunning = false;
-			this.logger.info("Cashed out " + this.pendingDiamonds
-					+ " diamonds, balance: "
-					+ DiamondManager.getInstance().getDiamonds());
-		} else if (spaceDown) {
+		if (spaceDown) {
 			// Push on: diamonds stay pending, at risk.
 			this.isRunning = false;
 			this.logger.info("Continuing with " + this.pendingDiamonds
@@ -114,6 +114,8 @@ public class CashOutScreen extends Screen {
 	public final boolean didCashOut() {
 		return this.cashedOut;
 	}
+
+    @Override protected String navigationLabel() { return "Cash out"; }
 
 	/**
 	 * Draws the elements associated with the screen.

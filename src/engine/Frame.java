@@ -18,6 +18,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
+import java.lang.reflect.InvocationTargetException;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import screen.Screen;
@@ -57,13 +58,18 @@ public class Frame extends JFrame {
                 Math.min(preferred.height, height / 2) + chrome.top + chrome.bottom));
         surface.setPreferredSize(preferred);
         pack();
+        resizeFor(WindowSettings.mode());
         setLocationRelativeTo(null);
         setVisible(true);
         surface.createBufferStrategy(2);
         addWindowFocusListener(new WindowAdapter() {
+            @Override public void windowLostFocus(WindowEvent event) { resetInputs(); }
             @Override public void windowGainedFocus(WindowEvent event) {
                 surface.requestFocusInWindow();
             }
+        });
+        addWindowListener(new WindowAdapter() {
+            @Override public void windowIconified(WindowEvent event) { resetInputs(); }
         });
         surface.requestFocusInWindow();
     }
@@ -154,7 +160,16 @@ public class Frame extends JFrame {
         return rasterSize(view, width, height, transform.getScaleX(), transform.getScaleY());
     }
 
-    void present(BufferedImage image) {
+    public void present(BufferedImage image) {
+        presentNative(image, Color.BLACK);
+    }
+
+    public void present(BufferedImage image, Color surround) {
+        if (surface == null) { present(image); return; }
+        presentNative(image, surround);
+    }
+
+    private void presentNative(BufferedImage image, Color surround) {
         if (surface == null || !surface.isShowing() || (getExtendedState() & ICONIFIED) != 0)
             return;
         BufferStrategy buffers = surface.getBufferStrategy();
@@ -164,7 +179,7 @@ public class Frame extends JFrame {
             Graphics2D graphics = (Graphics2D) buffers.getDrawGraphics();
             try {
                 Rectangle view = viewport();
-                graphics.setColor(Color.BLACK);
+                graphics.setColor(surround);
                 graphics.fillRect(0, 0, surface.getWidth(), surface.getHeight());
                 graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
                         RenderingHints.VALUE_INTERPOLATION_BILINEAR);
@@ -178,5 +193,45 @@ public class Frame extends JFrame {
                     return;
             }
         }
+    }
+
+    public int getLogicalWidth() { return gameWidth; }
+    public int getLogicalHeight() { return gameHeight; }
+
+    private void resetInputs() {
+        for (KeyListener listener : getKeyListeners())
+            if (listener instanceof ResettableInput resettable) resettable.resetInput();
+    }
+
+    private static void onEventThread(Runnable action) {
+        if (SwingUtilities.isEventDispatchThread()) { action.run(); return; }
+        try { SwingUtilities.invokeAndWait(action); }
+        catch (InterruptedException error) { Thread.currentThread().interrupt(); throw new IllegalStateException(error); }
+        catch (InvocationTargetException error) { throw new IllegalStateException(error.getCause()); }
+    }
+
+    public void applyWindowMode(WindowSettings.Mode mode) {
+        if (surface != null) onEventThread(() -> resizeFor(mode));
+        WindowSettings.select(mode);
+    }
+
+    public String displaySizeLabel() {
+        return surface == null ? "Preview" : super.getWidth() + "x" + super.getHeight();
+    }
+
+    private void resizeFor(WindowSettings.Mode mode) {
+        GraphicsConfiguration configuration = getGraphicsConfiguration();
+        Rectangle area = new Rectangle(configuration.getBounds());
+        Insets reserved = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+        area.x += reserved.left; area.y += reserved.top;
+        area.width = Math.max(1, area.width - reserved.left - reserved.right);
+        area.height = Math.max(1, area.height - reserved.top - reserved.bottom);
+        Dimension size = mode.fit(area.width, area.height);
+        int cx = getX() + super.getWidth() / 2, cy = getY() + super.getHeight() / 2;
+        setExtendedState(NORMAL);
+        setSize(size);
+        setLocation(Math.max(area.x, Math.min(area.x + area.width - size.width, cx - size.width / 2)),
+                Math.max(area.y, Math.min(area.y + area.height - size.height, cy - size.height / 2)));
+        validate();
     }
 }

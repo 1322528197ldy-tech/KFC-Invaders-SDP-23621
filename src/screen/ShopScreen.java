@@ -172,6 +172,12 @@ public class ShopScreen extends Screen {
 	 */
 	protected final void update() {
 		super.update();
+        if (takeEscapePress() || takeNavigationClick()) {
+            this.returnCode = 1;
+            this.isRunning = false;
+            draw();
+            return;
+        }
 
 		if (this.keysWereDown == null) {
 			// Keys and clicks still held from the menu must not buy anything.
@@ -205,9 +211,7 @@ public class ShopScreen extends Screen {
 
 	/** Reacts to key presses. */
 	private void handleKeys() {
-		if (pressed(KeyEvent.VK_ESCAPE)) {
-			this.isRunning = false;
-		} else if (pressed(KeyEvent.VK_LEFT) || pressed(KeyEvent.VK_A)) {
+		if (pressed(KeyEvent.VK_LEFT) || pressed(KeyEvent.VK_A)) {
 			showTab(Tab.values()[Math.floorMod(this.tab.ordinal() - 1,
 					Tab.values().length)]);
 		} else if (pressed(KeyEvent.VK_RIGHT) || pressed(KeyEvent.VK_D)) {

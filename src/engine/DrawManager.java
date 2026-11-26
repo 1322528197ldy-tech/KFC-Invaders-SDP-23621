@@ -20,6 +20,7 @@ import java.util.logging.Logger;
 import screen.MenuItem;
 import screen.Screen;
 import screen.Starfield;
+import screen.StartupScreen;
 import entity.Boss;
 import entity.Coin;
 import entity.DiamondDrop;
@@ -284,6 +285,12 @@ public final class DrawManager {
 	public void setFrame(final Frame currentFrame) {
 		frame = currentFrame;
 	}
+    /** Changes the display size without changing the current simulation or screen. */
+    public void applyWindowMode(WindowSettings.Mode mode) {
+        if(frame!=null)frame.applyWindowMode(mode);else WindowSettings.select(mode);
+    }
+    public String displaySizeLabel() {return frame==null?"Preview":frame.displaySizeLabel();}
+
 
 	/**
 	 * First part of the drawing process. Initialices buffers, draws the
@@ -349,7 +356,9 @@ public final class DrawManager {
 	 */
 	public void completeDrawing(final Screen screen) {
 		setWorldOffset(0, 0);
-		frame.present(backBuffer);
+        screen.drawNavigation();
+        frame.present(backBuffer,screen instanceof StartupScreen
+                ?new Color(backBuffer.getRGB(0,0)):Color.BLACK);
 	}
 
 	/**

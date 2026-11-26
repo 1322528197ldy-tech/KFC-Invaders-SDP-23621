@@ -43,6 +43,8 @@ public class Screen {
 	/** What kind of screen goes next. */
 	protected int returnCode;
 
+    private boolean navigationMouseWasDown;
+
 	/**
 	 * Constructor, establishes the properties of the screen.
 	 * 
@@ -64,6 +66,9 @@ public class Screen {
 		this.inputDelay = Core.getCooldown(INPUT_DELAY);
 		this.inputDelay.reset();
 		this.returnCode = 0;
+        this.navigationMouseWasDown = inputManager.isLeftMousePressed();
+        // The key used to leave the previous page must not also leave this one.
+        inputManager.consumeEscapePress();
 	}
 
 	/**
@@ -104,6 +109,43 @@ public class Screen {
 	 */
 	protected void update() {
 	}
+
+    /** Back is immediate; activation delays apply only to forward/destructive choices. */
+    protected final boolean takeEscapePress() { return inputManager.consumeEscapePress(); }
+
+    /** Menus keep the original canvas and share one scaled, edge-triggered Back button. */
+    protected boolean navigationVisible() {
+        return getClass() != Screen.class && !(this instanceof TitleScreen)
+                && !(this instanceof StartupScreen) && !(this instanceof SettingsScreen);
+    }
+
+    protected java.awt.Rectangle navigationBounds() {
+        return new java.awt.Rectangle(12,12,90,28);
+    }
+
+    protected String navigationLabel() { return "< Back"; }
+
+    /** Ordinary menus retain their guard against accidental activation on entry. */
+    protected boolean navigationReady() { return inputDelay.checkFinished(); }
+
+    protected final boolean takeNavigationClick() {
+        boolean down = inputManager.isLeftMousePressed();
+        boolean clicked = down && !navigationMouseWasDown;
+        navigationMouseWasDown = down;
+        return navigationVisible() && navigationReady() && clicked
+                && navigationBounds().contains(inputManager.getMouseX(),inputManager.getMouseY());
+    }
+
+    /** Called after content so the navigation control remains readable. */
+    public final void drawNavigation() {
+        if (!navigationVisible()) return;
+        java.awt.Rectangle b = navigationBounds();
+        boolean hover = b.contains(inputManager.getMouseX(),inputManager.getMouseY());
+        java.awt.Color color = hover ? java.awt.Color.GREEN : java.awt.Color.GRAY;
+        drawManager.fillBox(b.x,b.y,b.width,b.height,new java.awt.Color(8,20,13));
+        drawManager.drawBox(b.x,b.y,b.width-1,b.height-1,color);
+        drawManager.drawRegularString(navigationLabel(),b.x+10,b.y+19,color);
+    }
 
 	/**
 	 * Getter for screen width.

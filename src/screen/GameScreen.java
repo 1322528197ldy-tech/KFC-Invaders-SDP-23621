@@ -419,6 +419,8 @@ public class GameScreen extends Screen {
 		this.coinDropManager = new CoinDropManager();
 		this.pauseKeyCooldown = Core.getCooldown(PAUSE_KEY_DEBOUNCE);
 		this.escapeWasDown = this.inputManager.isKeyDown(KeyEvent.VK_ESCAPE);
+        this.inputManager.consumeEscapePress();
+        this.inputManager.consumePausePress();
 		this.pauseSelectionCooldown = Core.getCooldown(PAUSE_SELECTION_DEBOUNCE);
 		this.pauseSelection = PauseOption.RESUME;
 		this.pauseStartedAt = 0;
@@ -478,6 +480,35 @@ public class GameScreen extends Screen {
 	 */
 	protected final void update() {
 		super.update();
+        final boolean escapeDown = inputManager.isKeyDown(KeyEvent.VK_ESCAPE);
+        final boolean escapePressed = inputManager.consumeEscapePress()
+                || (escapeDown && !this.escapeWasDown);
+        this.escapeWasDown = escapeDown;
+        final boolean pausePressed = inputManager.consumePausePress();
+        // Backing out is always safe, even if firing/movement keys are still held.
+        if ((escapePressed || pausePressed) && this.paused && this.pauseConfirm.isOpen()) {
+            this.pauseConfirm.close();
+            this.navigationAwaitingRelease = false;
+            this.pauseSpaceWasDown = inputManager.isKeyDown(KeyEvent.VK_SPACE);
+            this.pauseKeyCooldown.reset();
+            draw();return;
+        }
+        if (takeNavigationClick()) {
+            if (!this.paused) {
+                this.paused = true;
+                this.pauseStartedAt = System.currentTimeMillis();
+                if (this.ghostTrail != null) this.ghostTrail.clear();
+            }
+            this.pauseSpaceWasDown = inputManager.isKeyDown(KeyEvent.VK_SPACE);
+            this.pauseConfirm.open(PauseConfirm.Action.NORMAL_QUIT);
+            this.navigationAwaitingRelease = true;
+            draw();
+            return;
+        }
+        if (navigationAwaitingRelease) {
+            if (navigationKeysHeld()) { draw(); return; }
+            navigationAwaitingRelease = false;
+        }
 		// Item System (Team CS): item bonuses on top of the base fire rate,
 		// bullet speed and movement speed (stacks and the boost item).
 		this.ship.setItemBonuses(
@@ -487,20 +518,8 @@ public class GameScreen extends Screen {
 		// Animated skins (GoG); plain skins return the same colour.
 		this.ship.setSkinColor(this.skin.colorAt(System.currentTimeMillis()));
 
-		final boolean escapeDown = inputManager.isKeyDown(KeyEvent.VK_ESCAPE);
-		final boolean escapePressed = escapeDown && !this.escapeWasDown;
-		this.escapeWasDown = escapeDown;
 		if (!this.levelFinished && this.lives > 0
-				&& (inputManager.isKeyDown(KeyEvent.VK_P) || escapePressed)
-				&& this.pauseKeyCooldown.checkFinished()) {
-			if (this.paused && this.pauseConfirm.isOpen()) {
-				// P / Esc on the confirmation only backs out to the pause
-				// menu; it takes a second press to resume.
-				this.pauseConfirm.close();
-				this.pauseKeyCooldown.reset();
-				draw();
-				return;
-			}
+				&& (pausePressed || escapePressed)) {
 			if (this.paused)
 				resumeGameplay();
 			else {
@@ -939,6 +958,23 @@ public class GameScreen extends Screen {
 	/**
 	 * Draws the elements associated with the screen.
 	 */
+    private boolean navigationAwaitingRelease;
+
+    private boolean navigationKeysHeld() {
+        for (int key : new int[]{KeyEvent.VK_A,KeyEvent.VK_D,KeyEvent.VK_LEFT,KeyEvent.VK_RIGHT,
+                KeyEvent.VK_SPACE,KeyEvent.VK_P,KeyEvent.VK_ESCAPE})
+            if (inputManager.isKeyDown(key)) return true;
+        return false;
+    }
+
+    @Override protected boolean navigationVisible() { return !levelFinished && lives > 0; }
+    /** Quit uses the existing confirmation even while the startup countdown blocks play. */
+    @Override protected boolean navigationReady() { return true; }
+    @Override protected java.awt.Rectangle navigationBounds() {
+        return new java.awt.Rectangle(width-78,height-112,66,28);
+    }
+    @Override protected String navigationLabel() { return "Quit"; }
+
 	private void draw() {
 		drawManager.initDrawing(this);
 

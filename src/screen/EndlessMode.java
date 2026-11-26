@@ -173,6 +173,30 @@ public final class EndlessMode extends Screen {
         return true;
     }
 
+    /** Visual hover feedback is independent of the guard against accidental activation. */
+    public static boolean updateHover(Screen screen) throws ReflectiveOperationException {
+        prepareMenu(screen);
+        if (gateOpen || (Boolean)menuField("showingExitConfirm").get(screen)) return true;
+        int hovered = menuAt(screen,controls.takeHover());
+        if (hovered >= 0 && hovered != menuIndex) {
+            menuIndex = hovered;
+            if (menuIndex != 1)
+                menuField("selected").set(screen,MenuItem.values()[menuIndex==0?0:menuIndex-1]);
+            MenuSounds.playMove();
+        }
+        return true;
+    }
+
+    /** Escape backs out of exactly one visible layer, independently of activation delays. */
+    public static boolean dismissEntry(Screen screen) throws ReflectiveOperationException {
+        prepareMenu(screen);
+        controls.take(KeyEvent.VK_ESCAPE);
+        if (!gateOpen) return false;
+        else gateOpen = false;
+        controls.clear();
+        return true;
+    }
+
     public static boolean updateEntry(Screen screen) throws Exception {
         prepareMenu(screen);
         Point click = controls.takeClick();
@@ -194,9 +218,8 @@ public final class EndlessMode extends Screen {
             return true;
         }
         if (escape) return false; // Let the original menu show its exit confirmation.
+        updateHover(screen);
         int previousIndex = menuIndex;
-        int hovered = menuAt(screen, controls.takeHover());
-        if (hovered >= 0) menuIndex = hovered;
         if (controls.take(KeyEvent.VK_UP) | controls.take(KeyEvent.VK_W))
             menuIndex = Math.floorMod(menuIndex-1, MenuItem.values().length+1);
         if (controls.take(KeyEvent.VK_DOWN) | controls.take(KeyEvent.VK_S))
@@ -231,6 +254,8 @@ public final class EndlessMode extends Screen {
             again = boundFrame.setScreen(game) == 8;
             controls.clear();
         } while (again);
+        Core.getInputManager().consumeEscapePress();
+        Core.getInputManager().consumePausePress();
         menuField("escapeWasDown").set(screen, Core.getInputManager().isKeyDown(KeyEvent.VK_ESCAPE));
     }
 
@@ -298,6 +323,25 @@ public final class EndlessMode extends Screen {
     @Override protected void update() {
         long now=System.nanoTime();
         double dt=Math.min(.1,(now-previousTime)/1_000_000_000.0); previousTime=now;
+        if (run.getPhase()==Run.Phase.PAUSED && pauseConfirm.isOpen()
+                && (controls.take(KeyEvent.VK_ESCAPE) | controls.take(KeyEvent.VK_P))) {
+            pauseConfirm.close();navigationAwaitingRelease=false;
+            controls.discardPresses();draw();return;
+        }
+        if (takeNavigationClick()) {
+            controls.takeClick();
+            if (run.getPhase()==Run.Phase.OVER) {
+                systems.leave();returnCode=1;isRunning=false;return;
+            }
+            if (run.getPhase()!=Run.Phase.PAUSED) run.togglePause();
+            openPauseConfirm(PauseConfirm.Action.ENDLESS_QUIT);
+            controls.discardPresses();navigationAwaitingRelease=true;
+            draw();return;
+        }
+        if (navigationAwaitingRelease) {
+            if (navigationKeysHeld()) { controls.discardPresses();draw();return; }
+            controls.discardPresses();navigationAwaitingRelease=false;
+        }
         Run.Phase before=run.getPhase();
         boolean esc=controls.take(KeyEvent.VK_ESCAPE), pause=controls.take(KeyEvent.VK_P);
         boolean enter=controls.take(KeyEvent.VK_ENTER), quit=controls.take(KeyEvent.VK_Q);
@@ -403,6 +447,22 @@ public final class EndlessMode extends Screen {
         systems.getShopEffects().frame(player,playing,advancing,run.getLives(),run.countdown,dt);
         draw();
     }
+
+    private boolean navigationAwaitingRelease;
+    private boolean navigationKeysHeld() {
+        for(int key:new int[]{KeyEvent.VK_A,KeyEvent.VK_D,KeyEvent.VK_LEFT,KeyEvent.VK_RIGHT,
+                KeyEvent.VK_SPACE,KeyEvent.VK_ENTER,KeyEvent.VK_P,KeyEvent.VK_ESCAPE,KeyEvent.VK_Q})
+            if(controls.down(key))return true;
+        return false;
+    }
+    /** In-run Quit must be available during READY; post-run Back keeps its entry guard. */
+    @Override protected boolean navigationReady(){
+        return run.getPhase()!=Run.Phase.OVER || super.navigationReady();
+    }
+    @Override protected Rectangle navigationBounds(){
+        return new Rectangle(width-78,height-(run.getPhase()==Run.Phase.BOSS_INTRO?68:112),66,28);
+    }
+    @Override protected String navigationLabel(){return run.getPhase()==Run.Phase.OVER?"< Back":"Quit";}
 
     /** Opens the Yes/No step; movement keys held during play must not pre-select Yes. */
     private void openPauseConfirm(PauseConfirm.Action action) {
@@ -760,6 +820,7 @@ public final class EndlessMode extends Screen {
         }
         @Override public int run(){super.run();return 1;}
         @Override protected void update(){
+            if(takeEscapePress() || takeNavigationClick())isRunning=false;
             drawManager.initDrawing(this);
             drawManager.drawScreenTitle(this,"ENDLESS RECORDS");
             drawManager.drawCenteredRegularString(this,testing?"QA PERSONAL BESTS":"PERSONAL BESTS",height/3);
@@ -767,11 +828,10 @@ public final class EndlessMode extends Screen {
             drawManager.drawCenteredRegularString(this,I18n.format("SURVIVED %ds",best.getSeconds()),height/2+12);
             drawManager.drawCenteredRegularString(this,I18n.format("ENEMIES %d",best.getKills()),height/2+44);
             drawManager.drawKeyHints(this,"esc back");drawManager.completeDrawing(this);
-            if(inputManager.isKeyDown(KeyEvent.VK_ESCAPE) && inputDelay.checkFinished())isRunning=false;
         }
     }
 
-    private static final class Controls extends MouseAdapter implements KeyListener {
+    private static final class Controls extends MouseAdapter implements KeyListener, ResettableInput {
         private final boolean[] down=new boolean[256], pressed=new boolean[256];
         private Point click, hover;
         private boolean moved;
@@ -792,6 +852,7 @@ public final class EndlessMode extends Screen {
         synchronized Point pointer(){return hover==null?null:new Point(hover);}
         synchronized void discardPresses(){java.util.Arrays.fill(pressed,false);click=null;}
         synchronized void clear(){discardPresses();java.util.Arrays.fill(down,false);moved=false;}
+        @Override public synchronized void resetInput(){clear();}
         @Override public synchronized void mousePressed(MouseEvent e){if(e.getButton()==MouseEvent.BUTTON1)click=engine.Frame.gameClick(e);}
         @Override public synchronized void mouseMoved(MouseEvent e){hover=engine.Frame.gamePoint(e);moved=true;}
     }
