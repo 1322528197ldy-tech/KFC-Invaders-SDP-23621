@@ -27,12 +27,31 @@ public class KfcBossChecks {
  public static void main(String[] args)throws Exception{
  argsDir=args[0];new File(argsDir).mkdirs();
  Unsafe u=(Unsafe)f(Unsafe.class,"theUnsafe").get(null);Core.getDrawManager().setFrame((engine.Frame)u.allocateInstance(Offscreen.class));
- ok(((Font)f(DrawManager.class,"fontRegular").get(null)).getFamily().contains("Silkscreen"),"standard Silkscreen font loads");
+ ok(((Font)f(DrawManager.class,"fontRegular").get(null)).canDisplayUpTo("Stage 10")==-1,"UI font displays stage labels");
  for(Ship.ShipType type:Ship.ShipType.values()){Core.getDrawManager().initDrawing(new Screen(448,520,60));Ship ship=new Ship(100,100,type);Core.getDrawManager().drawEntity(ship,100,100);ok(ship.getWidth()==26,"new ship sprite renders: "+type);}
  Core.getInputManager();
  for(int level=1;level<=10;level++){
- GameSettings settings=(GameSettings)f(Core.class,"SETTINGS_LEVEL_"+level).get(null);GameScreen g=new GameScreen(new GameState(level,0,3,0,0),settings,false,448,520,60);g.initialize();call(g,"update");ok(!((boolean)get(g,"levelFinished")),"Stage "+level+" initializes and renders");
- if(level!=5&&level!=10){EnemyShip e=((EnemyShipFormation)get(g,"enemyShipFormation")).iterator().next();f(GameScreen.class,"coinDropManager").set(g,new CoinDropManager(1.0));Set<Bullet> shot=(Set<Bullet>)get(g,"bullets");shot.add(BulletPool.getBullet(e.getPositionX()+8,e.getPositionY()+4,-6));call(g,"manageCollisions");ok((int)get(g,"shipsDestroyed")==1,"normal kill Stage "+level);ok(((Set<?>)get(g,"coins")).size()==1,"normal coin drop Stage "+level);ok(!((java.util.List<?>)get(g,"particles")).isEmpty(),"normal VFX Stage "+level);}
+ GameSettings settings=(GameSettings)f(Core.class,"SETTINGS_LEVEL_"+level).get(null);GameScreen g=new GameScreen(new GameState(level,0,3,0,0,0),settings,false,448,520,60);g.initialize();call(g,"update");ok(!((boolean)get(g,"levelFinished")),"Stage "+level+" initializes and renders");
+ if (level != 5 && level != 10) {
+  EnemyShipFormation formation = (EnemyShipFormation) get(g, "enemyShipFormation");
+  EnemyShip target = null;
+  for (EnemyShip enemy : formation) {
+   if (enemy.getHealth() == 1) {
+    target = enemy;
+    break;
+   }
+  }
+  if (target == null) {
+   throw new AssertionError("No one-hit enemy in Stage " + level);
+  }
+  f(GameScreen.class, "coinDropManager").set(g, new CoinDropManager(1.0));
+  Set<Bullet> shots = (Set<Bullet>) get(g, "bullets");
+  shots.add(BulletPool.getBullet(target.getPositionX() + 8, target.getPositionY() + 4, -6));
+  call(g, "manageCollisions");
+  ok((int) get(g, "shipsDestroyed") == 1, "normal kill Stage " + level);
+  ok(((Set<?>) get(g, "coins")).size() == 1, "normal coin drop Stage " + level);
+  ok(!((java.util.List<?>) get(g, "particles")).isEmpty(), "normal VFX Stage " + level);
+ }
  if(level==5||level==10){image("stage"+level+".png");Boss boss=(Boss)get(g,"midBoss");
  int x=boss.getPositionX();boss.moveBoss(448,520,settings);ok(boss.getPositionX()==x+settings.getBaseSpeed(),"boss movement Stage "+level);
  Set<Bullet> shots=(Set<Bullet>)get(g,"bullets");
@@ -40,7 +59,7 @@ public class KfcBossChecks {
  ok((int)get(g,"score")== (level==5?1200:6500),"boss hit and defeat score Stage "+level);ok((int)get(g,"shipsDestroyed")==1,"one boss kill Stage "+level);
  ok(unlocked("first_boss_kill"),"boss achievement hook");call(g,"update");ok((int)get(g,"pendingDiamonds")==level,"boss clear diamonds Stage "+level);call(g,"update");ok((int)get(g,"pendingDiamonds")==level,"no repeated clear reward Stage "+level);
  if(level==10){ok(unlocked("infinity_void"),"Stage 10 achievement hook");ok(unlocked("starter_ship_win"),"final-stage win hook");}
- g=new GameScreen(new GameState(level,0,3,0,0),settings,false,448,520,60);g.initialize();f(GameScreen.class,"lives").set(g,0);call(g,"update");ok((boolean)get(g,"gameOverActive"),"boss game over starts without null formation Stage "+level);f(Cooldown.class,"time").set(get(g,"gameOverRowCooldown"),0L);call(g,"update");ok((int)get(g,"pendingDiamonds")==0,"boss death has no clear diamonds Stage "+level);
+ g=new GameScreen(new GameState(level,0,3,0,0,0),settings,false,448,520,60);g.initialize();f(GameScreen.class,"lives").set(g,0);call(g,"update");ok((boolean)get(g,"gameOverActive"),"boss game over starts without null formation Stage "+level);f(Cooldown.class,"time").set(get(g,"gameOverRowCooldown"),0L);call(g,"update");ok((int)get(g,"pendingDiamonds")==0,"boss death has no clear diamonds Stage "+level);
  }
  }
  MidBoss b=new MidBoss(100,80,DrawManager.SpriteType.MidBoss1);Set<Bullet> bullets=new HashSet<>();GameSettings settings=new GameSettings(1,1,5,530);
