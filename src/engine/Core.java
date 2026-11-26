@@ -63,21 +63,21 @@ public final class Core {
 			new GameSettings(5, 4, 5, 1000);
 	/** Difficulty settings for level 6. */
 	private static final GameSettings SETTINGS_LEVEL_6 =
-			new GameSettings(6, 3, 10, 1000, GameSettings.MovementPattern.SERPENTINE_PATROL,
-					Math.round(6 * 3 * 0.20f), GameSettings.FormationLayout.THREE_SQUADS,
+			new GameSettings(6, 4, 10, 900, GameSettings.MovementPattern.SERPENTINE_PATROL,
+					2, GameSettings.FormationLayout.THREE_SQUADS,
 					GameSettings.FiringPattern.LEFT_TO_RIGHT);
 	/** Difficulty settings for level 7. */
 	private static final GameSettings SETTINGS_LEVEL_7 =
-			new GameSettings(6, 5, 5, 850, GameSettings.MovementPattern.FIGURE_EIGHT_PATROL, 0,
-					GameSettings.FormationLayout.FORWARD_WINGS, GameSettings.FiringPattern.OUTSIDE_IN);
+			new GameSettings(10, 6, 5, 750, GameSettings.MovementPattern.FIGURE_EIGHT_PATROL, 4,
+					GameSettings.FormationLayout.HOLLOW_FRAME, GameSettings.FiringPattern.OUTSIDE_IN);
 	/** Difficulty settings for level 8. */
 	private static final GameSettings SETTINGS_LEVEL_8 =
-			new GameSettings(7, 5, 3, 700, GameSettings.MovementPattern.SIX_POINT_PATROL, 0,
-					GameSettings.FormationLayout.COMB, GameSettings.FiringPattern.INSIDE_OUT);
+			new GameSettings(8, 8, 3, 625, GameSettings.MovementPattern.SIX_POINT_PATROL, 6,
+					GameSettings.FormationLayout.CROSS, GameSettings.FiringPattern.INSIDE_OUT);
 	/** Difficulty settings for level 9. */
 	private static final GameSettings SETTINGS_LEVEL_9 =
-			new GameSettings(7, 5, 1, 550, GameSettings.MovementPattern.MIXED_PATROL,
-					Math.round(7 * 5 * 0.20f), GameSettings.FormationLayout.OFFSET_WINGS,
+			new GameSettings(7, 7, 1, 500, GameSettings.MovementPattern.MIXED_PATROL,
+					8, GameSettings.FormationLayout.CROSSING_RANKS,
 					GameSettings.FiringPattern.PATROL_SEQUENCE);
 	/** Difficulty settings for level 10. */
 	private static final GameSettings SETTINGS_LEVEL_10 =

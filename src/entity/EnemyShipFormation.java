@@ -131,6 +131,8 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 	private int firingStep;
 	private final int spawnWidth;
 	private final int spawnHeight;
+	private final boolean partialSpawn;
+
 	/** Diagonal travel from the spawn position, independent of which ships remain. */
 	private int diagonalPatrolOffset;
 	private int diagonalPatrolStep = Y_SPEED;
@@ -162,6 +164,36 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 		DOWN
 	};
 
+	/** Stable whole-level slot, including its machine type and health before batching. */
+	public record SpawnSlot(int column, int row, SpriteType spriteType, int health) {
+		public SpawnSlot {
+			java.util.Objects.requireNonNull(spriteType);
+			if (health < 1) throw new IllegalArgumentException("Enemy health must be positive");
+		}
+	}
+
+	/** Create once per level, then partition this immutable plan into batches. */
+	public static List<SpawnSlot> createSpawnPlan(GameSettings settings) {
+		List<Integer> occupied = new ArrayList<>();
+		int columns = settings.getFormationWidth();
+		int rows = settings.getFormationHeight();
+		for (int row = 0; row < rows; row++)
+			for (int column = 0; column < columns; column++)
+				if (settings.getFormationLayout().occupies(column, row, columns, rows))
+					occupied.add(row * columns + column);
+		Collections.shuffle(occupied);
+		Set<Integer> elites = new HashSet<>(occupied.subList(0, settings.getTwoHitEnemyCount()));
+		Collections.sort(occupied);
+		List<SpawnSlot> plan = new ArrayList<>();
+		for (int position : occupied) {
+			int row = position / columns;
+			SpriteType sprite = row / (float) rows < PROPORTION_C ? SpriteType.EnemyShipC1
+					: row / (float) rows < PROPORTION_B + PROPORTION_C ? SpriteType.EnemyShipB1 : SpriteType.EnemyShipA1;
+			plan.add(new SpawnSlot(position % columns, row, sprite, elites.contains(position) ? 2 : 1));
+		}
+		return List.copyOf(plan);
+	}
+
 	/**
 	 * Constructor, sets the initial conditions.
 	 * 
@@ -169,6 +201,11 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 	 *            Current game settings.
 	 */
 	public EnemyShipFormation(final GameSettings gameSettings) {
+		this(gameSettings, createSpawnPlan(gameSettings));
+	}
+
+	/** A batch uses original slot coordinates and the whole layout's patrol envelope. */
+	public EnemyShipFormation(final GameSettings gameSettings, final List<SpawnSlot> slots) {
 		this.drawManager = Core.getDrawManager();
 		this.logger = Core.getLogger();
 		this.enemyShips = new ArrayList<List<EnemyShip>>();
@@ -190,7 +227,7 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 		this.positionX = INIT_POS_X;
 		this.positionY = INIT_POS_Y;
 		this.shooters = new ArrayList<EnemyShip>();
-		SpriteType spriteType;
+		this.partialSpawn = slots.size() < gameSettings.getEnemyCount();
 
 		this.logger.info("Initializing " + nShipsWide + "x" + nShipsHigh
 				+ " ship formation in (" + positionX + "," + positionY + ")");
@@ -199,55 +236,46 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 		for (int i = 0; i < this.nShipsWide; i++)
 			this.enemyShips.add(new ArrayList<EnemyShip>());
 
-		// Sample without replacement so every position is equally eligible.
-		List<Integer> positions = new ArrayList<Integer>();
-		for (int i = 0; i < this.nShipsWide * this.nShipsHigh; i++)
-			positions.add(i);
-		Collections.shuffle(positions);
-		Set<Integer> elitePositions = new HashSet<Integer>(
-				positions.subList(0, gameSettings.getTwoHitEnemyCount()));
-
-		for (List<EnemyShip> column : this.enemyShips) {
-			for (int i = 0; i < this.nShipsHigh; i++) {
-				if (i / (float) this.nShipsHigh < PROPORTION_C)
-					spriteType = SpriteType.EnemyShipC1;
-				else if (i / (float) this.nShipsHigh < PROPORTION_B
-						+ PROPORTION_C)
-					spriteType = SpriteType.EnemyShipB1;
-				else
-					spriteType = SpriteType.EnemyShipA1;
-
-				int positionIndex = i * this.nShipsWide
-						+ this.enemyShips.indexOf(column);
-				int health = elitePositions.contains(positionIndex) ? 2 : 1;
-				int columnIndex = this.enemyShips.indexOf(column);
-				GameSettings.FormationLayout layout = gameSettings.getFormationLayout();
-				EnemyShip enemy = new EnemyShip(SEPARATION_DISTANCE * columnIndex + positionX
-						+ layout.columnOffsetX(columnIndex, this.nShipsWide),
-						SEPARATION_DISTANCE * i + positionY
-						+ layout.columnOffsetY(columnIndex, this.nShipsWide), spriteType, health);
-				column.add(enemy);
-				this.originalColumns.put(enemy, columnIndex);
-				this.shipCount++;
-			}
+		GameSettings.FormationLayout layout = gameSettings.getFormationLayout();
+		Set<Integer> selected = new HashSet<>();
+		for (SpawnSlot slot : slots) {
+			if (slot.column() < 0 || slot.column() >= this.nShipsWide || slot.row() < 0 || slot.row() >= this.nShipsHigh
+					|| !layout.occupies(slot.column(), slot.row(), this.nShipsWide, this.nShipsHigh)
+					|| !selected.add(slot.row() * this.nShipsWide + slot.column()))
+				throw new IllegalArgumentException("Batch slots must be distinct positions in the level layout");
+			EnemyShip enemy = new EnemyShip(SEPARATION_DISTANCE * slot.column() + positionX
+					+ layout.columnOffsetX(slot.column(), this.nShipsWide),
+					SEPARATION_DISTANCE * slot.row() + positionY
+					+ layout.columnOffsetY(slot.column(), this.nShipsWide) + layout.rowOffsetY(slot.row()),
+					slot.spriteType(), slot.health());
+			this.enemyShips.get(slot.column()).add(enemy);
+			this.originalColumns.put(enemy, slot.column());
+			this.shipCount++;
 		}
 
-		this.shipWidth = this.enemyShips.get(0).get(0).getWidth();
-		this.shipHeight = this.enemyShips.get(0).get(0).getHeight();
+		this.shipWidth = EnemyShip.WIDTH;
+		this.shipHeight = EnemyShip.HEIGHT;
 
 		int right = INIT_POS_X;
 		int bottom = INIT_POS_Y;
-		for (EnemyShip enemy : this) {
-			right = Math.max(right, enemy.getPositionX() + enemy.getWidth());
-			bottom = Math.max(bottom, enemy.getPositionY() + enemy.getHeight());
-		}
+		for (int column = 0; column < this.nShipsWide; column++)
+			for (int row = 0; row < this.nShipsHigh; row++)
+				if (layout.occupies(column, row, this.nShipsWide, this.nShipsHigh)) {
+					right = Math.max(right, INIT_POS_X + SEPARATION_DISTANCE * column
+							+ layout.columnOffsetX(column, this.nShipsWide) + this.shipWidth);
+					bottom = Math.max(bottom, INIT_POS_Y + SEPARATION_DISTANCE * row
+							+ layout.columnOffsetY(column, this.nShipsWide) + layout.rowOffsetY(row) + this.shipHeight);
+				}
 		this.spawnWidth = right - INIT_POS_X;
 		this.spawnHeight = bottom - INIT_POS_Y;
 		this.width = this.spawnWidth;
 		this.height = this.spawnHeight;
 
-		for (List<EnemyShip> column : this.enemyShips)
-			this.shooters.add(column.get(column.size() - 1));
+		for (List<EnemyShip> column : this.enemyShips) {
+			column.sort(java.util.Comparator.comparingInt(EnemyShip::getPositionY));
+			EnemyShip shooter = getNextShooter(column);
+			if (shooter != null) this.shooters.add(shooter);
+		}
 	}
 
 	/**
@@ -275,11 +303,16 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 	 */
 	public final void update() {
 		if(this.shootingCooldown == null) {
-			this.shootingCooldown = Core.getVariableCooldown(shootingInterval,
-					shootingVariance);
+			this.shootingCooldown = this.firingPattern == FiringPattern.RANDOM
+					? Core.getVariableCooldown(shootingInterval, shootingVariance)
+					: Core.getCooldown(shootingInterval);
 			this.shootingCooldown.reset();
 		}
 		
+		if (isEmpty()) {
+			moveFormation(0, 0);
+			return;
+		}
 		cleanUp();
 		switch (this.movementPattern) {
 		case DIAMOND_PATROL:
@@ -416,6 +449,10 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 
 		int leftWall = this.patrolOffsetX + SIDE_MARGIN - left;
 		int rightWall = this.patrolOffsetX + this.screen.getWidth() - SIDE_MARGIN - right;
+		if (this.partialSpawn) {
+			leftWall = 0;
+			rightWall = this.screen.getWidth() - SIDE_MARGIN - INIT_POS_X - this.spawnWidth;
+		}
 		double[][] path = diamond ? DIAMOND_PATH : RECTANGLE_PATH;
 		double[] end = path[this.wallPatrolLeg + 1];
 		// A rectangle's vertical sides keep their horizontal position until the next horizontal leg.
@@ -484,6 +521,7 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 
 	private void advancePatrol() {
 		int cycleFrames = switch (this.movementPattern) {
+			case SERPENTINE_PATROL -> 1080;
 			case FIGURE_EIGHT_PATROL -> 600;
 			case SIX_POINT_PATROL -> 540;
 			case MIXED_PATROL -> 480;
@@ -528,6 +566,10 @@ public class EnemyShipFormation implements Iterable<EnemyShip> {
 
 			int leftWall = this.patrolOffsetX + SIDE_MARGIN - left;
 			int rightWall = this.patrolOffsetX + this.screen.getWidth() - SIDE_MARGIN - right;
+			if (this.partialSpawn) {
+				leftWall = 0;
+				rightWall = this.screen.getWidth() - SIDE_MARGIN - INIT_POS_X - this.spawnWidth;
+			}
 			int target = leftWall + (int) Math.round((rightWall - leftWall) * next.x());
 			int direction = Double.compare(next.x(), patrolPointAt(this.patrolFrame, cycleFrames).x());
 			// A shrinking formation can move the target behind us. Keep the current
