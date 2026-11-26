@@ -8,6 +8,36 @@ package engine;
  */
 public class GameSettings {
 
+	public enum FormationLayout {
+		GRID, STAIRCASE, SPLIT_WINGS, FORWARD_CENTER,
+		THREE_SQUADS, FORWARD_WINGS, COMB, OFFSET_WINGS;
+
+		public int columnOffsetX(int column, int columns) {
+			return switch (this) {
+				case SPLIT_WINGS, OFFSET_WINGS -> column >= columns / 2 ? 40 : 0;
+				case FORWARD_CENTER, THREE_SQUADS, FORWARD_WINGS -> (column / 2) * 16;
+				default -> 0;
+			};
+		}
+
+		public int columnOffsetY(int column, int columns) {
+			return switch (this) {
+				case STAIRCASE -> column * 8;
+				case FORWARD_CENTER -> column >= columns / 3 && column < 2 * columns / 3 ? 24 : 0;
+				case THREE_SQUADS -> (column / 2) * 16;
+				case FORWARD_WINGS -> column < 2 || column >= columns - 2 ? 32 : 0;
+				case COMB -> (column % 2) * 24;
+				case OFFSET_WINGS -> column >= columns / 2 ? 32 : 0;
+				default -> 0;
+			};
+		}
+	}
+
+	public enum FiringPattern {
+		RANDOM, ALTERNATING_SIDES, CENTER_WINGS, LEFT_TO_RIGHT,
+		OUTSIDE_IN, INSIDE_OUT, PATROL_SEQUENCE
+	}
+
 	public enum MovementPattern {
 		CLASSIC,
 		DIAGONAL,
@@ -33,6 +63,8 @@ public class GameSettings {
 	private int twoHitEnemyCount;
 	/** Movement pattern used by the entire formation. */
 	private final MovementPattern movementPattern;
+	private final FormationLayout formationLayout;
+	private final FiringPattern firingPattern;
 
 	/**
 	 * Constructor.
@@ -72,6 +104,15 @@ public class GameSettings {
 	public GameSettings(final int formationWidth, final int formationHeight,
 			final int baseSpeed, final int shootingFrecuency,
 			final MovementPattern movementPattern, final int twoHitEnemyCount) {
+		this(formationWidth, formationHeight, baseSpeed, shootingFrecuency,
+				movementPattern, twoHitEnemyCount, FormationLayout.GRID, FiringPattern.RANDOM);
+	}
+
+	/** Configures a campaign layout and a sequence of exposed single shooters. */
+	public GameSettings(final int formationWidth, final int formationHeight,
+			final int baseSpeed, final int shootingFrecuency,
+			final MovementPattern movementPattern, final int twoHitEnemyCount,
+			final FormationLayout formationLayout, final FiringPattern firingPattern) {
 		if (twoHitEnemyCount < 0
 				|| (twoHitEnemyCount > 0
 						&& twoHitEnemyCount >= formationWidth * formationHeight))
@@ -83,6 +124,8 @@ public class GameSettings {
 		this.baseSpeed = baseSpeed;
 		this.shootingFrecuency = shootingFrecuency;
 		this.movementPattern = movementPattern;
+		this.formationLayout = java.util.Objects.requireNonNull(formationLayout);
+		this.firingPattern = java.util.Objects.requireNonNull(firingPattern);
 	}
 
 	/**
@@ -148,6 +191,14 @@ public class GameSettings {
 
 	public final MovementPattern getMovementPattern() {
 		return this.movementPattern;
+	}
+
+	public final FormationLayout getFormationLayout() {
+		return this.formationLayout;
+	}
+
+	public final FiringPattern getFiringPattern() {
+		return this.firingPattern;
 	}
 
 }
